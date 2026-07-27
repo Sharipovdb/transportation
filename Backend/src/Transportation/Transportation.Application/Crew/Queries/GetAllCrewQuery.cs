@@ -1,10 +1,8 @@
-﻿using Ardalis.Specification;
-using Transportation.Application.Crew.Models;
+﻿using Transportation.Application.Crew.Models;
 using Transportation.Application.Crew.Repositories;
-using Transportation.Mediator.Helper.Common.Extensions;
 using Transportation.Mediator.Helper.Common.Models;
-using Transportation.Mediator.Helper.Persistence;
 using Transportation.Mediator.Helper.Queries;
+using Transportation.Application.Crew.Specification;
 
 namespace Transportation.Application.Crew.Queries;
 
@@ -30,33 +28,28 @@ internal sealed class GetAllCrewQueryHandler : IQueryHandler<GetAllCrewQuery, Pa
 
     public async Task<PaginatedResult<CrewDto>> Handle(GetAllCrewQuery request, CancellationToken cancellationToken)
     {
-        var spec = new ReadOnlySpecification<Domain.Entities.Crew>();
+        var countSpec = new GetAllCrewSpec(
+            request.Name,
+            request.RouteId,
+            request.CrewLeadId,
+            request.DriverLeadId,
+            request.SeatCapacity
+        );
 
-        if (request.Name is not null)
-            spec.Query.Where(x => x.Name.Contains(request.Name));
+        var listSpec = new GetAllCrewSpec(
+            request.Name,
+            request.RouteId,
+            request.CrewLeadId,
+            request.DriverLeadId,
+            request.SeatCapacity,
+            request.PaginationInfo
+        );
 
-        if (request.RouteId.HasValue)
-            spec.Query.Where(x => x.RouteId == request.RouteId);
+        var totalCount = await _crewRepository.CountAsync(countSpec, cancellationToken);
+        var entities = await _crewRepository.ListAsync(listSpec, cancellationToken);
 
-        if (request.CrewLeadId.HasValue)
-            spec.Query.Where(x => x.CrewLeadId == request.CrewLeadId);
+        var mappedEntities = _mapper.Map(entities);
 
-        if (request.DriverLeadId.HasValue)
-            spec.Query.Where(x => x.DriverLeadId == request.DriverLeadId);
-
-        if (request.SeatCapacity.HasValue)
-            spec.Query.Where(x => x.SeatCapacity == request.SeatCapacity);
-
-        spec.Query
-            .Where(x => !x.IsDeleted)
-            .OrderBy(x => x.Name)
-            .WithPagination(request.PaginationInfo);
-
-        var entities = await _crewRepository.ListAsync(spec, cancellationToken);
-        var totalCount = await _crewRepository.CountAsync(spec, cancellationToken);
-
-        var mappedEntity = _mapper.Map(entities);
-
-        return new PaginatedResult<CrewDto>(mappedEntity, totalCount);
+        return new PaginatedResult<CrewDto>(mappedEntities, totalCount);
     }
 }

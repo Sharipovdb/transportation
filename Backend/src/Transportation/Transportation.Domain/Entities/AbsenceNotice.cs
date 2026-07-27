@@ -3,7 +3,7 @@
 public sealed class AbsenceNotice : BaseEntity
 {
     public long UserId { get; set; }
-    public User User { get; set; }
+    public User User { get; set; } = null!;
 
     public DateOnly Date { get; set; }
     public AbsenceScope Scope { get; set; }

@@ -4,7 +4,7 @@ namespace Transportation.Application.Vehicle.Models;
     {
         public long Id {get; set;}
         public long DriverId { get; set; }
-        public string Plate { get; set; }
+        public string Plate { get; set; } = string.Empty;
         public int SeatCount { get; set; }
         public decimal AmortizationBasis { get; set; }
     }

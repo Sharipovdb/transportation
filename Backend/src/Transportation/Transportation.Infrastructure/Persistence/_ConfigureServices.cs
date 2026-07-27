@@ -29,9 +29,7 @@ internal static class ConfigureServices
 
             services.AddDbContext<TransportationDbContext>(opt =>
                 {
-                    opt.UseNpgsql(
-                        connectionString,
-                        builder =>
+                    opt.UseNpgsql(connectionString, builder =>
                         {
                             builder.CommandTimeout(600);
                             builder.MigrationsAssembly(TransportationInfrastructureRef.Assembly.FullName);
@@ -40,8 +38,7 @@ internal static class ConfigureServices
                         }
                     );
 
-                    if (isDev)
-                        opt.EnableSensitiveDataLogging();
+                    if (isDev) opt.EnableSensitiveDataLogging();
                 }
             );
 

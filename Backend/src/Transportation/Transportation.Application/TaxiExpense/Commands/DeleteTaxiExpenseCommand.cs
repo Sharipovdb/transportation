@@ -2,7 +2,6 @@
 using Transportation.Application.TaxiExpense.Specifications;
 using Transportation.Domain.Entities;
 using Transportation.Mediator.Helper.Commands;
-using Transportation.Mediator.Helper.Common.Models;
 using Transportation.Mediator.Helper.Exceptions;
 using Transportation.Mediator.Helper.Persistence;
 
@@ -30,13 +29,10 @@ internal sealed class DeleteTaxiExpenseCommandHandler : ICommandHandler<DeleteTa
             throw new ResourceNotFoundException(TaxiExpenseErrors.NotFound);
 
         if (taxiExpense.TaxiExpenseStatus is not TaxiExpenseStatus.Pending)
-            throw new BusinessLogicException(new Error(
-                "TaxiExpenseErrors.NotPandingStatus",
-                "TaxiExpense can't be deleted.")
-            );
+            throw new BusinessLogicException(TaxiExpenseErrors.ExpenseNotPending);
 
         taxiExpense.IsDeleted = true;
-        
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

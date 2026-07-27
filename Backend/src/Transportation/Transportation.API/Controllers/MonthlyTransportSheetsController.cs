@@ -1,12 +1,15 @@
 ﻿using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Transportation.Application.MonthlyTransportSheet.Commands;
 using Transportation.Application.MonthlyTransportSheet.Models;
 using Transportation.Application.MonthlyTransportSheet.Queries;
 using Transportation.Mediator.Helper.Common.Models;
+using Transportation.Shared.Authorization;
 
 namespace Transportation.API.Controllers;
 
+[RoleAuthorize(RoleNames.Accountant, RoleNames.Admin)]
 public class MonthlyTransportSheetsController : BaseController
 {
     public MonthlyTransportSheetsController(IMediator mediator) : base(mediator)

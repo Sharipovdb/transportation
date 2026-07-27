@@ -2,12 +2,9 @@
 
 public record UserDto(
     long Id,
-    string? Email,
-    string Username,
-    string Firstname,
-    string LastName,
-    string PhoneNumber,
-    string TelegramId)
-{
-    public List<string> Roles { get; init; } = new();
-}
+    string? Email, 
+    string UserName, 
+    string FirstName, 
+    string LastName, 
+    string PhoneNumber, 
+    string? TelegramId);

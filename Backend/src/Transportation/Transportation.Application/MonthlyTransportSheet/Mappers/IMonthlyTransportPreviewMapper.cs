@@ -12,8 +12,7 @@ public interface IMonthlyTransportPreviewMapper
 internal sealed class MonthlyTransportPreviewMapper
     : IMonthlyTransportPreviewMapper
 {
-    public PreviewMonthlyTransportSheetResponse Map(
-        MonthlyTransportCalculationResult calculation)
+    public PreviewMonthlyTransportSheetResponse Map(MonthlyTransportCalculationResult calculation)
     {
         return new PreviewMonthlyTransportSheetResponse
         {
@@ -23,16 +22,16 @@ internal sealed class MonthlyTransportPreviewMapper
             IsConfirmed = false,
             PayoutLines = calculation.Payouts
                 .Select(x => new PayoutLineDto
-                {
-                    UserId = x.UserId,
-                    FirstName = x.FirstName,
-                    LastName = x.LastName,
-                    DriverPayment = x.DriverPayment,
-                    ExtraKmPayment = x.ExtraKmPayment,
-                    TaxiCompensation = x.TaxiCompensation,
-                    TaxiExpenses = x.TaxiExpenses
-                })
-                .ToList()
+                    {
+                        UserId = x.UserId,
+                        FirstName = x.FirstName,
+                        LastName = x.LastName,
+                        DriverPayment = x.DriverPayment,
+                        ExtraKmPayment = x.ExtraKmPayment,
+                        TaxiCompensation = x.TaxiCompensation,
+                        TaxiExpenses = x.TaxiExpenses
+                    }
+                ).ToList()
         };
     }
 }

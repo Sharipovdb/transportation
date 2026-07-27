@@ -38,9 +38,19 @@ public static class TaxiExpenseErrors
         "TaxiExpense.ExpenseNotApproved",
         "The specified taxi expense is not approved."
     );
-    
+
     public static readonly Error ExpenseMustBeApprovedBeforePayment = new(
         "TaxiExpense.ExpenseMustBeApprovedBeforePayment",
         "The taxi expense must be approved before payment."
+    );
+
+    public static readonly Error ExpenseThisLegAlreadyExist = new(
+        "TaxiExpense.ExpenseThisLegAlreadyExist",
+        "The specified taxi expense this leg already exist."
+    );
+
+    public static readonly Error ExpensePaidByNonExistentCrewMember = new(
+        "TaxiExpense.TaxiExpensePaidByNonExistentCrewMember",
+        "The crew member who paid the taxi fare is not a member of the group."
     );
 }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Transportation.Application.Auth.Models;
 using Transportation.Application.Common.Interfaces;
+using Transportation.Shared.Authorization;
 using LoginRequest = Transportation.Application.Auth.Models.LoginRequest;
 using RegisterRequest = Transportation.Application.Auth.Models.RegisterRequest;
 
@@ -15,14 +16,6 @@ public class AuthController : ControllerBase
     public AuthController(IAuthService authService)
     {
         _authService = authService;
-    }
-
-    [HttpPost("register")]
-    public async Task<IActionResult> Register([FromBody] RegisterRequest request)
-    {
-        var response = await _authService.RegisterAsync(request);
-
-        return Ok(response);
     }
 
     [HttpPost("login")]

@@ -1,13 +1,16 @@
 ﻿using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Transportation.Application.Auth.Models;
 using Transportation.Application.Common.Dtos;
 using Transportation.Application.Common.Interfaces;
 using Transportation.Application.User.Models;
 using Transportation.Application.User.Queries;
+using Transportation.Shared.Authorization;
 
 namespace Transportation.API.Controllers;
 
+[RoleAuthorize(RoleNames.Admin, RoleNames.RouteManager)]
 public class UserController : BaseController
 {
     private readonly IUserService _userService;
@@ -18,6 +21,7 @@ public class UserController : BaseController
     }
 
     [HttpGet]
+    [AllowAnonymous]
     public async Task<ApiResponse<UserDto>> GetMe()
     {
         return await _mediator.Send(new GetCurrentUser());
@@ -35,7 +39,7 @@ public class UserController : BaseController
         return await _userService.GetByIdAsync(userId);
     }
 
-    [HttpGet("by-name/{username}")]
+    [HttpGet("{username}")]
     public async Task<ApiResponse<UserDto>> GetByName(string username)
     {
         return await _userService.GetByNameAsync(username);

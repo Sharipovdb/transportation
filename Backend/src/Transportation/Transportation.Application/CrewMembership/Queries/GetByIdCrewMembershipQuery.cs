@@ -13,7 +13,8 @@ internal sealed class GetByIdCrewMembershipQueryHandler : IQueryHandler<GetByIdC
     private readonly ICrewMembershipRepository _crewMembershipRepository;
     private readonly CrewMembershipMapper _mapper;
 
-    public GetByIdCrewMembershipQueryHandler(ICrewMembershipRepository crewMembershipRepository,
+    public GetByIdCrewMembershipQueryHandler(
+        ICrewMembershipRepository crewMembershipRepository,
         CrewMembershipMapper mapper)
     {
         _crewMembershipRepository = crewMembershipRepository;
@@ -22,7 +23,7 @@ internal sealed class GetByIdCrewMembershipQueryHandler : IQueryHandler<GetByIdC
 
     public async Task<CrewMembershipDto> Handle(GetByIdCrewMembershipQuery request, CancellationToken cancellationToken)
     {
-        var spec = new CrewMembershipByIdSpec(request.Id);
+        var spec = new CrewMembershipByIdSpec(request.Id, asNoTracking: true);
         var entity = await _crewMembershipRepository.FirstOrDefaultAsync(spec, cancellationToken);
 
         if (entity is null)

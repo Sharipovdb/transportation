@@ -10,8 +10,7 @@ namespace Transportation.IntegrationTests.API;
 
 public class TransportDayEndpointsTests : IntegrationTestBase
 {
-    public TransportDayEndpointsTests(CustomWebApplicationFactory factory) 
-        : base(factory) {}
+    public TransportDayEndpointsTests(CustomWebApplicationFactory factory) : base(factory) {}
 
     [Fact]
     public async Task CreateTransportDay()
@@ -56,9 +55,7 @@ public class TransportDayEndpointsTests : IntegrationTestBase
             Confirmed = true
 
         };
-        var createResponse = await HttpClient.PostAsJsonAsync(
-            "/api/TransportDays/Create",
-            transportDay);
+        var createResponse = await HttpClient.PostAsJsonAsync("/api/TransportDays/Create", transportDay);
         var createBody = await createResponse.Content.ReadAsStringAsync();
  
         createResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);

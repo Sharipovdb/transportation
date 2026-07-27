@@ -4,31 +4,28 @@ namespace Transportation.Application.CrewMembership;
 
 public static class CrewMembershipErrors
 {
-    public static readonly Error AlreadyExists = new(
-        "CrewMembership.AlreadyExists",
-        "A CrewMembership alignment already exists for this employee and crew."
-    );
-
     public static readonly Error NotFound = new(
         "CrewMembership.NotFound",
-        "The requested CrewMembership was not found."
+        "The requested crew membership was not found."
     );
 
     public static readonly Error FullSeatCapacity = new(
         "CrewMembership.FullSeatCapacity",
-        "CrewMembership SeatCapacity is full."
+        "The crew has reached its maximum seat capacity."
     );
 
-    public static readonly Error EmployeerIsAsigned = new(
-        "CrewMembership.EmployeerIsAsigned",
-        "CrewMembership Employee is assigned to a crew."
-        );
+    public static readonly Error EmployeeIsAssigned = new(
+        "CrewMembership.EmployeeIsAssigned",
+        "The employee is already assigned to a crew."
+    );
 
-    public static readonly Error ActiveToUnderLine = new(
-        "CrewMembership.ActiveToUnderLine",
-        "CrewMembership ActiveToUnderLine");
+    public static readonly Error ActiveToInvalid = new(
+        "CrewMembership.ActiveToInvalid",
+        "The ActiveTo date is invalid."
+    );
 
-    public static readonly Error ActiveFromUnderLine = new(
-        "CrewMembership.ActiveFromUnderLine",
-        "CrewMembership ActiveFromUnderLine");
+    public static readonly Error ActiveFromInvalid = new(
+        "CrewMembership.ActiveFromInvalid",
+        "The ActiveFrom date is invalid."
+    );
 }

@@ -3,12 +3,12 @@
 public class TaxiExpense : BaseEntity
 {
     public long TransportDayId { get; set; }
-    public TransportDay TransportDay { get; set; }
+    public TransportDay TransportDay { get; set; } = null!;
 
     public Leg Leg { get; set; }
     public decimal Amount { get; set; }
     public long PaidById { get; set; }
-    public User PaidBy { get; set; }
+    public User PaidBy { get; set; } = null!;
     public TaxiExpenseStatus TaxiExpenseStatus { get; set; }
     
     public List<PayoutLineTaxiExpense> PayoutLines { get; set; } = new();

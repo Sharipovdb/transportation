@@ -28,5 +28,9 @@ public class TaxiExpenseConfiguration : IEntityTypeConfiguration<TaxiExpense>
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasIndex(x => x.TransportDayId);
+
+        builder
+            .HasIndex(x => new { x.TransportDayId, x.Leg, x.PaidById })
+            .IsUnique();
     }
 }

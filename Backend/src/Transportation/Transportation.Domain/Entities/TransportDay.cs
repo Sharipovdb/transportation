@@ -3,7 +3,7 @@
 public class TransportDay : BaseEntity
 {
     public long CrewId { get; set; }
-    public Crew Crew { get; set; }
+    public Crew Crew { get; set; } = null!;
 
     public DateTime Date { get; set; }
 
@@ -22,7 +22,7 @@ public class TransportDay : BaseEntity
     public string Notes { get; set; } = string.Empty;
 
     public long LoggedBy { get; set; }
-    public User LoggedByUser { get; set; }
+    public User LoggedByUser { get; set; } = null!;
 
     public DateTime LoggedAt { get; set; }
     public bool Confirmed { get; set; }

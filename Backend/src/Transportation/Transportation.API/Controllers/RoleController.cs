@@ -4,12 +4,14 @@ using Microsoft.AspNetCore.Mvc;
 using Transportation.Application.Common.Dtos;
 using Transportation.Application.Common.Interfaces;
 using Transportation.Application.Role.Models;
+using Transportation.Shared.Authorization;
 
 namespace Transportation.API.Controllers;
 
 [ApiController]
-[Route("api/roles")]
+[Route("api/[controller]/[action]")]
 [Authorize(AuthenticationSchemes = JwtBearerDefaults.AuthenticationScheme)]
+[Authorize(Roles = RoleNames.Admin)]
 public class RoleController : ControllerBase
 {
     private readonly IRoleService _roleService;
@@ -23,18 +25,6 @@ public class RoleController : ControllerBase
     public async Task<ApiResponse<List<string>>> GetAll()
     {
         return await _roleService.GetAllAsync();
-    }
-
-    [HttpPost]
-    public async Task<ApiResponse<string>> Create([FromBody] RoleRequest request)
-    {
-        return await _roleService.CreateAsync(request.RoleName);
-    }
-
-    [HttpDelete("{roleName}")]
-    public async Task<ApiResponse<object>> Delete(string roleName)
-    {
-        return await _roleService.DeleteAsync(roleName);
     }
 
     [HttpPost("assign")]

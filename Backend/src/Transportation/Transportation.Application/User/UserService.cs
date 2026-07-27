@@ -14,48 +14,32 @@ public class UserService (
 {
     public async Task<ApiResponse<UserDto>> GetByIdAsync(long userId)
     {
-        var user = await userManager.FindByIdAsync(userId.ToString());
-        if (user is null)
+        var user = await userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);;
+        if (user is null) 
             return ApiResponse<UserDto>.Failure("The User not found", 404);
-
-        var userDto = await MapWithRolesAsync(user);
-
+        
+        var userDto = userMapper.Map(user);
+        
         return ApiResponse<UserDto>.Success(userDto);
     }
 
     public async Task<ApiResponse<UserDto>> GetByNameAsync(string name)
     {
         var user = await userManager.FindByNameAsync(name);
-        if (user is null)
+        if (user is null) 
             return ApiResponse<UserDto>.Failure("The User not found", 404);
-
-        var userDto = await MapWithRolesAsync(user);
-
+        
+        var userDto = userMapper.Map(user);
+        
         return ApiResponse<UserDto>.Success(userDto);
     }
 
     public async Task<ApiResponse<List<UserDto>>> GetAllAsync()
     {
         var users = await userManager.Users.AsNoTracking().ToListAsync();
-
-        // Roles are fetched one user at a time (not Task.WhenAll): GetRolesAsync hits
-        // the same scoped DbContext, and running them concurrently throws
-        // "A second operation was started on this context instance".
-        var userDtos = new List<UserDto>(users.Count);
-
-        foreach (var user in users)
-        {
-            userDtos.Add(await MapWithRolesAsync(user));
-        }
+        var userDtos = userMapper.Map(users);
 
         return ApiResponse<List<UserDto>>.Success(userDtos);
-    }
-
-    private async Task<UserDto> MapWithRolesAsync(Domain.Entities.User user)
-    {
-        var roles = await userManager.GetRolesAsync(user);
-
-        return userMapper.Map(user) with { Roles = roles.ToList() };
     }
 
     public async Task<ApiResponse<string>> CreateAsync(RegisterRequest request)
@@ -70,13 +54,23 @@ public class UserService (
             TelegramId = request.TelegramId
         };
 
-        var response = await userManager.CreateAsync(user, request.Password);
-        if (!response.Succeeded)
+        var result = await userManager.CreateAsync(user, request.Password);
+
+        if (!result.Succeeded)
         {
-            return ApiResponse<string>.Failure(response.Errors.First().Description, 400);
+            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+            return ApiResponse<string>.Failure($"User creation failed: {errors}");
         }
 
-        return ApiResponse<string>.Success("User was successfully created!", 201);
+        var addRoleResult = await userManager.AddToRoleAsync(user, "Worker");
+
+        if (!addRoleResult.Succeeded)
+        {
+            return ApiResponse<string>.Failure(
+                string.Join(", ", addRoleResult.Errors.Select(e => e.Description)));
+        }
+
+        return ApiResponse<string>.Success("User created successfully", 200);
     }
 
     public async Task<ApiResponse<UserDto>> UpdateAsync(UserDto request)
@@ -84,15 +78,15 @@ public class UserService (
         var user = await userManager.FindByIdAsync(request.Id.ToString());
         if (user is null) return ApiResponse<UserDto>.Failure("The user was not found!", 404);
 
-        user.FirstName = request.Firstname;
+        user.FirstName = request.FirstName;
         user.LastName = request.LastName;
         user.Email = request.Email;
-        user.UserName = request.Username;
+        user.UserName = request.UserName;
         user.PhoneNumber = request.PhoneNumber;
         user.TelegramId = request.TelegramId;
         
         await userManager.UpdateAsync(user);
-        return ApiResponse<UserDto>.Success(await MapWithRolesAsync(user));
+        return ApiResponse<UserDto>.Success(userMapper.Map(user));
     }
 
     public async Task<ApiResponse<string>> DeleteAsync(long userId)

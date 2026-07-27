@@ -14,23 +14,23 @@ public static class CrewErrors
         "The requested crew was not found."
     );
 
-    public static readonly Error LeadIdDriverLeadIdAssigned = new(
-        "LeadId.DriverLeadId_Assigned",
-        "LeadId and DriverLeadId cannot both be assigned."
+    public static readonly Error BothLeadsAssigned = new(
+        "Crew.BothLeadsAssigned",
+        "LeadId and DriverLeadId cannot both be specified."
     );
 
     public static readonly Error LeaderAlreadyAssigned = new(
         "Crew.LeaderAlreadyAssigned",
-        "The leader is already assigned to a driver lead."
+        "The leader is already assigned to another crew."
     );
     
-    public static readonly Error LeadIdDriverLeadIdIsNull = new(
-        "Crew.LeadIdDriverLeadId_Null",
+    public static readonly Error BothLeadsNull = new(
+        "Crew.BothLeadsNull",
         "LeadId and DriverLeadId cannot both be null."
     );
 
     public static readonly Error SeatCapacityOutOfRange = new(
         "Crew.SeatCapacityOutOfRange",
-        "Seat capacity should be between 3 and 7."
+        "Seat capacity must be between 3 and 7."
     );
 }

@@ -10,25 +10,6 @@ public class RoleService (
     UserManager<Domain.Entities.User> userManager
     ) : IRoleService
 {
-    public async Task<ApiResponse<string>> CreateAsync(string roleName)
-    {
-        var response = await roleManager.FindByNameAsync(roleName);
-        if (response is not null) return ApiResponse<string>.Failure("The Role is already created!");
-        
-        await roleManager.CreateAsync(new IdentityRole<long>(roleName));
-        return ApiResponse<string>.Success("The Role created!", 201);
-    }
-
-    public async Task<ApiResponse<object>> DeleteAsync(string roleName)
-    {
-        var response = await roleManager.FindByNameAsync(roleName);
-        if (response is null) return ApiResponse<object>.Failure("The Role doesn't exist!");
-        
-        await roleManager.DeleteAsync(response);
-        
-        return ApiResponse<object>.Success("The Role deleted!", 204);
-    }
-
     public async Task<ApiResponse<object>> AssignAsync(string roleName, long userId)
     {
         var role = await roleManager.RoleExistsAsync(roleName);

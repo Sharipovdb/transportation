@@ -29,10 +29,5 @@ internal sealed class CrewConfigaration : IEntityTypeConfiguration<Crew>
             .WithMany()
             .HasForeignKey(x => x.RouteId)
             .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne(x => x.CrewLead)
-            .WithMany()
-            .HasForeignKey(x => x.CrewLeadId)
-            .OnDelete(DeleteBehavior.Restrict);
     }
 }

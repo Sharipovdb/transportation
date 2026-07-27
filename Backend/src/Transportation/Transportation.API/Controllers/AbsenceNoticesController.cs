@@ -1,12 +1,15 @@
 ﻿using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Transportation.Application.AbsenceNotice.Commands;
 using Transportation.Application.AbsenceNotice.Models;
 using Transportation.Application.AbsenceNotice.Queries;
 using Transportation.Mediator.Helper.Common.Models;
+using Transportation.Shared.Authorization;
 
 namespace Transportation.API.Controllers;
 
+[Authorize(Roles = RoleNames.Worker)]
 public class AbsenceNoticesController : BaseController
 {
     public AbsenceNoticesController(IMediator mediator) : base(mediator)

@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 using Transportation.Infrastructure.Persistence.Seeders.Interfaces;
 
 namespace Transportation.Infrastructure.Persistence;
@@ -8,38 +7,39 @@ namespace Transportation.Infrastructure.Persistence;
 internal sealed class DatabaseInitializer : IHostedService
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<DatabaseInitializer> _logger;
+    private readonly IHostEnvironment _environment;
 
-    public DatabaseInitializer(
-        IServiceProvider serviceProvider,
-        ILogger<DatabaseInitializer> logger)
+    public DatabaseInitializer(IServiceProvider serviceProvider, IHostEnvironment environment)
     {
         _serviceProvider = serviceProvider;
-        _logger = logger;
+        _environment = environment;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         await using var scope = _serviceProvider.CreateAsyncScope();
 
-        var seders = scope.ServiceProvider.GetServices<IDatabaseSeeder>();
-
-        try
+        var blankSeeders = scope.ServiceProvider
+            .GetServices<IBlankDataSeeder>()
+            .OrderBy(x => x.Order);
+        
+        foreach (var seeder in blankSeeders)
         {
-            foreach (var seeder in seders)
+            await seeder.SeedAsync();
+        }
+        
+        if (_environment.IsDevelopment())
+        {
+            var demoSeeders = scope.ServiceProvider
+                .GetServices<IDemoDataSeeder>()
+                .OrderBy(x => x.Order);
+            
+            foreach (var seeder in demoSeeders)
             {
                 await seeder.SeedAsync();
             }
         }
-        catch (Exception e)
-        {
-            _logger.LogCritical(e, "Database initialization error.");
-            throw;
-        }
     }
-
-    public Task StopAsync(CancellationToken cancellationToken)
-    {
-        return Task.CompletedTask;
-    }
+    
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

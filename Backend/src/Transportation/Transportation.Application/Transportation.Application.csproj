@@ -29,4 +29,10 @@
     <InternalsVisibleTo Include="Transportation.UnitTests" />
   </ItemGroup>
   
+  <ItemGroup>
+    <Compile Update="Crew\Specification\CrewByIdSpec.cs">
+      <DependentUpon>CrewExistsSpec.cs</DependentUpon>
+    </Compile>
+  </ItemGroup>
+  
 </Project>

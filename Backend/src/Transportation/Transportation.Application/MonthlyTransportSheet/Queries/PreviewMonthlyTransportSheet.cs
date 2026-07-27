@@ -13,7 +13,7 @@ public sealed record PreviewMonthlyTransportSheetQuery(
 ) : IQuery<PreviewMonthlyTransportSheetResponse>;
 
 // ReSharper disable once UnusedType.Global
-public sealed class PreviewMonthlyTransportSheetQueryValidator 
+public sealed class PreviewMonthlyTransportSheetQueryValidator
     : AbstractValidator<PreviewMonthlyTransportSheetResponse>
 {
     public PreviewMonthlyTransportSheetQueryValidator()
@@ -42,18 +42,13 @@ internal sealed class PreviewMonthlyTransportSheetQueryHandler
         _calculator = calculator;
         _mapper = mapper;
     }
-
-
+    
     public async Task<PreviewMonthlyTransportSheetResponse> Handle(
         PreviewMonthlyTransportSheetQuery request,
         CancellationToken cancellationToken)
     {
         var calculation = await _calculator
-            .CalculateAsync(
-                request.CrewId,
-                request.Year,
-                request.Month,
-                cancellationToken);
+            .CalculateAsync(request.CrewId, request.Year, request.Month, cancellationToken);
 
         return _mapper.Map(calculation);
     }

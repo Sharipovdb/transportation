@@ -1,5 +1,8 @@
 ﻿using Transportation.Application.MonthlyTransportSheet.Models;
 using Transportation.Mediator.Helper.Common.Extensions;
+using Transportation.Shared;
+using Transportation.Shared.Extensions;
+using Transportation.Shared.Middlewares;
 
 namespace Transportation.Application.MonthlyTransportSheet.Factories;
 
@@ -11,15 +14,18 @@ public interface IMonthlyTransportSheetFactory
 internal sealed class MonthlyTransportSheetFactory : IMonthlyTransportSheetFactory
 {
     private readonly TimeProvider _timeProvider;
+    private readonly ICurrentUserAccessor _currentUserAccessor;
 
-    public MonthlyTransportSheetFactory(TimeProvider timeProvider)
+    public MonthlyTransportSheetFactory(TimeProvider timeProvider, ICurrentUserAccessor currentUserAccessor)
     {
         _timeProvider = timeProvider;
+        _currentUserAccessor = currentUserAccessor;
     }
 
     public Domain.Entities.MonthlyTransportSheet Create(MonthlyTransportCalculationResult calculation)
     {
         var now = _timeProvider.GetLocalDateTimeNowKindUtc();
+        var currentUserId = _currentUserAccessor.GetRequiredUser().GetUserId();
 
         var sheet = new Domain.Entities.MonthlyTransportSheet
         {
@@ -27,7 +33,8 @@ internal sealed class MonthlyTransportSheetFactory : IMonthlyTransportSheetFacto
             Year = calculation.Year,
             Month = calculation.Month,
             IsConfirmed = false,
-            CreatedAt = now
+            CreatedAt = now,
+            CreatedById = currentUserId,
         };
 
         foreach (var payout in calculation.Payouts)

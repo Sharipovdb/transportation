@@ -14,7 +14,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         builder.ConfigureServices(services =>
         {
             var descriptors = services
-                .Where(d => d.ServiceType == typeof(TransportationDbContext) || 
+                .Where(d => d.ServiceType == typeof(TransportationDbContext) ||
                             d.ServiceType == typeof(DbContextOptions<TransportationDbContext>) ||
                             d.ServiceType.Name.Contains("DbContextOptions"))
                 .ToList();
@@ -23,26 +23,26 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             {
                 services.Remove(descriptor);
             }
-            
-            var initializerDescriptor = services.FirstOrDefault(d => 
-                d.ServiceType == typeof(IHostedService) && 
-                d.ImplementationType != null && 
+
+            var initializerDescriptor = services.FirstOrDefault(d =>
+                d.ServiceType == typeof(IHostedService) &&
+                d.ImplementationType != null &&
                 d.ImplementationType.Name.Contains("DatabaseInitializer"));
 
             if (initializerDescriptor is not null)
             {
                 services.Remove(initializerDescriptor);
             }
-            
+
             services.AddDbContext<TransportationDbContext>(options =>
             {
                 options.UseInMemoryDatabase("TransportationDb");
             });
-            
+
             var sp = services.BuildServiceProvider();
             using var scope = sp.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<TransportationDbContext>();
-            
+
             dbContext.Database.EnsureCreated();
         });
     }

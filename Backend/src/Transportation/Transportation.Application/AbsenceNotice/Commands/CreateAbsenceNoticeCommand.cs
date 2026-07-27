@@ -70,7 +70,7 @@ internal sealed class CreateAbsenceNoticeHandler : ICommandHandler<CreateAbsence
             Date = request.Date,
             Scope = request.Scope,
             Type = request.Type,
-            Reason = request.Reason,
+            Reason = request.Reason!,
             IsNotified = false,
             CreatedAt = _timeProvider.GetLocalDateTimeNowKindUtc()
         };

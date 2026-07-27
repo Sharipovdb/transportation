@@ -4,15 +4,14 @@ namespace Transportation.Application.CrewMembership.Specification;
 
 public sealed class ActiveCrewMembershipByUserIdSpec : Specification<Domain.Entities.CrewMembership>
 {
-    public long UserId { get; private set; }
-
-    public ActiveCrewMembershipByUserIdSpec(long userId, bool asNoTracking = false)
+    public ActiveCrewMembershipByUserIdSpec(long crewId, List<long> userIds, bool asNoTracking = false)
     {
-        UserId = userId;
-        
         if (asNoTracking)
             Query.AsNoTracking();
 
-        Query.Where(x => x.UserId == this.UserId && x.IsActive && !x.IsDeleted);
+        Query.Where(x =>
+            x.CrewId == crewId &&
+            userIds.Contains(x.UserId) &&
+            x.IsActive && !x.IsDeleted);
     }
 }

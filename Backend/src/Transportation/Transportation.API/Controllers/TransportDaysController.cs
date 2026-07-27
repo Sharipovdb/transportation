@@ -1,10 +1,12 @@
 ﻿using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Transportation.API.Models;
 using Transportation.Application.TransportDay.Commands;
 using Transportation.Application.TransportDay.Models;
 using Transportation.Application.TransportDay.Queries;
 using Transportation.Mediator.Helper.Common.Models;
+using Transportation.Shared.Authorization;
 
 namespace Transportation.API.Controllers;
 
@@ -15,6 +17,7 @@ public class TransportDaysController : BaseController
     }
 
     [HttpGet]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.Accountant, RoleNames.RouteManager)]
     public async Task<PaginatedResult<TransportDayDto>> GetAll(
         [FromQuery] GetAllTransportDays query,
         CancellationToken cancellationToken = default)
@@ -23,6 +26,7 @@ public class TransportDaysController : BaseController
     }
 
     [HttpGet("{id:long}")]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.Accountant, RoleNames.RouteManager)]
     public async Task<TransportDayDto> GetById(
         long id,
         CancellationToken cancellationToken = default)
@@ -31,6 +35,7 @@ public class TransportDaysController : BaseController
     }
 
     [HttpPost]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.CrewLead, RoleNames.DriverLead)]
     public async Task<TransportDayDto> Create(
         [FromBody] CreateTransportDayCommand command,
         CancellationToken cancellationToken = default)
@@ -39,6 +44,7 @@ public class TransportDaysController : BaseController
     }
 
     [HttpPut("{id:long}")]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.CrewLead, RoleNames.DriverLead)]
     public async Task<NoContentResult> Update(
         long id,
         [FromBody] UpdateTransportDayRequest request,
@@ -58,6 +64,7 @@ public class TransportDaysController : BaseController
     }
 
     [HttpDelete("{id:long}")]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.CrewLead, RoleNames.DriverLead)]
     public async Task<NoContentResult> Delete(
         long id,
         CancellationToken cancellationToken = default)
@@ -66,8 +73,9 @@ public class TransportDaysController : BaseController
 
         return new NoContentResult();
     }
-   // [Authorize]
+   
     [HttpPost("{id:long}/confirm")]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.CrewLead, RoleNames.DriverLead)]
     public async Task<TransportDayDto> Confirm(
         long id,
         CancellationToken cancellationToken)
@@ -76,8 +84,9 @@ public class TransportDaysController : BaseController
             new ConfirmTransportDayCommand(id),
             cancellationToken);
     }
-    //[Authorize(Roles = "Admin")]
+    
     [HttpPost("{id:long}/unconfirm")]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.CrewLead, RoleNames.DriverLead)]
     public async Task<TransportDayDto> UnConfirm(
         long id,
         CancellationToken cancellationToken)

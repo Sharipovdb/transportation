@@ -19,20 +19,6 @@ builder.Services
 builder.Services.AddJwtConfiguration(builder.Configuration);
 builder.Services.AddOpenApiDoc();
 
-const string FrontendCorsPolicy = "Frontend";
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(FrontendCorsPolicy, policy =>
-    {
-        policy
-            .WithOrigins(allowedOrigins)
-            .AllowAnyHeader()
-            .AllowAnyMethod();
-    });
-});
-
 builder.Services
     .AddProblemDetails()
     .AddExceptionHandler<ExceptionToProblemDetailsHandler>();
@@ -55,8 +41,6 @@ if (app.Environment.IsDevelopment())
 app.UseExceptionHandler();
 
 app.UseHttpsRedirection();
-
-app.UseCors(FrontendCorsPolicy);
 
 app.UseAuthentication();
 app.UseAuthorization();

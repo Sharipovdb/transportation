@@ -7,7 +7,7 @@ public class MonthlyTransportCalculationResult
     public int Year { get; set; }
 
     public int Month { get; set; }
-    
+
     public List<PayoutAccumulator> Payouts { get; set; } = [];
 
     public decimal TotalAmount => Payouts.Sum(x => x.TotalAmount);

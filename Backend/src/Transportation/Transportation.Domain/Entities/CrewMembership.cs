@@ -3,10 +3,10 @@
 public class CrewMembership : BaseEntity
 {
     public long CrewId { get; set; }
-    public Crew Crew { get; set; }
+    public Crew Crew { get; set; } = null!;
     
     public long UserId { get; set; }
-    public User User { get; set; }
+    public User User { get; set; } = null!;
     
     public DateTime ActiveFrom { get; set; }
     public DateTime? ActiveTo { get; set; }

@@ -1,9 +1,11 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Transportation.Application.Vehicle.Commands;
 using Transportation.Application.Vehicle.Models;
 using Transportation.Application.Vehicle.Queries;
 using Transportation.Mediator.Helper.Common.Models;
+using Transportation.Shared.Authorization;
 
 namespace Transportation.API.Controllers;
 
@@ -14,6 +16,7 @@ public class VehicleController : BaseController
     }
 
     [HttpGet]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.RouteManager, RoleNames.Accountant)]
     public async Task<PaginatedResult<VehicleDto>> GetAll(
         [FromQuery] GetAllVehicles query,
         CancellationToken cancellationToken = default)
@@ -22,6 +25,7 @@ public class VehicleController : BaseController
     }
 
     [HttpGet("{id:long}")]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.RouteManager, RoleNames.Accountant)]
     public async Task<VehicleDto> GetById(
         long id,
         CancellationToken cancellationToken = default)
@@ -30,6 +34,7 @@ public class VehicleController : BaseController
     }
 
     [HttpPost]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.RouteManager)]
     public async Task<VehicleDto> Create(
         [FromBody] CreateVehicleCommand command,
         CancellationToken cancellationToken = default)
@@ -38,6 +43,7 @@ public class VehicleController : BaseController
     }
 
     [HttpPut("{id:long}")]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.RouteManager)]
     public async Task<VehicleDto> Update(
         long id,
         [FromBody] UpdateVehicleRequest request,
@@ -55,6 +61,7 @@ public class VehicleController : BaseController
     }
     
     [HttpGet("{driverId:long}")]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.DriverLead, RoleNames.RouteManager)]
     public async Task<VehicleDto> GetByDriverId(
         long driverId,
         CancellationToken cancellationToken = default)
@@ -63,6 +70,7 @@ public class VehicleController : BaseController
     }
      
     [HttpDelete("{id:long}")]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.RouteManager)]
     public async Task<bool> Delete(
         long id,
         CancellationToken cancellationToken = default)

@@ -1,14 +1,15 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Transportation.Application.PayoutLine.Commands;
 using Transportation.Application.PayoutLine.Models;
 using Transportation.Application.PayoutLine.Queries;
 using Transportation.Mediator.Helper.Common.Models;
+using Transportation.Shared.Authorization;
 
 namespace Transportation.API.Controllers;
 
-[ApiController]
-[Route("api/[controller]/[action]")]
+[RoleAuthorize(RoleNames.Admin, RoleNames.Accountant)]
 public class PayoutLineController : BaseController
 {
     public PayoutLineController(IMediator mediator) : base(mediator)

@@ -61,9 +61,7 @@ internal sealed class GenerateMonthlyTransportSheetCommandHandler
         CancellationToken cancellationToken)
     {
         var exists = await _monthlyTransportSheetRepository
-            .AnyAsync(new MonthlyTransportSheetByPeriodSpec(
-                request.CrewId, request.Year, request.Month
-            ), cancellationToken);
+            .AnyAsync(new MonthlyTransportSheetByPeriodSpec(request.CrewId, request.Year, request.Month), cancellationToken);
 
         if (exists)
             throw new BusinessLogicException(MonthlyTransportSheetErrors.AlreadyExists);
@@ -76,8 +74,7 @@ internal sealed class GenerateMonthlyTransportSheetCommandHandler
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var createdMonthlyTransportSheet = await _monthlyTransportSheetRepository.FirstOrDefaultAsync(
-            new MonthlyTransportSheetWithPayoutsSpec(monthlyTransportSheet.Id),
-            cancellationToken);
+            new MonthlyTransportSheetWithPayoutsSpec(monthlyTransportSheet.Id), cancellationToken);
 
         if (createdMonthlyTransportSheet is null)
             throw new ResourceNotFoundException(MonthlyTransportSheetErrors.NotFound);

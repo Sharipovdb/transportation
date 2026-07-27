@@ -10,44 +10,9 @@ public class AuthService(
     JwtTokenService jwtTokenService
 ) : IAuthService
 {
-    public async Task<ApiResponse<string>> RegisterAsync(RegisterRequest request)
-    {
-        var user = new Domain.Entities.User
-        {
-            Email = request.Email,
-            UserName = request.Username,
-            FirstName = request.Firstname,
-            LastName = request.LastName,
-            PhoneNumber = request.PhoneNumber,
-            TelegramId = request.TelegramId
-        };
-
-        var result = await userManager.CreateAsync(user, request.Password);
-
-        if (!result.Succeeded)
-        {
-            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            return ApiResponse<string>.Failure($"Registration failed: {errors}");
-        }
-
-        var addRoleResult = await userManager.AddToRoleAsync(user, "Worker");
-
-        if (!addRoleResult.Succeeded)
-        {
-            return ApiResponse<string>.Failure(
-                string.Join(", ", addRoleResult.Errors.Select(e => e.Description)));
-        }
-
-        return ApiResponse<string>.Success("You registration successfully", 200);
-    }
-
     public async Task<ApiResponse<TokenResponse>> LoginAsync(LoginRequest request)
     {
-        // Seeded/legacy accounts have a human-readable UserName (e.g. "bekzod.manager")
-        // distinct from PhoneNumber, while accounts created via the Employees page set
-        // UserName = PhoneNumber — so accept either as the login identifier.
-        var user = await userManager.FindByNameAsync(request.UserName)
-            ?? userManager.Users.FirstOrDefault(x => x.PhoneNumber == request.UserName);
+        var user = await userManager.FindByNameAsync(request.UserName);
 
         if (user is null)
             return ApiResponse<TokenResponse>.Failure("Wrong username or password!");

@@ -23,7 +23,7 @@ public class MonthlyTransportSheetMapper
     {
         return entities.Select(Map).ToList();
     }
-    
+
     private PayoutLineDto MapPayoutLine(Domain.Entities.PayoutLine entity)
     {
         return new PayoutLineDto
@@ -40,13 +40,13 @@ public class MonthlyTransportSheetMapper
 
             TaxiExpenses = entity.TaxiExpenses
                 .Select(x => new TaxiExpenseSummaryDto
-                {
-                    Id = x.TaxiExpense.Id,
-                    Amount = x.TaxiExpense.Amount,
-                    Leg = x.TaxiExpense.Leg,
-                    TaxiExpenseStatus = x.TaxiExpense.TaxiExpenseStatus
-                })
-                .ToList()
+                    {
+                        Id = x.TaxiExpense.Id,
+                        Amount = x.TaxiExpense.Amount,
+                        Leg = x.TaxiExpense.Leg,
+                        TaxiExpenseStatus = x.TaxiExpense.TaxiExpenseStatus
+                    }
+                ).ToList()
         };
     }
 }

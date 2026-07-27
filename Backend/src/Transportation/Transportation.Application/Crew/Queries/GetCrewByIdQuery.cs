@@ -8,7 +8,7 @@ namespace Transportation.Application.Crew.Queries;
 
 public sealed record GetCrewByIdQuery(long Id) : IQuery<CrewDto>;
 
-public sealed class GetCrewByIdQueryHandler : IQueryHandler<GetCrewByIdQuery, CrewDto>
+internal sealed class GetCrewByIdQueryHandler : IQueryHandler<GetCrewByIdQuery, CrewDto>
 {
     private readonly ICrewRepository _repository;
     private readonly CrewMapper _mapper;
@@ -21,7 +21,7 @@ public sealed class GetCrewByIdQueryHandler : IQueryHandler<GetCrewByIdQuery, Cr
 
     public async Task<CrewDto> Handle(GetCrewByIdQuery request, CancellationToken cancellationToken)
     {
-        var spec = new CrewByIdSpec(request.Id);
+        var spec = new CrewByIdSpec(request.Id, asNoTracking: true);
         var entity = await _repository.FirstOrDefaultAsync(spec, cancellationToken);
 
         if (entity is null)

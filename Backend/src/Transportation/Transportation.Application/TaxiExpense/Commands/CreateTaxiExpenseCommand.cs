@@ -1,9 +1,12 @@
 ﻿using FluentValidation;
 using Transportation.Application.CrewMembership.Repositories;
+using Transportation.Application.CrewMembership.Specification;
 using Transportation.Application.TaxiExpense.Models;
 using Transportation.Application.TaxiExpense.Repositories;
+using Transportation.Application.TaxiExpense.Specifications;
 using Transportation.Application.TransportDay;
 using Transportation.Application.TransportDay.Repositories;
+using Transportation.Application.TransportDay.Specifications;
 using Transportation.Domain.Entities;
 using Transportation.Mediator.Helper.Commands;
 using Transportation.Mediator.Helper.Common.Extensions;
@@ -16,8 +19,7 @@ public record CreateTaxiExpenseCommand(
     long TransportDayId,
     Leg Leg,
     decimal Amount,
-    long PaidById,
-    TaxiExpenseStatus TaxiExpenseStatus
+    long PaidById
 ) : ICommand<TaxiExpenseDto>;
 
 // ReSharper disable once UnusedType.Global
@@ -38,31 +40,29 @@ public sealed class CreateTaxiExpenseCommandValidator : AbstractValidator<Create
         RuleFor(y => y.PaidById)
             .GreaterThan(0)
             .WithMessage("The id must be greater than zero");
-
-        RuleFor(x => x.TaxiExpenseStatus).IsInEnum();
     }
 }
 
 internal sealed class CreateTaxiExpenseCommandHandler : ICommandHandler<CreateTaxiExpenseCommand, TaxiExpenseDto>
 {
     private readonly ITaxiExpenseRepository _taxiExpenseRepository;
-    private readonly ICrewMembershipRepository _crewMembershipRepository;
     private readonly ITransportDayRepository _transportDayRepository;
+    private readonly ICrewMembershipRepository _crewMembershipRepository;
     private readonly TaxiExpenseMapper _mapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly TimeProvider _timeProvider;
 
     public CreateTaxiExpenseCommandHandler(
         ITaxiExpenseRepository taxiExpenseRepository,
-        ICrewMembershipRepository crewMembershipRepository,
         ITransportDayRepository transportDayRepository,
+        ICrewMembershipRepository crewMembershipRepository,
         TaxiExpenseMapper expenseMapper,
         IUnitOfWork unitOfWork,
         TimeProvider timeProvider)
     {
         _taxiExpenseRepository = taxiExpenseRepository;
-        _crewMembershipRepository = crewMembershipRepository;
         _transportDayRepository = transportDayRepository;
+        _crewMembershipRepository = crewMembershipRepository;
         _mapper = expenseMapper;
         _unitOfWork = unitOfWork;
         _timeProvider = timeProvider;
@@ -70,20 +70,28 @@ internal sealed class CreateTaxiExpenseCommandHandler : ICommandHandler<CreateTa
 
     public async Task<TaxiExpenseDto> Handle(CreateTaxiExpenseCommand request, CancellationToken cancellationToken)
     {
-        var transportDay = await _transportDayRepository.GetByIdAsync(request.TransportDayId, cancellationToken);
+        var spec = new TransportDayByIdSpec(request.TransportDayId);
+        var transportDay = await _transportDayRepository.FirstOrDefaultAsync(spec, cancellationToken);
 
-        if (transportDay is null || transportDay.IsDeleted)
-            throw new BusinessLogicException(TransportDayErrors.NotFound);
+        if (transportDay is null)
+            throw new ResourceNotFoundException(TransportDayErrors.NotFound);
 
         if (transportDay.Confirmed)
-            throw new BusinessLogicException(TaxiExpenseErrors.AlreadyExists);
+            throw new BusinessLogicException(TransportDayErrors.AlreadyConfirmed);
 
-        var selectedLeg = request.Leg switch
-        {
-            Leg.Morning => transportDay.MorningMode,
-            Leg.Afternoon => transportDay.AfternoonMode,
-            _ => throw new BusinessLogicException(TaxiExpenseErrors.InvalidEnumValue)
-        };
+        var taxiExpenseExists = await _taxiExpenseRepository
+            .AnyAsync(new TaxiExpenseByTransportDayIdSpec(request.TransportDayId, request.Leg), cancellationToken);
+
+        if (taxiExpenseExists)
+            throw new BusinessLogicException(TaxiExpenseErrors.ExpenseThisLegAlreadyExist);
+
+        var crewMemberships = await _crewMembershipRepository
+            .ListAsync(new CrewMembershipByCrewIdSpec(transportDay.CrewId), cancellationToken);
+
+        var isPayerInCrew = crewMemberships.Any(x => x.UserId == request.PaidById);
+
+        if (!isPayerInCrew)
+            throw new BusinessLogicException(TaxiExpenseErrors.ExpensePaidByNonExistentCrewMember);
 
         var taxiExpense = new Domain.Entities.TaxiExpense
         {
@@ -91,8 +99,7 @@ internal sealed class CreateTaxiExpenseCommandHandler : ICommandHandler<CreateTa
             Leg = request.Leg,
             Amount = request.Amount,
             PaidById = request.PaidById,
-            TaxiExpenseStatus = request.TaxiExpenseStatus,
-
+            TaxiExpenseStatus = TaxiExpenseStatus.Pending,
             CreatedAt = _timeProvider.GetLocalDateTimeNowKindUtc()
         };
 

@@ -1,12 +1,10 @@
-﻿using Ardalis.Specification;
-using Transportation.Mediator.Helper.Commands;
+﻿using Transportation.Mediator.Helper.Commands;
 using Transportation.Mediator.Helper.Persistence;
 using FluentValidation;
 using Transportation.Application.CrewMembership.Repositories;
 using Transportation.Application.CrewMembership.Specification;
 using Transportation.Application.Crew.Repositories;
 using Transportation.Application.Crew;
-using Transportation.Application.Crew.Specification;
 using Transportation.Application.CrewMembership.Models;
 using Transportation.Mediator.Helper.Common.Extensions;
 using Transportation.Mediator.Helper.Exceptions;
@@ -24,17 +22,15 @@ public class TransferCrewMembershipCommandValidator : AbstractValidator<Transfer
 {
     public TransferCrewMembershipCommandValidator()
     {
-        RuleFor(command => command.UserId)
-            .GreaterThan(0)
-            .WithMessage("The specified user id must be greater than 0");
+        RuleFor(x => x.UserId)
+            .GreaterThan(0).WithMessage("The specified user id must be greater than 0");
 
-        RuleFor(c => c.OldCrewId)
-            .GreaterThan(0)
-            .WithMessage("The old crew id must be greater than 0");
+        RuleFor(x => x.OldCrewId)
+            .GreaterThan(0).WithMessage("The old crew id must be greater than 0");
 
-        RuleFor(command => command.NewCrewId)
-            .GreaterThan(0)
-            .WithMessage("The new crew id must be greater than 0");
+        RuleFor(x => x.NewCrewId)
+            .GreaterThan(0).WithMessage("The new crew id must be greater than 0")
+            .NotEqual(x => x.OldCrewId).WithMessage("New crew must be different from the old crew");
     }
 }
 
@@ -62,41 +58,40 @@ public sealed class TransferCrewMembershipCommandHandler : ICommandHandler<Trans
 
     public async Task<CrewMembershipDto> Handle(TransferCrewMembershipCommand request, CancellationToken cancellationToken)
     {
-        var crewSpec = new CrewByIdSpec(request.NewCrewId);
-        var crewExists = await _crewRepository.FirstOrDefaultAsync(crewSpec, cancellationToken);
-        
-        if (crewExists is null)
-            throw new ResourceNotFoundException(CrewErrors.NotFound);
-        
-        var crewMemberSpec = new CrewMembershipByCrewIdAndUserIdSpec(request.OldCrewId, request.UserId);
-        var entity = await _crewMembershipRepository.FirstOrDefaultAsync(crewMemberSpec, cancellationToken);
+        var newCrew = await _crewRepository.GetByIdAsync(request.NewCrewId, cancellationToken);
 
-        if (entity is null)
+        if (newCrew is null)
+            throw new ResourceNotFoundException(CrewErrors.NotFound);
+
+        var crewMemberSpec = new CrewMembershipByCrewIdAndUserIdSpec(request.OldCrewId, request.UserId);
+        var oldMembership = await _crewMembershipRepository.FirstOrDefaultAsync(crewMemberSpec, cancellationToken);
+
+        if (oldMembership is null)
             throw new ResourceNotFoundException(CrewMembershipErrors.NotFound);
 
-        var specCm = new DbSpecification<Domain.Entities.CrewMembership>();
-        specCm.Query.Where(x => x.CrewId == crewExists.Id);
+        var activeMembersInNewCrew = await _crewMembershipRepository.CountAsync(
+            new ActiveCrewMembershipsByCrewIdSpec(request.NewCrewId, asNoTracking: true), cancellationToken);
 
-        var count = await _crewMembershipRepository.CountAsync(specCm, cancellationToken);
-
-        if (count >= crewExists.SeatCapacity)
+        if (activeMembersInNewCrew >= newCrew.SeatCapacity)
             throw new BusinessLogicException(CrewMembershipErrors.FullSeatCapacity);
 
-        entity.ActiveTo = _timeProvider.GetLocalDateTimeNowKindUtc();
-        entity.IsActive = false;
-        entity.UpdatedAt = _timeProvider.GetLocalDateTimeNowKindUtc();
+        var now = _timeProvider.GetLocalDateTimeNowKindUtc();
+
+        oldMembership.ActiveTo = now;
+        oldMembership.IsActive = false;
+        oldMembership.UpdatedAt = now;
 
         var newMembership = new Domain.Entities.CrewMembership
         {
             CrewId = request.NewCrewId,
             UserId = request.UserId,
             IsActive = true,
-            ActiveFrom = _timeProvider.GetLocalDateTimeNowKindUtc(),
-            CreatedAt = _timeProvider.GetLocalDateTimeNowKindUtc(),
+            ActiveFrom = now,
+            CreatedAt = now,
+            UpdatedAt = now
         };
 
         await _crewMembershipRepository.AddAsync(newMembership, cancellationToken);
-
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return _crewMembershipMapper.Map(newMembership);

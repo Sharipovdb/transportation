@@ -25,7 +25,7 @@ public sealed record CreateTransportDayCommand(
     string? Notes
 ) : ICommand<TransportDayDto>;
 
-// ReSharper disable once UnusedType.Global
+
 public sealed class CreateTransportDayCommandValidator : AbstractValidator<CreateTransportDayCommand>
 {
     public CreateTransportDayCommandValidator()
@@ -96,9 +96,7 @@ internal sealed class CreateTransportDayCommandHandler :
             CrewId = crew.Id,
             Date = request.Date.ToUniversalTime(),
             MorningMode = request.MorningMode,
-            Notes = request.Notes,
-            DriverId = crew.DriverLeadId,
-            BaseRouteKm = crew.Route.DistanceKm,
+            Notes = request.Notes!,
             LoggedBy = currentUserId,
             LoggedAt = now,
             Confirmed = false,
