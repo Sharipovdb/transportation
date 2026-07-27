@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Transportation.Domain\Transportation.Domain.csproj" />
+    <ProjectReference Include="..\..\Shared\Transportation.Shared\Transportation.Shared.csproj" />
+    <ProjectReference Include="..\..\Shared\Transportation.Mediator.Helper\Transportation.Mediator.Helper.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Ardalis.Specification" Version="9.3.1" />
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.9" />
+    <PackageReference Include="Riok.Mapperly" Version="4.3.1" />
+  </ItemGroup>
+
+    <ItemGroup>
+        <Folder Include="Route\Commands\" />
+        <Folder Include="Route\Queries\" />
+    </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  
+  <ItemGroup>
+    <InternalsVisibleTo Include="Transportation.UnitTests" />
+  </ItemGroup>
+  
+</Project>

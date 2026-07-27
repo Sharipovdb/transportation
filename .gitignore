@@ -1,13 +1,16 @@
-node_modules
+# OS
 .DS_Store
-dist
-dist-ssr
-*.local
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Environment
 .env
-.nitro
-.tanstack
-.wrangler
-.output
-.vinxi
-__unconfig*
-todos.json
+.env.*.local
+*.local
+
+# Logs
+*.log

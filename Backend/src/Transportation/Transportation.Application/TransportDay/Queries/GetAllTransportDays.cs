@@ -1,0 +1,60 @@
+﻿using Ardalis.Specification;
+using Transportation.Application.TransportDay.Models;
+using Transportation.Application.TransportDay.Repositories;
+using Transportation.Mediator.Helper.Common.Extensions;
+using Transportation.Mediator.Helper.Common.Models;
+using Transportation.Mediator.Helper.Persistence;
+using Transportation.Mediator.Helper.Queries;
+
+namespace Transportation.Application.TransportDay.Queries;
+
+public sealed record GetAllTransportDays(
+    long? CrewId,
+    DateTime? DateFrom,
+    DateTime? DateTo,
+    bool? Confirmed,
+    PaginationInfo PaginationInfo
+) : IQuery<PaginatedResult<TransportDayDto>>;
+
+internal sealed class GetAllTransportDaysHandler : IQueryHandler<GetAllTransportDays, PaginatedResult<TransportDayDto>>
+{
+    private readonly ITransportDayRepository _transportDayRepository;
+    private readonly TransportDayMapper _mapper;
+
+    public GetAllTransportDaysHandler(ITransportDayRepository transportDayRepository, TransportDayMapper mapper)
+    {
+        _transportDayRepository = transportDayRepository;
+        _mapper = mapper;
+    }
+
+    public async Task<PaginatedResult<TransportDayDto>> Handle(
+        GetAllTransportDays request, CancellationToken cancellationToken)
+    {
+        var spec = new ReadOnlySpecification<Domain.Entities.TransportDay>();
+
+        if (request.CrewId.HasValue)
+            spec.Query.Where(x => x.CrewId == request.CrewId);
+
+        if (request.DateFrom.HasValue)
+            spec.Query.Where(x => x.Date >= request.DateFrom);
+
+        if (request.DateTo.HasValue)
+            spec.Query.Where(x => x.Date <= request.DateTo);
+
+        if (request.Confirmed.HasValue)
+            spec.Query.Where(x => x.Confirmed == request.Confirmed);
+
+        spec.Query
+            .Where(x => !x.IsDeleted)
+            .OrderByDescending(x => x.Date)
+            .Include(x => x.TaxiExpenses)
+            .ThenInclude(x => x.PaidBy)
+            .WithPagination(request.PaginationInfo);
+
+        var items = await _transportDayRepository.ListAsync(spec, cancellationToken);
+        var totalCount = await _transportDayRepository.CountAsync(spec, cancellationToken);
+
+        var mapped = _mapper.Map(items);
+        return new PaginatedResult<TransportDayDto>(mapped, totalCount);
+    }
+}

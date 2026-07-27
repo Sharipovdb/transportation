@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Shared/">
+    <Project Path="src/Shared/Transportation.Mediator.Helper/Transportation.Mediator.Helper.csproj" />
+    <Project Path="src/Shared/Transportation.Shared/Transportation.Shared.csproj" />
+  </Folder>
+  <Folder Name="/src/Transportation/">
+    <Project Path="src/Transportation/Transportation.API/Transportation.API.csproj" />
+    <Project Path="src/Transportation/Transportation.Application/Transportation.Application.csproj" />
+    <Project Path="src/Transportation/Transportation.Domain/Transportation.Domain.csproj" />
+    <Project Path="src/Transportation/Transportation.Infrastructure/Transportation.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Transportation/tests/">
+    <Project Path="src/Transportation/tests/Transportation.IntegrationTests/Transportation.IntegrationTests.csproj" />
+    <Project Path="src/Transportation/tests/Transportation.UnitTests/Transportation.UnitTests.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Architecture.Tests/Architecture.Tests.csproj" />
+  </Folder>
+</Solution>
