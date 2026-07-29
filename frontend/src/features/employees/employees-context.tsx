@@ -18,10 +18,11 @@ interface UserApiDto {
   lastName: string
   phoneNumber: string
   telegramId: string
-  roles: string[]
 }
 
 export interface EmployeeDraft {
+  email: string
+  username: string
   firstName: string
   lastName: string
   phoneNumber: string
@@ -34,7 +35,6 @@ const EMPLOYEES_QUERY_KEY = ['employees']
 // Every account created from this page shares one password — there's no invite-email
 // flow in this pass (mirrors the seeded demo accounts' convention, see
 // Backend/.../Seeders/UserDatabaseSeeder.cs).
-const DEFAULT_PASSWORD = 'Passw0rd!'
 
 function toEmployee(dto: UserApiDto): Employee | null {
   const role = resolveAppRole(dto.roles)
@@ -60,10 +60,13 @@ function syntheticEmail(phoneNumber: string) {
 }
 
 async function fetchEmployees() {
-  const response = await apiClient.get<ApiResponse<UserApiDto[]>>('/api/User/GetAll')
+  const response =
+    await apiClient.get<ApiResponse<UserApiDto[]>>('/api/User/GetAll')
   const users = response.data.data ?? []
   const usersById = new Map(users.map((user) => [String(user.id), user]))
-  const employees = users.map(toEmployee).filter((employee): employee is Employee => employee !== null)
+  const employees = users
+    .map(toEmployee)
+    .filter((employee): employee is Employee => employee !== null)
 
   return { employees, usersById }
 }
@@ -74,7 +77,9 @@ interface EmployeesContextValue {
   addEmployee: (draft: EmployeeDraft) => Promise<void>
   updateEmployee: (employeeId: string, draft: EmployeeDraft) => Promise<void>
   deleteEmployee: (employeeId: string) => Promise<void>
-  getEmployeeById: (employeeId: string | null | undefined) => Employee | undefined
+  getEmployeeById: (
+    employeeId: string | null | undefined,
+  ) => Employee | undefined
 }
 
 const EmployeesContext = createContext<EmployeesContextValue | null>(null)
@@ -127,7 +132,13 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
   })
 
   const updateMutation = useMutation({
-    mutationFn: async ({ employeeId, draft }: { employeeId: string; draft: EmployeeDraft }) => {
+    mutationFn: async ({
+      employeeId,
+      draft,
+    }: {
+      employeeId: string
+      draft: EmployeeDraft
+    }) => {
       const existing = usersById?.get(employeeId)
       const previousRole = existing ? resolveAppRole(existing.roles) : null
       const phoneNumber = draft.phoneNumber.trim()
@@ -157,7 +168,8 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (employeeId: string) => apiClient.delete(`/api/User/Delete/${employeeId}`),
+    mutationFn: (employeeId: string) =>
+      apiClient.delete(`/api/User/Delete/${employeeId}`),
     onSuccess: invalidate,
   })
 
@@ -165,15 +177,26 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
     () => ({
       employees,
       isLoading,
-      addEmployee: async (draft) => { await addMutation.mutateAsync(draft) },
-      updateEmployee: async (employeeId, draft) => { await updateMutation.mutateAsync({ employeeId, draft }) },
-      deleteEmployee: async (employeeId) => { await deleteMutation.mutateAsync(employeeId) },
-      getEmployeeById: (employeeId) => employees.find((employee) => employee.id === employeeId),
+      addEmployee: async (draft) => {
+        await addMutation.mutateAsync(draft)
+      },
+      updateEmployee: async (employeeId, draft) => {
+        await updateMutation.mutateAsync({ employeeId, draft })
+      },
+      deleteEmployee: async (employeeId) => {
+        await deleteMutation.mutateAsync(employeeId)
+      },
+      getEmployeeById: (employeeId) =>
+        employees.find((employee) => employee.id === employeeId),
     }),
     [employees, isLoading, addMutation, updateMutation, deleteMutation],
   )
 
-  return <EmployeesContext.Provider value={value}>{children}</EmployeesContext.Provider>
+  return (
+    <EmployeesContext.Provider value={value}>
+      {children}
+    </EmployeesContext.Provider>
+  )
 }
 
 export function useEmployees() {

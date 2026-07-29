@@ -3,9 +3,13 @@ import type { AxiosError, InternalAxiosRequestConfig } from 'axios'
 
 import { clearAuth, getAuthTokens, setAuthTokens } from './auth-tokens'
 
-type RetriableRequestConfig = InternalAxiosRequestConfig & { _retried?: boolean }
+type RetriableRequestConfig = InternalAxiosRequestConfig & {
+  _retried?: boolean
+}
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:5253'
+const API_BASE_URL =
+  (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
+  'http://localhost:8080'
 
 // The wrapper shape returned only by /api/Auth/* (see AuthService.cs) — every other
 // controller returns its DTO directly with a real HTTP status code.
@@ -42,10 +46,9 @@ async function refreshAccessToken(): Promise<string | null> {
   }
 
   try {
-    const response = await refreshClient.post<ApiResponse<{ accessToken: string; refreshToken: string }>>(
-      '/api/Auth/refresh',
-      { refreshToken: tokens.refreshToken },
-    )
+    const response = await refreshClient.post<
+      ApiResponse<{ accessToken: string; refreshToken: string }>
+    >('/api/Auth/refresh', { refreshToken: tokens.refreshToken })
 
     if (!response.data.isSuccess || !response.data.data) {
       return null
@@ -63,7 +66,11 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as RetriableRequestConfig | undefined
 
-    if (error.response?.status !== 401 || !originalRequest || originalRequest._retried) {
+    if (
+      error.response?.status !== 401 ||
+      !originalRequest ||
+      originalRequest._retried
+    ) {
       return Promise.reject(error)
     }
 

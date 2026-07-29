@@ -39,7 +39,7 @@ const {
 // Employees (login accounts + business profile in one, backed by /api/User) is where
 // an Admin manages everyone, including role assignment — there's no separate "Users" page.
 const rolePagePaths: Record<AppRole, ReadonlyArray<string>> = {
-  admin: [
+  Admin: [
     dashboard,
     employees,
     crews,
@@ -50,7 +50,7 @@ const rolePagePaths: Record<AppRole, ReadonlyArray<string>> = {
     payouts,
     monthlySheets,
   ],
-  accountant: [
+  Accountant: [
     dashboard,
     employees,
     crews,
@@ -61,10 +61,10 @@ const rolePagePaths: Record<AppRole, ReadonlyArray<string>> = {
     payouts,
     monthlySheets,
   ],
-  routeManager: [dashboard, employees, crews, transportDays, routes, vehicles],
-  crewLead: [dashboard, crews, transportDays, taxiExpenses, monthlySheets],
-  driverLead: [dashboard, crews, transportDays, taxiExpenses, vehicles, monthlySheets],
-  worker: [dashboard],
+  RouteManager: [dashboard, employees, crews, transportDays, routes, vehicles],
+  CrewLead: [dashboard, crews, transportDays, taxiExpenses],
+  DriverLead: [dashboard, crews, transportDays, taxiExpenses, vehicles],
+  Worker: [dashboard],
 }
 
 function matchesPath(allowedPath: string, pathname: string) {
@@ -75,8 +75,12 @@ function matchesPath(allowedPath: string, pathname: string) {
   return pathname === allowedPath || pathname.startsWith(`${allowedPath}/`)
 }
 
-export function canAccessPath(role: AppRole, pathname: string) {
-  return rolePagePaths[role].some((allowedPath) => matchesPath(allowedPath, pathname))
+export function canAccessPath(roles: AppRole[], pathname: string) {
+  return roles.some((role) =>
+    rolePagePaths[role].some((allowedPath) =>
+      matchesPath(allowedPath, pathname),
+    ),
+  )
 }
 
 // Rights inside a page that is already visible to several roles.
@@ -88,14 +92,25 @@ export type Capability =
   | 'approveTaxiExpense' // Approve/Reject a taxi expense before it counts toward a payout
 
 const roleCapabilities: Record<AppRole, ReadonlyArray<Capability>> = {
-  admin: ['viewFinance', 'generateSheet', 'confirmSheet', 'deleteSheet', 'approveTaxiExpense'],
-  accountant: ['viewFinance', 'generateSheet', 'deleteSheet', 'approveTaxiExpense'],
-  routeManager: [],
-  crewLead: ['confirmSheet'],
-  driverLead: ['confirmSheet'],
-  worker: [],
+  Admin: [
+    'viewFinance',
+    'generateSheet',
+    'confirmSheet',
+    'deleteSheet',
+    'approveTaxiExpense',
+  ],
+  Accountant: [
+    'viewFinance',
+    'generateSheet',
+    'deleteSheet',
+    'approveTaxiExpense',
+  ],
+  RouteManager: [],
+  CrewLead: ['confirmSheet'],
+  DriverLead: ['confirmSheet'],
+  Worker: [],
 }
 
-export function hasCapability(role: AppRole, capability: Capability) {
-  return roleCapabilities[role].includes(capability)
+export function hasCapability(roles: AppRole[], capability: Capability) {
+  return roles.some((role) => roleCapabilities[role].includes(capability))
 }

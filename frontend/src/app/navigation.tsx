@@ -34,8 +34,8 @@ export const navigationItems: NavigationItem[] = [
   { title: 'Monthly Sheets', to: appPagePaths.monthlySheets, icon: Truck },
 ]
 
-export function getNavigationItemsForRole(role: AppRole) {
-  return navigationItems.filter((item) => canAccessPath(role, item.to))
+export function getNavigationItemsForRole(roles: AppRole[]) {
+  return navigationItems.filter((item) => canAccessPath(roles, item.to))
 }
 
 export function getPageTitle(pathname: string) {

@@ -1,4 +1,9 @@
-import { Navigate, Outlet, createRootRoute, useRouterState } from '@tanstack/react-router'
+import {
+  Navigate,
+  Outlet,
+  createRootRoute,
+  useRouterState,
+} from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
@@ -14,7 +19,9 @@ export const Route = createRootRoute({
 
 function RootComponent() {
   const { session, isAuthenticated } = useAuth()
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
 
   const isLoginRoute = pathname === '/login'
 
@@ -27,11 +34,17 @@ function RootComponent() {
   }
 
   // Guards every page in one place, so typing a URL cannot bypass the sidebar filter.
-  if (session && !isLoginRoute && !canAccessPath(session.role, pathname)) {
+  if (session && !isLoginRoute && !canAccessPath(session.roles, pathname)) {
     return <Navigate to="/" />
   }
 
-  const content = isLoginRoute ? <Outlet /> : <AppShell><Outlet /></AppShell>
+  const content = isLoginRoute ? (
+    <Outlet />
+  ) : (
+    <AppShell>
+      <Outlet />
+    </AppShell>
+  )
 
   return (
     <>

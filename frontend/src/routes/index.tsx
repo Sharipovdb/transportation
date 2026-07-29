@@ -59,7 +59,9 @@ function DashboardPage() {
       transportDays.length === 0
         ? getMonthYear(todayIsoDate())
         : getMonthYear(
-            transportDays.reduce((latest, day) => (day.date > latest.date ? day : latest)).date,
+            transportDays.reduce((latest, day) =>
+              day.date > latest.date ? day : latest,
+            ).date,
           ),
     [transportDays],
   )
@@ -70,7 +72,9 @@ function DashboardPage() {
         transportDays
           .filter((day) => {
             const dayPeriod = getMonthYear(day.date)
-            return dayPeriod.year === period.year && dayPeriod.month === period.month
+            return (
+              dayPeriod.year === period.year && dayPeriod.month === period.month
+            )
           })
           .map((day) => day.id),
       ),
@@ -81,7 +85,10 @@ function DashboardPage() {
     () =>
       taxiExpenses
         .filter((expense) => dayIdsInPeriod.has(expense.transportDayId))
-        .filter((expense) => expense.status === 'pending' || expense.status === 'approved')
+        .filter(
+          (expense) =>
+            expense.status === 'pending' || expense.status === 'approved',
+        )
         .reduce((total, expense) => total + expense.amount, 0),
     [taxiExpenses, dayIdsInPeriod],
   )
@@ -89,7 +96,9 @@ function DashboardPage() {
   const pendingApprovalCount = useMemo(
     () =>
       taxiExpenses.filter(
-        (expense) => dayIdsInPeriod.has(expense.transportDayId) && expense.status === 'pending',
+        (expense) =>
+          dayIdsInPeriod.has(expense.transportDayId) &&
+          expense.status === 'pending',
       ).length,
     [taxiExpenses, dayIdsInPeriod],
   )
@@ -100,12 +109,16 @@ function DashboardPage() {
         const days = getDaysForCrewMonth(crew.id, period.year, period.month)
         const drivenLegs = days.reduce(
           (count, day) =>
-            count + (day.morningMode === 'driven' ? 1 : 0) + (day.afternoonMode === 'driven' ? 1 : 0),
+            count +
+            (day.morningMode === 'driven' ? 1 : 0) +
+            (day.afternoonMode === 'driven' ? 1 : 0),
           0,
         )
         const taxiLegs = days.reduce(
           (count, day) =>
-            count + (day.morningMode === 'taxi' ? 1 : 0) + (day.afternoonMode === 'taxi' ? 1 : 0),
+            count +
+            (day.morningMode === 'taxi' ? 1 : 0) +
+            (day.afternoonMode === 'taxi' ? 1 : 0),
           0,
         )
 
@@ -117,35 +130,66 @@ function DashboardPage() {
           members: getActiveMembersForCrew(crew.id),
           sheet: sheets.find(
             (candidate) =>
-              candidate.crewId === crew.id && candidate.year === period.year && candidate.month === period.month,
+              candidate.crewId === crew.id &&
+              candidate.year === period.year &&
+              candidate.month === period.month,
           ),
         }
       }),
     [crews, period, getDaysForCrewMonth, getActiveMembersForCrew, sheets],
   )
 
-  const totalPayout = crewData.reduce((total, row) => total + (row.sheet?.totalAmount ?? 0), 0)
-  const draftSheets = crewData.filter((row) => row.sheet && !row.sheet.isConfirmed)
-  const ungeneratedSheets = crewData.filter((row) => !row.sheet && row.daysLogged > 0)
-  const overflowCrews = crewData.filter((row) => row.members.length > row.crew.seatCapacity)
-  const driverCount = employees.filter((employee) => employee.role === 'driverLead').length
+  const totalPayout = crewData.reduce(
+    (total, row) => total + (row.sheet?.totalAmount ?? 0),
+    0,
+  )
+  const draftSheets = crewData.filter(
+    (row) => row.sheet && !row.sheet.isConfirmed,
+  )
+  const ungeneratedSheets = crewData.filter(
+    (row) => !row.sheet && row.daysLogged > 0,
+  )
+  const overflowCrews = crewData.filter(
+    (row) => row.members.length > row.crew.seatCapacity,
+  )
+  const driverCount = employees.filter(
+    (employee) => employee.role === 'driverLead',
+  ).length
 
   const stats = [
     { label: 'Employees', value: employees.length, icon: Users },
-    { label: 'Crews', value: crews.length, icon: Bus, hint: `${driverCount} drivers` },
+    {
+      label: 'Crews',
+      value: crews.length,
+      icon: Bus,
+      hint: `${driverCount} drivers`,
+    },
     { label: 'Days logged', value: dayIdsInPeriod.size, icon: CalendarCheck },
-    { label: 'Sheets to confirm', value: draftSheets.length, icon: AlertTriangle },
+    {
+      label: 'Sheets to confirm',
+      value: draftSheets.length,
+      icon: AlertTriangle,
+    },
     ...(showFinance
       ? [
-          { label: 'Taxi owed', value: formatCurrency(owedTaxiThisPeriod), icon: Receipt },
-          { label: 'Payout (month)', value: formatCurrency(totalPayout), icon: Wallet },
+          {
+            label: 'Taxi owed',
+            value: formatCurrency(owedTaxiThisPeriod),
+            icon: Receipt,
+          },
+          {
+            label: 'Payout (month)',
+            value: formatCurrency(totalPayout),
+            icon: Wallet,
+          },
         ]
       : []),
   ]
 
   const pendingActions = buildPendingActions({
     canOpenSheets: canOpen(appPagePaths.monthlySheets),
-    canOpenTaxiExpenses: canOpen(appPagePaths.taxiExpenses) && can('approveTaxiExpense'),
+    canOpenTaxiExpenses:
+      canOpen(appPagePaths.taxiExpenses) && can('approveTaxiExpense'),
     canOpenCrews: canOpen(appPagePaths.crews),
     canGenerate: can('generateSheet'),
     draftCount: draftSheets.length,
@@ -180,7 +224,8 @@ function DashboardPage() {
             <CardEyebrow>Crews</CardEyebrow>
             <CardTitle className="mt-2">This month by crew</CardTitle>
             <CardDescription className="mt-2">
-              Seats and logged days per crew{showFinance ? ', with generated payout total' : ''}.
+              Seats and logged days per crew
+              {showFinance ? ', with generated payout total' : ''}.
             </CardDescription>
           </CardHeader>
 
@@ -192,37 +237,61 @@ function DashboardPage() {
                   <TableHead className="text-center">Seats</TableHead>
                   <TableHead className="text-center">Days</TableHead>
                   <TableHead className="text-center">Driven / Taxi</TableHead>
-                  {showFinance && <TableHead className="text-right">Payout</TableHead>}
+                  {showFinance && (
+                    <TableHead className="text-right">Payout</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {crewData.map(({ crew, daysLogged, drivenLegs, taxiLegs, members, sheet }) => {
-                  const overflow = members.length > crew.seatCapacity
+                {crewData.map(
+                  ({
+                    crew,
+                    daysLogged,
+                    drivenLegs,
+                    taxiLegs,
+                    members,
+                    sheet,
+                  }) => {
+                    const overflow = members.length > crew.seatCapacity
 
-                  return (
-                    <TableRow key={crew.id}>
-                      <TableCell className="font-medium text-slate-900">{crew.name}</TableCell>
-                      <TableCell className="text-center">
-                        <span className={overflow ? 'font-semibold text-amber-600' : undefined}>
-                          {members.length} / {crew.seatCapacity}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">{daysLogged}</TableCell>
-                      <TableCell className="text-center">
-                        {drivenLegs} / {taxiLegs}
-                      </TableCell>
-                      {showFinance && (
-                        <TableCell className="text-right">
-                          {sheet ? formatCurrency(sheet.totalAmount) : '—'}
+                    return (
+                      <TableRow key={crew.id}>
+                        <TableCell className="font-medium text-slate-900">
+                          {crew.name}
                         </TableCell>
-                      )}
-                    </TableRow>
-                  )
-                })}
+                        <TableCell className="text-center">
+                          <span
+                            className={
+                              overflow
+                                ? 'font-semibold text-amber-600'
+                                : undefined
+                            }
+                          >
+                            {members.length} / {crew.seatCapacity}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {daysLogged}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {drivenLegs} / {taxiLegs}
+                        </TableCell>
+                        {showFinance && (
+                          <TableCell className="text-right">
+                            {sheet ? formatCurrency(sheet.totalAmount) : '—'}
+                          </TableCell>
+                        )}
+                      </TableRow>
+                    )
+                  },
+                )}
 
                 {crewData.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={crewColumnCount} className="py-10 text-center text-slate-400">
+                    <TableCell
+                      colSpan={crewColumnCount}
+                      className="py-10 text-center text-slate-400"
+                    >
                       No crews yet.
                     </TableCell>
                   </TableRow>
@@ -245,7 +314,9 @@ function DashboardPage() {
                 to={action.to}
                 className="flex items-start gap-3 rounded-2xl border border-sky-100 bg-sky-50/40 px-4 py-3 transition hover:border-sky-200 hover:bg-sky-50"
               >
-                <action.icon className={`mt-0.5 size-4 shrink-0 ${toneClasses[action.tone]}`} />
+                <action.icon
+                  className={`mt-0.5 size-4 shrink-0 ${toneClasses[action.tone]}`}
+                />
                 <span className="text-sm text-slate-700">{action.text}</span>
               </Link>
             ))}

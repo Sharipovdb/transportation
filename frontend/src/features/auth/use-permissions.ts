@@ -9,14 +9,16 @@ import { useAuth } from './auth-context'
 // directly. Everything resolves to `false` when signed out.
 export function usePermissions() {
   const { session } = useAuth()
-  const role = session?.role ?? null
+  const roles = session?.roles ?? null
 
   return useMemo(
     () => ({
-      role,
-      can: (capability: Capability) => (role ? hasCapability(role, capability) : false),
-      canOpen: (pathname: string) => (role ? canAccessPath(role, pathname) : false),
+      roles,
+      can: (capability: Capability) =>
+        roles ? hasCapability(roles, capability) : false,
+      canOpen: (pathname: string) =>
+        roles ? canAccessPath(roles, pathname) : false,
     }),
-    [role],
+    [roles],
   )
 }

@@ -1,7 +1,14 @@
 import { Link, useRouterState } from '@tanstack/react-router'
-import { Bell, ChevronDown, ChevronLeft, LogOut, Menu, UserRound } from 'lucide-react'
-import { useState  } from 'react'
-import type {ReactNode} from 'react';
+import {
+  Bell,
+  ChevronDown,
+  ChevronLeft,
+  LogOut,
+  Menu,
+  UserRound,
+} from 'lucide-react'
+import { useState } from 'react'
+import type { ReactNode } from 'react'
 
 import { getNavigationItemsForRole, getPageTitle } from '@/app/navigation'
 import { Button } from '@/components/ui/button'
@@ -20,20 +27,26 @@ const collapsedContentOffset = 'lg:ml-[112px]'
 
 export function AppShell({ children }: AppShellProps) {
   const { session, logout } = useAuth()
-  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
 
-  const visibleItems = session ? getNavigationItemsForRole(session.role) : []
+  const visibleItems = session ? getNavigationItemsForRole(session.roles) : []
 
-  const sidebarWidthClassName = sidebarCollapsed ? collapsedSidebarWidth : expandedSidebarWidth
-  const contentOffsetClassName = sidebarCollapsed ? collapsedContentOffset : expandedContentOffset
+  const sidebarWidthClassName = sidebarCollapsed
+    ? collapsedSidebarWidth
+    : expandedSidebarWidth
+  const contentOffsetClassName = sidebarCollapsed
+    ? collapsedContentOffset
+    : expandedContentOffset
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#eef9fc_0%,#f8fcfe_32%,#f4f9fc_100%)] text-slate-900">
       <header className="sticky top-0 z-30 border-b border-sky-100/80 bg-white/96 backdrop-blur-xl">
-        <div className="flex min-h-[104px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-10">
+        <div className="flex min-h-26 items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-10">
           <div className="flex items-center gap-4">
             <Button
               variant="outline"
@@ -76,10 +89,10 @@ export function AppShell({ children }: AppShellProps) {
 
                     <span className="hidden min-w-0 md:block">
                       <span className="block truncate text-sm font-semibold text-slate-900">
-                        {session.name}
+                        {session.userName}
                       </span>
                       <span className="block truncate text-xs text-slate-500">
-                        {roleLabels[session.role]}
+                        {roleLabels[session.roles[0]]}
                       </span>
                     </span>
 
@@ -100,10 +113,10 @@ export function AppShell({ children }: AppShellProps) {
 
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-slate-900">
-                            {session.name}
+                            {session.userName}
                           </p>
                           <p className="truncate text-xs text-slate-500">
-                            {roleLabels[session.role]}
+                            {roleLabels[session.roles[0]]}
                           </p>
                         </div>
                       </div>
@@ -131,7 +144,7 @@ export function AppShell({ children }: AppShellProps) {
       <div className="flex min-h-[calc(100vh-104px)]">
         <aside
           className={cn(
-            'fixed inset-y-0 left-0 top-[104px] z-20 flex h-[calc(100vh-104px)] w-[280px] flex-col overflow-hidden bg-[linear-gradient(180deg,#1495cf_0%,#1f9dd3_38%,#2ba6d8_100%)] text-white shadow-[24px_0_80px_-36px_rgba(8,47,73,0.4)] transition-transform duration-300 lg:translate-x-0',
+            'fixed inset-y-0 left-0 top-26 z-20 flex h-[calc(100vh-104px)] w-70 flex-col overflow-hidden bg-[linear-gradient(180deg,#1495cf_0%,#1f9dd3_38%,#2ba6d8_100%)] text-white shadow-[24px_0_80px_-36px_rgba(8,47,73,0.4)] transition-transform duration-300 lg:translate-x-0',
             sidebarWidthClassName,
             mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full',
           )}
@@ -143,7 +156,8 @@ export function AppShell({ children }: AppShellProps) {
                   const isActive =
                     item.to === '/'
                       ? pathname === '/'
-                      : pathname === item.to || pathname.startsWith(`${item.to}/`)
+                      : pathname === item.to ||
+                        pathname.startsWith(`${item.to}/`)
 
                   return (
                     <Link
@@ -172,7 +186,12 @@ export function AppShell({ children }: AppShellProps) {
                 className="w-full justify-center rounded-full border border-white/20 bg-white/12 text-white hover:bg-white/18"
                 onClick={() => setSidebarCollapsed((current) => !current)}
               >
-                <ChevronLeft className={cn('size-4 transition-transform', sidebarCollapsed && 'rotate-180')} />
+                <ChevronLeft
+                  className={cn(
+                    'size-4 transition-transform',
+                    sidebarCollapsed && 'rotate-180',
+                  )}
+                />
                 {!sidebarCollapsed && 'Collapse menu'}
               </Button>
             </div>
@@ -183,12 +202,17 @@ export function AppShell({ children }: AppShellProps) {
           <button
             type="button"
             aria-label="Close sidebar"
-            className="fixed inset-0 top-[104px] z-10 bg-slate-950/30 lg:hidden"
+            className="fixed inset-0 top-26 z-10 bg-slate-950/30 lg:hidden"
             onClick={() => setMobileSidebarOpen(false)}
           />
         )}
 
-        <div className={cn('flex min-h-[calc(100vh-104px)] flex-1 flex-col', contentOffsetClassName)}>
+        <div
+          className={cn(
+            'flex min-h-[calc(100vh-104px)] flex-1 flex-col',
+            contentOffsetClassName,
+          )}
+        >
           <main className="flex-1 overflow-x-hidden px-4 py-6 sm:px-6 lg:px-10 lg:py-8">
             {children}
           </main>
@@ -203,7 +227,10 @@ function BrandLogo({ collapsed }: { collapsed: boolean }) {
     <img
       src="/logosrp.png"
       alt="SRP Transportation"
-      className={cn('h-16 w-auto object-contain sm:h-20', collapsed && 'lg:h-16')}
+      className={cn(
+        'h-16 w-auto object-contain sm:h-20',
+        collapsed && 'lg:h-16',
+      )}
     />
   )
 }

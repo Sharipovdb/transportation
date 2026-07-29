@@ -1,12 +1,12 @@
 import { Navigate, createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import type { FormEvent } from 'react'
+import type { SubmitEvent } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/features/auth/auth-context'
-import { roleLabels } from '@/lib/app-types'
-import type { AppRole } from '@/lib/app-types'
+// import { roleLabels } from '@/lib/app-types'
+// import type { AppRole } from '@/lib/app-types'
 
 export const Route = createFileRoute('/login')({
   component: LoginPage,
@@ -14,22 +14,30 @@ export const Route = createFileRoute('/login')({
 
 // The real accounts seeded by Backend/.../Seeders/UserDatabaseSeeder.cs — every
 // seeded account shares one demo password (see DemoCredentials.Password there).
-const DEMO_PASSWORD = 'Passw0rd!'
+// const DEMO_PASSWORD = 'Passw0rd!'
 
-interface DemoAccount {
-  name: string
-  phoneNumber: string
-  role: AppRole
-}
+// interface DemoAccount {
+//   name: string
+//   phoneNumber: string
+//   role: AppRole
+// }
 
-const demoAccounts: DemoAccount[] = [
-  { name: 'System Admin', phoneNumber: '+992900000000', role: 'admin' },
-  { name: 'Bekzod Karimov', phoneNumber: '+992900000001', role: 'routeManager' },
-  { name: 'Sardor Rahmonov', phoneNumber: '+992900000002', role: 'crewLead' },
-  { name: 'Rustam Aliyev', phoneNumber: '+992900000004', role: 'driverLead' },
-  { name: 'Aziz Yusupov', phoneNumber: '+992900000006', role: 'worker' },
-  { name: 'Malika Sharipova', phoneNumber: '+992900000016', role: 'accountant' },
-]
+// const demoAccounts: DemoAccount[] = [
+//   { name: 'System Admin', phoneNumber: '+992900000000', role: 'admin' },
+//   {
+//     name: 'Bekzod Karimov',
+//     phoneNumber: '+992900000001',
+//     role: 'routeManager',
+//   },
+//   { name: 'Sardor Rahmonov', phoneNumber: '+992900000002', role: 'crewLead' },
+//   { name: 'Rustam Aliyev', phoneNumber: '+992900000004', role: 'driverLead' },
+//   { name: 'Aziz Yusupov', phoneNumber: '+992900000006', role: 'worker' },
+//   {
+//     name: 'Malika Sharipova',
+//     phoneNumber: '+992900000016',
+//     role: 'accountant',
+//   },
+// ]
 
 function LoginPage() {
   const { isAuthenticated, login } = useAuth()
@@ -41,7 +49,7 @@ function LoginPage() {
     return <Navigate to="/" />
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setIsSubmitting(true)
 
@@ -69,30 +77,40 @@ function LoginPage() {
           <p className="text-sm font-semibold uppercase tracking-[0.32em] text-sky-500">
             SRP Transportation
           </p>
-          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">Sign in</h1>
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
+            Sign in
+          </h1>
           <p className="text-sm leading-6 text-slate-500">
-            Sign in with your phone number and password. What you can see and do depends on your
-            role.
+            Sign in with your phone number and password. What you can see and do
+            depends on your role.
           </p>
         </div>
 
         <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700" htmlFor="login">
-              Phone number
+            <label
+              className="text-sm font-medium text-slate-700"
+              htmlFor="login"
+            >
+              Username
             </label>
             <Input
               id="login"
               value={formState.login}
               onChange={(event) =>
-                setFormState((current) => ({ ...current, login: event.target.value }))
+                setFormState((current) => ({
+                  ...current,
+                  login: event.target.value,
+                }))
               }
-              placeholder="+992900000000"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700" htmlFor="password">
+            <label
+              className="text-sm font-medium text-slate-700"
+              htmlFor="password"
+            >
               Password
             </label>
             <Input
@@ -100,13 +118,18 @@ function LoginPage() {
               type="password"
               value={formState.password}
               onChange={(event) =>
-                setFormState((current) => ({ ...current, password: event.target.value }))
+                setFormState((current) => ({
+                  ...current,
+                  password: event.target.value,
+                }))
               }
               placeholder="••••••••"
             />
           </div>
 
-          {errorMessage && <p className="text-sm text-rose-500">{errorMessage}</p>}
+          {errorMessage && (
+            <p className="text-sm text-rose-500">{errorMessage}</p>
+          )}
 
           <Button
             className="h-11 w-full rounded-2xl bg-sky-600 text-white hover:bg-sky-700"
@@ -116,7 +139,7 @@ function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-8 border-t border-sky-100 pt-6">
+        {/* <div className="mt-8 border-t border-sky-100 pt-6">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
             Demo accounts
           </p>
@@ -142,7 +165,7 @@ function LoginPage() {
               </button>
             ))}
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   )
