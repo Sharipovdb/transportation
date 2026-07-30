@@ -1,14 +1,21 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertTriangle, Car, PencilLine, Plus, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useState  } from 'react'
-import type {ReactNode} from 'react';
+import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardEyebrow, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardEyebrow,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import {
@@ -20,8 +27,8 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { useEmployees } from '@/features/employees/employees-context'
-import { useVehicles  } from '@/features/vehicles/vehicles-context'
-import type {VehicleDraft} from '@/features/vehicles/vehicles-context';
+import { useVehicles } from '@/features/vehicles/vehicles-context'
+import type { VehicleDraft } from '@/features/vehicles/vehicles-context'
 import { getErrorMessage } from '@/lib/api-error'
 import { getEmployeeName } from '@/lib/domain-types'
 
@@ -30,17 +37,24 @@ export const Route = createFileRoute('/vehicles')({
 })
 
 const vehicleFormSchema = z.object({
-  driverId: z.string().min(1, 'Select a driver-lead.'),
-  plate: z.string().trim().min(2, 'Plate number must contain at least 2 characters.'),
+  driverId: z.number().refine((val) => val !== 0, {
+    message: 'Select a driver-lead',
+  }),
+  plate: z
+    .string()
+    .trim()
+    .min(2, 'Plate number must contain at least 2 characters.'),
   seatCount: z.coerce.number().int().positive('Seat count must be at least 1.'),
-  amortizationBasis: z.coerce.number().nonnegative('Amortization basis cannot be negative.'),
+  amortizationBasis: z.coerce
+    .number()
+    .nonnegative('Amortization basis cannot be negative.'),
 })
 
 type VehicleFormInput = z.input<typeof vehicleFormSchema>
 type VehicleFormValues = z.output<typeof vehicleFormSchema>
 
 const defaultValues: VehicleFormInput = {
-  driverId: '',
+  driverId: 0,
   plate: '',
   seatCount: 4,
   amortizationBasis: 0,
@@ -48,8 +62,9 @@ const defaultValues: VehicleFormInput = {
 
 function VehiclesPage() {
   const { employees } = useEmployees()
-  const { vehicles, isLoading, addVehicle, updateVehicle, deleteVehicle } = useVehicles()
-  const [editingVehicleId, setEditingVehicleId] = useState<string | null>(null)
+  const { vehicles, isLoading, addVehicle, updateVehicle, deleteVehicle } =
+    useVehicles()
+  const [editingVehicleId, setEditingVehicleId] = useState<number | null>(null)
   const [formError, setFormError] = useState('')
 
   const driverLeads = useMemo(
@@ -58,12 +73,18 @@ function VehiclesPage() {
   )
 
   const driverLeadsWithoutVehicle = useMemo(
-    () => driverLeads.filter((employee) => !vehicles.some((vehicle) => vehicle.driverId === employee.id)),
+    () =>
+      driverLeads.filter(
+        (employee) =>
+          !vehicles.some((vehicle) => vehicle.driverId === employee.id),
+      ),
     [driverLeads, vehicles],
   )
 
   const editingVehicle =
-    editingVehicleId === null ? null : vehicles.find((vehicle) => vehicle.id === editingVehicleId) ?? null
+    editingVehicleId === null
+      ? null
+      : (vehicles.find((vehicle) => vehicle.id === editingVehicleId) ?? null)
 
   const availableDriverOptions = useMemo(
     () =>
@@ -121,7 +142,7 @@ function VehiclesPage() {
     }
   })
 
-  async function removeVehicle(vehicleId: string) {
+  async function removeVehicle(vehicleId: number) {
     if (editingVehicleId === vehicleId) {
       resetForm()
     }
@@ -133,7 +154,7 @@ function VehiclesPage() {
     }
   }
 
-  function employeeName(employeeId: string) {
+  function employeeName(employeeId: number) {
     const employee = employees.find((candidate) => candidate.id === employeeId)
     return employee ? getEmployeeName(employee) : 'Unknown'
   }
@@ -144,9 +165,12 @@ function VehiclesPage() {
         <CardHeader className="flex-row items-start justify-between gap-4">
           <div>
             <CardEyebrow>Vehicles</CardEyebrow>
-            <CardTitle className="mt-2">{editingVehicle ? 'Edit Vehicle' : 'Add Vehicle'}</CardTitle>
+            <CardTitle className="mt-2">
+              {editingVehicle ? 'Edit Vehicle' : 'Add Vehicle'}
+            </CardTitle>
             <CardDescription className="mt-2">
-              Every Driver-Lead needs exactly one vehicle with a seat count and amortization basis.
+              Every Driver-Lead needs exactly one vehicle with a seat count and
+              amortization basis.
             </CardDescription>
           </div>
 
@@ -156,23 +180,46 @@ function VehiclesPage() {
         </CardHeader>
 
         <form className="mt-2 space-y-5" onSubmit={onSubmit}>
-          <Field label="Driver-Lead" htmlFor="driverId" error={errors.driverId?.message}>
+          <Field
+            label="Driver-Lead"
+            htmlFor="driverId"
+            error={errors.driverId?.message}
+          >
             <Select id="driverId" {...register('driverId')}>
-              <option value="">Select driver-lead…</option>
+              <option value={0}>Select driver-lead…</option>
               {availableDriverOptions.map((employee) => (
                 <option key={employee.id} value={employee.id}>
                   {getEmployeeName(employee)}
                 </option>
               ))}
+              <option value={3}>3</option>
             </Select>
           </Field>
 
-          <Field label="Plate Number" htmlFor="plate" error={errors.plate?.message}>
-            <Input id="plate" placeholder="01 T 123 AA" {...register('plate')} />
+          <Field
+            label="Plate Number"
+            htmlFor="plate"
+            error={errors.plate?.message}
+          >
+            <Input
+              id="plate"
+              placeholder="01 T 123 AA"
+              {...register('plate')}
+            />
           </Field>
 
-          <Field label="Seat Count" htmlFor="seatCount" error={errors.seatCount?.message}>
-            <Input id="seatCount" type="number" min="1" step="1" {...register('seatCount')} />
+          <Field
+            label="Seat Count"
+            htmlFor="seatCount"
+            error={errors.seatCount?.message}
+          >
+            <Input
+              id="seatCount"
+              type="number"
+              min="1"
+              step="1"
+              {...register('seatCount')}
+            />
           </Field>
 
           <Field
@@ -180,16 +227,26 @@ function VehiclesPage() {
             htmlFor="amortizationBasis"
             error={errors.amortizationBasis?.message}
           >
-            <Input id="amortizationBasis" type="number" min="0" step="1" {...register('amortizationBasis')} />
+            <Input
+              id="amortizationBasis"
+              type="number"
+              min="0"
+              step="1"
+              {...register('amortizationBasis')}
+            />
           </Field>
 
           <div className="flex flex-wrap gap-3 pt-2">
             <Button
               type="submit"
               className="h-11 rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
-              disabled={isSubmitting || availableDriverOptions.length === 0}
+              disabled={isSubmitting}
             >
-              {editingVehicle ? <PencilLine className="size-4" /> : <Plus className="size-4" />}
+              {editingVehicle ? (
+                <PencilLine className="size-4" />
+              ) : (
+                <Plus className="size-4" />
+              )}
               {editingVehicle ? 'Save Changes' : 'Add Vehicle'}
             </Button>
 
@@ -209,7 +266,9 @@ function VehiclesPage() {
             </p>
           )}
 
-          {formError && <p className="text-xs font-medium text-red-500">{formError}</p>}
+          {formError && (
+            <p className="text-xs font-medium text-red-500">{formError}</p>
+          )}
         </form>
       </Card>
 
@@ -219,10 +278,15 @@ function VehiclesPage() {
             <div className="flex items-start gap-3">
               <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />
               <div>
-                <p className="text-sm font-semibold text-amber-800">Driver-Leads without a vehicle</p>
+                <p className="text-sm font-semibold text-amber-800">
+                  Driver-Leads without a vehicle
+                </p>
                 <p className="mt-1 text-sm text-amber-700">
-                  {driverLeadsWithoutVehicle.map((employee) => getEmployeeName(employee)).join(', ')} cannot
-                  be assigned as a crew Driver-Lead until a vehicle is added.
+                  {driverLeadsWithoutVehicle
+                    .map((employee) => getEmployeeName(employee))
+                    .join(', ')}{' '}
+                  cannot be assigned as a crew Driver-Lead until a vehicle is
+                  added.
                 </p>
               </div>
             </div>
@@ -235,7 +299,9 @@ function VehiclesPage() {
               <CardEyebrow>Vehicles list</CardEyebrow>
               <CardTitle className="mt-2">Fleet</CardTitle>
               <CardDescription className="mt-2">
-                {isLoading ? 'Loading…' : `${vehicles.length} vehicles registered.`}
+                {isLoading
+                  ? 'Loading…'
+                  : `${vehicles.length} vehicles registered.`}
               </CardDescription>
             </div>
           </CardHeader>
@@ -289,7 +355,10 @@ function VehiclesPage() {
 
                 {!isLoading && vehicles.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="py-10 text-center text-slate-400">
+                    <TableCell
+                      colSpan={5}
+                      className="py-10 text-center text-slate-400"
+                    >
                       No vehicles registered yet.
                     </TableCell>
                   </TableRow>

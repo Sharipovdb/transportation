@@ -1,15 +1,22 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createFileRoute } from '@tanstack/react-router'
 import { Briefcase, PencilLine, Plus, Trash2, Users } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
-import { Badge } from '@/components/ui/badge'
+// import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardEyebrow, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardEyebrow,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-import { Select } from '@/components/ui/select'
+// import { Select } from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -21,54 +28,105 @@ import {
 import { useEmployees } from '@/features/employees/employees-context'
 import type { EmployeeDraft } from '@/features/employees/employees-context'
 import { getErrorMessage } from '@/lib/api-error'
-import { employeeRoleLabels, employeeRoles, getEmployeeName } from '@/lib/domain-types'
-import type { EmployeeRole } from '@/lib/domain-types'
+import {
+  // employeeRoleLabels,
+  // employeeRoles,
+  getEmployeeName,
+} from '@/lib/domain-types'
+// import type { EmployeeRole } from '@/lib/domain-types'
 
 export const Route = createFileRoute('/employees')({
   component: EmployeesPage,
 })
 
 const employeeFormSchema = z.object({
-  firstName: z.string().trim().min(2, 'First name must contain at least 2 characters.'),
-  lastName: z.string().trim().min(2, 'Last name must contain at least 2 characters.'),
-  phoneNumber: z.string().trim().min(8, 'Phone number must contain at least 8 characters.'),
-  telegramId: z.string().trim().min(2, 'Telegram handle must contain at least 2 characters.'),
-  role: z.enum(employeeRoles),
+  userName: z
+    .string()
+    .trim()
+    .min(2, 'First name must contain at least 2 characters.'),
+  email: z.email().trim(),
+  firstName: z
+    .string()
+    .trim()
+    .min(2, 'First name must contain at least 2 characters.'),
+  lastName: z
+    .string()
+    .trim()
+    .min(2, 'Last name must contain at least 2 characters.'),
+  password: z
+    .string()
+    .min(6, { message: 'Passwords must be at least 6 characters' })
+    .regex(/[^a-zA-Z0-9]/, {
+      message: 'Passwords must have at least one non alphanumeric character',
+    })
+    .regex(/[a-z]/, {
+      message: "Passwords must have at least one lowercase ('a'-'z')",
+    })
+    .regex(/[A-Z]/, {
+      message: "Passwords must have at least one uppercase ('A'-'Z')",
+    })
+    .regex(/\d/, {
+      message: "Passwords must have at least one digit ('0'-'9')",
+    })
+    .optional(),
+  phoneNumber: z
+    .string()
+    .trim()
+    .min(8, 'Phone number must contain at least 8 characters.'),
+  telegramId: z
+    .string()
+    .trim()
+    .min(2, 'Telegram handle must contain at least 2 characters.'),
 })
 
 type EmployeeFormValues = z.infer<typeof employeeFormSchema>
 
 const defaultValues: EmployeeFormValues = {
+  userName: '',
+  email: '',
   firstName: '',
   lastName: '',
+  password: '',
   phoneNumber: '',
   telegramId: '',
-  role: 'worker',
 }
 
-const roleBadgeVariant: Record<EmployeeRole, 'default' | 'secondary' | 'success' | 'warning'> = {
-  routeManager: 'warning',
-  crewLead: 'default',
-  driverLead: 'success',
-  worker: 'secondary',
-  accountant: 'default',
-}
+// const roleBadgeVariant: Record<
+//   EmployeeRole,
+//   'default' | 'secondary' | 'success' | 'warning'
+// > = {
+//   routeManager: 'warning',
+//   crewLead: 'default',
+//   driverLead: 'success',
+//   worker: 'secondary',
+//   accountant: 'default',
+// }
 
 function EmployeesPage() {
-  const { employees, isLoading, addEmployee, updateEmployee, deleteEmployee } = useEmployees()
-  const [editingEmployeeId, setEditingEmployeeId] = useState<string | null>(null)
-  const [roleFilter, setRoleFilter] = useState<EmployeeRole | 'all'>('all')
+  const { employees, isLoading, addEmployee, updateEmployee, deleteEmployee } =
+    useEmployees()
+  const [editingEmployeeId, setEditingEmployeeId] = useState<number | null>(
+    null,
+  )
+  // const [roleFilter, setRoleFilter] = useState<EmployeeRole | 'all'>('all')
   const [formError, setFormError] = useState('')
 
-  const filteredEmployees = useMemo(() => {
-    const scoped =
-      roleFilter === 'all' ? employees : employees.filter((employee) => employee.role === roleFilter)
+  // const filteredEmployees = useMemo(() => {
+  //   const scoped =
+  //     roleFilter === 'all'
+  //       ? employees
+  //       : employees.filter((employee) => employee.role === roleFilter)
 
-    return [...scoped].sort((left, right) => getEmployeeName(left).localeCompare(getEmployeeName(right)))
-  }, [employees, roleFilter])
+  //   return [...scoped].sort((left, right) =>
+  //     getEmployeeName(left).localeCompare(getEmployeeName(right)),
+  //   )
+  // }, [employees, roleFilter])
 
   const editingEmployee =
-    editingEmployeeId === null ? null : employees.find((employee) => employee.id === editingEmployeeId) ?? null
+    editingEmployeeId === null
+      ? null
+      : (employees.find((employee) => employee.id === editingEmployeeId) ??
+        null)
 
   const {
     register,
@@ -87,11 +145,12 @@ function EmployeesPage() {
     }
 
     reset({
+      userName: editingEmployee.userName,
+      email: editingEmployee.email,
       firstName: editingEmployee.firstName,
       lastName: editingEmployee.lastName,
       phoneNumber: editingEmployee.phoneNumber,
       telegramId: editingEmployee.telegramId,
-      role: editingEmployee.role,
     })
   }, [editingEmployee, reset])
 
@@ -117,7 +176,7 @@ function EmployeesPage() {
     }
   })
 
-  async function removeEmployee(employeeId: string) {
+  async function removeEmployee(employeeId: number) {
     if (editingEmployeeId === employeeId) {
       resetForm()
     }
@@ -135,10 +194,9 @@ function EmployeesPage() {
         <CardHeader className="flex-row items-start justify-between gap-4">
           <div>
             <CardEyebrow>People</CardEyebrow>
-            <CardTitle className="mt-2">{editingEmployee ? 'Edit Employee' : 'Add Employee'}</CardTitle>
-            <CardDescription className="mt-2">
-              Employees are the real-world people assigned to crews, routes, and driving duties.
-            </CardDescription>
+            <CardTitle className="mt-2">
+              {editingEmployee ? 'Edit Employee' : 'Add Employee'}
+            </CardTitle>
           </div>
 
           <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
@@ -147,22 +205,88 @@ function EmployeesPage() {
         </CardHeader>
 
         <form className="mt-2 space-y-5" onSubmit={onSubmit}>
-          <Field label="First Name" htmlFor="firstName" error={errors.firstName?.message}>
-            <Input id="firstName" placeholder="Aziz" {...register('firstName')} />
+          <Field
+            label="User Name"
+            htmlFor="userName"
+            error={errors.userName?.message}
+          >
+            <Input
+              id="firstName"
+              placeholder="aziz"
+              {...register('userName')}
+            />
           </Field>
 
-          <Field label="Last Name" htmlFor="lastName" error={errors.lastName?.message}>
-            <Input id="lastName" placeholder="Karimov" {...register('lastName')} />
+          <Field label="Email" htmlFor="email" error={errors.email?.message}>
+            <Input
+              id="email"
+              placeholder="example@pt.com"
+              {...register('email')}
+            />
           </Field>
 
-          <Field label="Phone Number" htmlFor="phoneNumber" error={errors.phoneNumber?.message}>
-            <Input id="phoneNumber" placeholder="+992900000123" {...register('phoneNumber')} />
+          <Field
+            label="First Name"
+            htmlFor="firstName"
+            error={errors.firstName?.message}
+          >
+            <Input
+              id="firstName"
+              placeholder="Aziz"
+              {...register('firstName')}
+            />
           </Field>
 
-          <Field label="Telegram Handle" htmlFor="telegramId" error={errors.telegramId?.message}>
-            <Input id="telegramId" placeholder="@aziz_k" {...register('telegramId')} />
+          <Field
+            label="Last Name"
+            htmlFor="lastName"
+            error={errors.lastName?.message}
+          >
+            <Input
+              id="lastName"
+              placeholder="Karimov"
+              {...register('lastName')}
+            />
           </Field>
 
+          {!editingEmployee && (
+            <Field
+              label="Password"
+              htmlFor="password"
+              error={errors.password?.message}
+            >
+              <Input
+                id="password"
+                placeholder="••••••••"
+                {...register('password')}
+              />
+            </Field>
+          )}
+
+          <Field
+            label="Phone Number"
+            htmlFor="phoneNumber"
+            error={errors.phoneNumber?.message}
+          >
+            <Input
+              id="phoneNumber"
+              placeholder="+992900000123"
+              {...register('phoneNumber')}
+            />
+          </Field>
+
+          <Field
+            label="Telegram ID"
+            htmlFor="telegramId"
+            error={errors.telegramId?.message}
+          >
+            <Input
+              id="telegramId"
+              placeholder="12345"
+              {...register('telegramId')}
+            />
+          </Field>
+          {/* 
           <Field label="Role" htmlFor="role" error={errors.role?.message}>
             <Select id="role" {...register('role')}>
               {employeeRoles.map((role) => (
@@ -171,9 +295,11 @@ function EmployeesPage() {
                 </option>
               ))}
             </Select>
-          </Field>
+          </Field> */}
 
-          {formError && <p className="text-xs font-medium text-red-500">{formError}</p>}
+          {formError && (
+            <p className="text-xs font-medium text-red-500">{formError}</p>
+          )}
 
           <div className="flex flex-wrap gap-3 pt-2">
             <Button
@@ -181,7 +307,11 @@ function EmployeesPage() {
               className="h-11 rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
               disabled={isSubmitting}
             >
-              {editingEmployee ? <PencilLine className="size-4" /> : <Plus className="size-4" />}
+              {editingEmployee ? (
+                <PencilLine className="size-4" />
+              ) : (
+                <Plus className="size-4" />
+              )}
               {editingEmployee ? 'Save Changes' : 'Add Employee'}
             </Button>
 
@@ -205,14 +335,16 @@ function EmployeesPage() {
             <CardDescription className="mt-2">
               {isLoading
                 ? 'Loading…'
-                : `${filteredEmployees.length} of ${employees.length} employees shown.`}
+                : `${employees.length} of ${employees.length} employees shown.`}
             </CardDescription>
           </div>
 
           <div className="flex items-center gap-3">
-            <Select
+            {/* <Select
               value={roleFilter}
-              onChange={(event) => setRoleFilter(event.target.value as EmployeeRole | 'all')}
+              onChange={(event) =>
+                setRoleFilter(event.target.value as EmployeeRole | 'all')
+              }
               className="w-48"
             >
               <option value="all">All roles</option>
@@ -221,7 +353,7 @@ function EmployeesPage() {
                   {employeeRoleLabels[role]}
                 </option>
               ))}
-            </Select>
+            </Select> */}
 
             <div className="hidden items-center gap-2 rounded-full bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 sm:inline-flex">
               <Users className="size-4" />
@@ -235,21 +367,24 @@ function EmployeesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Role</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Telegram</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredEmployees.map((employee) => (
+              {employees.map((employee) => (
                 <TableRow key={employee.id}>
-                  <TableCell className="font-medium text-slate-900">{getEmployeeName(employee)}</TableCell>
-                  <TableCell>
+                  <TableCell className="font-medium text-slate-900">
+                    {getEmployeeName(employee)}
+                  </TableCell>
+                  <TableCell>{employee.email}</TableCell>
+                  {/* <TableCell>
                     <Badge variant={roleBadgeVariant[employee.role]}>
                       {employeeRoleLabels[employee.role]}
                     </Badge>
-                  </TableCell>
+                  </TableCell> */}
                   <TableCell>{employee.phoneNumber}</TableCell>
                   <TableCell>{employee.telegramId}</TableCell>
                   <TableCell className="text-right">
@@ -277,10 +412,13 @@ function EmployeesPage() {
                 </TableRow>
               ))}
 
-              {!isLoading && filteredEmployees.length === 0 && (
+              {!isLoading && employees.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="py-10 text-center text-slate-400">
-                    No employees match this filter yet.
+                  <TableCell
+                    colSpan={5}
+                    className="py-10 text-center text-slate-400"
+                  >
+                    No employees yet.
                   </TableCell>
                 </TableRow>
               )}

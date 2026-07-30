@@ -49,18 +49,33 @@ function todayIsoDate() {
 function MonthlySheetsPage() {
   const { can } = usePermissions()
   const { crews } = useCrews()
-  const { isLoading, getSheet, previewSheet, generateSheet, confirmSheet, deleteSheet } = useMonthlySheets()
+  const {
+    isLoading,
+    getSheet,
+    previewSheet,
+    generateSheet,
+    confirmSheet,
+    deleteSheet,
+  } = useMonthlySheets()
 
-  const [period, setPeriod] = useState<Period>(() => getMonthYear(todayIsoDate()))
+  const [period, setPeriod] = useState<Period>(() =>
+    getMonthYear(todayIsoDate()),
+  )
   const [crewId, setCrewId] = useState('')
   const [preview, setPreview] = useState<MonthlySheet | null>(null)
   const [isBusy, setIsBusy] = useState(false)
   const [actionError, setActionError] = useState('')
-  const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(null)
+  const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(
+    null,
+  )
 
-  const activeCrewId = crews.some((crew) => crew.id === crewId) ? crewId : (crews[0]?.id ?? '')
+  const activeCrewId = crews.some((crew) => crew.id === crewId)
+    ? crewId
+    : (crews[0]?.id ?? '')
   const crew = crews.find((candidate) => candidate.id === activeCrewId)
-  const sheet = crew ? getSheet({ crewId: crew.id, year: period.year, month: period.month }) : undefined
+  const sheet = crew
+    ? getSheet({ crewId: crew.id, year: period.year, month: period.month })
+    : undefined
 
   function resetTransientState() {
     setPreview(null)
@@ -85,10 +100,16 @@ function MonthlySheetsPage() {
     setActionError('')
 
     try {
-      const result = await previewSheet({ crewId: crew.id, year: period.year, month: period.month })
+      const result = await previewSheet({
+        crewId: crew.id,
+        year: period.year,
+        month: period.month,
+      })
       setPreview(result)
     } catch (error) {
-      setActionError(getErrorMessage(error, 'Could not compute a preview for this period.'))
+      setActionError(
+        getErrorMessage(error, 'Could not compute a preview for this period.'),
+      )
     } finally {
       setIsBusy(false)
     }
@@ -101,7 +122,11 @@ function MonthlySheetsPage() {
     setActionError('')
 
     try {
-      await generateSheet({ crewId: crew.id, year: period.year, month: period.month })
+      await generateSheet({
+        crewId: crew.id,
+        year: period.year,
+        month: period.month,
+      })
       setPreview(null)
     } catch (error) {
       setActionError(getErrorMessage(error, 'Could not generate the sheet.'))
@@ -148,15 +173,22 @@ function MonthlySheetsPage() {
         <CardHeader className="flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <CardEyebrow>Monthly Sheets</CardEyebrow>
-            <CardTitle className="mt-2">{formatMonthLabel(period.year, period.month)}</CardTitle>
+            <CardTitle className="mt-2">
+              {formatMonthLabel(period.year, period.month)}
+            </CardTitle>
             <CardDescription className="mt-2">
-              Driver km, extra km, and taxi compensation are computed by the backend from logged
-              transport days and approved taxi expenses — nothing here is entered by hand.
+              Driver km, extra km, and taxi compensation are computed by the
+              backend from logged transport days and approved taxi expenses —
+              nothing here is entered by hand.
             </CardDescription>
           </div>
 
           <div className="flex flex-wrap items-end gap-3">
-            <Select value={activeCrewId} onChange={(event) => selectCrew(event.target.value)} className="w-56">
+            <Select
+              value={activeCrewId}
+              onChange={(event) => selectCrew(event.target.value)}
+              className="w-56"
+            >
               {crews.length === 0 && <option value="">No crews yet</option>}
               {crews.map((crewOption) => (
                 <option key={crewOption.id} value={crewOption.id}>
@@ -171,7 +203,9 @@ function MonthlySheetsPage() {
 
       {!crew ? (
         <Card>
-          <p className="py-10 text-center text-slate-400">Add a crew first on the Crews page.</p>
+          <p className="py-10 text-center text-slate-400">
+            Add a crew first on the Crews page.
+          </p>
         </Card>
       ) : isLoading ? (
         <Card>
@@ -185,10 +219,20 @@ function MonthlySheetsPage() {
             <div>
               <CardEyebrow>{crew.name}</CardEyebrow>
               <CardTitle className="mt-2 flex items-center gap-3">
-                {sheet ? 'Generated Sheet' : preview ? 'Preview (not saved)' : 'No sheet yet'}
-                {sheet?.isConfirmed && <Badge variant="success">Confirmed</Badge>}
-                {sheet && !sheet.isConfirmed && <Badge variant="warning">Draft</Badge>}
-                {!sheet && preview && <Badge variant="secondary">Unsaved</Badge>}
+                {sheet
+                  ? 'Generated Sheet'
+                  : preview
+                    ? 'Preview (not saved)'
+                    : 'No sheet yet'}
+                {sheet?.isConfirmed && (
+                  <Badge variant="success">Confirmed</Badge>
+                )}
+                {sheet && !sheet.isConfirmed && (
+                  <Badge variant="warning">Draft</Badge>
+                )}
+                {!sheet && preview && (
+                  <Badge variant="secondary">Unsaved</Badge>
+                )}
               </CardTitle>
             </div>
 
@@ -250,7 +294,11 @@ function MonthlySheetsPage() {
             </div>
           </CardHeader>
 
-          {actionError && <p className="mt-4 text-sm font-medium text-red-500">{actionError}</p>}
+          {actionError && (
+            <p className="mt-4 text-sm font-medium text-red-500">
+              {actionError}
+            </p>
+          )}
 
           <div className="mt-4">
             {!displayedSheet ? (
@@ -259,7 +307,8 @@ function MonthlySheetsPage() {
               </p>
             ) : displayedSheet.payoutLines.length === 0 ? (
               <p className="py-10 text-center text-slate-400">
-                No payout lines — this crew has no logged transport days for this period.
+                No payout lines — this crew has no logged transport days for
+                this period.
               </p>
             ) : (
               <Table>
@@ -267,8 +316,12 @@ function MonthlySheetsPage() {
                   <TableRow>
                     <TableHead>Employee</TableHead>
                     <TableHead className="text-right">Driver payment</TableHead>
-                    <TableHead className="text-right">Extra km payment</TableHead>
-                    <TableHead className="text-right">Taxi compensation</TableHead>
+                    <TableHead className="text-right">
+                      Extra km payment
+                    </TableHead>
+                    <TableHead className="text-right">
+                      Taxi compensation
+                    </TableHead>
                     <TableHead className="text-right">Total</TableHead>
                     <TableHead />
                   </TableRow>
@@ -277,10 +330,18 @@ function MonthlySheetsPage() {
                   {displayedSheet.payoutLines.map((line) => (
                     <Fragment key={line.id}>
                       <TableRow>
-                        <TableCell className="font-medium text-slate-900">{line.employeeName}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(line.driverPayment)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(line.extraKmPayment)}</TableCell>
-                        <TableCell className="text-right">{formatCurrency(line.taxiCompensation)}</TableCell>
+                        <TableCell className="font-medium text-slate-900">
+                          {line.employeeName}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(line.driverPayment)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(line.extraKmPayment)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatCurrency(line.taxiCompensation)}
+                        </TableCell>
                         <TableCell className="text-right font-semibold text-slate-900">
                           {formatCurrency(line.totalAmount)}
                         </TableCell>
@@ -293,7 +354,9 @@ function MonthlySheetsPage() {
                               className="rounded-full text-slate-400"
                               onClick={() =>
                                 setExpandedEmployeeId((current) =>
-                                  current === line.employeeId ? null : line.employeeId,
+                                  current === line.employeeId
+                                    ? null
+                                    : line.employeeId,
                                 )
                               }
                             >
@@ -309,32 +372,46 @@ function MonthlySheetsPage() {
                         </TableCell>
                       </TableRow>
 
-                      {expandedEmployeeId === line.employeeId && line.taxiExpenses.length > 0 && (
-                        <TableRow className="hover:bg-transparent">
-                          <TableCell colSpan={6} className="bg-sky-50/40">
-                            <div className="space-y-1.5 py-2">
-                              {line.taxiExpenses.map((expense) => (
-                                <div
-                                  key={expense.id}
-                                  className="flex items-center justify-between rounded-xl border border-sky-100 bg-white px-3 py-2 text-sm"
-                                >
-                                  <span className="text-slate-600">{legLabels[expense.leg]} leg</span>
-                                  <span className="text-slate-600">{formatCurrency(expense.amount)}</span>
-                                  <Badge variant={expense.status === 'approved' ? 'success' : 'secondary'}>
-                                    {taxiExpenseStatusLabels[expense.status]}
-                                  </Badge>
-                                </div>
-                              ))}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
+                      {expandedEmployeeId === line.employeeId &&
+                        line.taxiExpenses.length > 0 && (
+                          <TableRow className="hover:bg-transparent">
+                            <TableCell colSpan={6} className="bg-sky-50/40">
+                              <div className="space-y-1.5 py-2">
+                                {line.taxiExpenses.map((expense) => (
+                                  <div
+                                    key={expense.id}
+                                    className="flex items-center justify-between rounded-xl border border-sky-100 bg-white px-3 py-2 text-sm"
+                                  >
+                                    <span className="text-slate-600">
+                                      {legLabels[expense.leg]} leg
+                                    </span>
+                                    <span className="text-slate-600">
+                                      {formatCurrency(expense.amount)}
+                                    </span>
+                                    <Badge
+                                      variant={
+                                        expense.status === 'approved'
+                                          ? 'success'
+                                          : 'secondary'
+                                      }
+                                    >
+                                      {taxiExpenseStatusLabels[expense.status]}
+                                    </Badge>
+                                  </div>
+                                ))}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
                     </Fragment>
                   ))}
                 </TableBody>
                 <TableFooter>
                   <TableRow>
-                    <TableCell className="font-semibold text-slate-900" colSpan={4}>
+                    <TableCell
+                      className="font-semibold text-slate-900"
+                      colSpan={4}
+                    >
                       Total payout — {crew.name}
                     </TableCell>
                     <TableCell className="text-right text-base font-semibold text-sky-700">

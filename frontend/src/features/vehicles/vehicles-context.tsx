@@ -20,7 +20,7 @@ interface PaginatedResult<T> {
 }
 
 export interface VehicleDraft {
-  driverId: string
+  driverId: number
   plate: string
   seatCount: number
   amortizationBasis: number
@@ -30,8 +30,8 @@ const VEHICLES_QUERY_KEY = ['vehicles']
 
 function toVehicle(dto: VehicleApiDto): Vehicle {
   return {
-    id: String(dto.id),
-    driverId: String(dto.driverId),
+    id: Number(dto.id),
+    driverId: Number(dto.driverId),
     plate: dto.plate,
     seatCount: dto.seatCount,
     amortizationBasis: dto.amortizationBasis,
@@ -39,9 +39,12 @@ function toVehicle(dto: VehicleApiDto): Vehicle {
 }
 
 async function fetchVehicles() {
-  const response = await apiClient.get<PaginatedResult<VehicleApiDto>>('/api/Vehicle/GetAll', {
-    params: flatLargePage,
-  })
+  const response = await apiClient.get<PaginatedResult<VehicleApiDto>>(
+    '/api/Vehicle/GetAll',
+    {
+      params: flatLargePage,
+    },
+  )
 
   return response.data.items.map(toVehicle)
 }
@@ -50,10 +53,12 @@ interface VehiclesContextValue {
   vehicles: Vehicle[]
   isLoading: boolean
   addVehicle: (draft: VehicleDraft) => Promise<void>
-  updateVehicle: (vehicleId: string, draft: VehicleDraft) => Promise<void>
-  deleteVehicle: (vehicleId: string) => Promise<void>
-  getVehicleById: (vehicleId: string | null | undefined) => Vehicle | undefined
-  getVehicleByDriverId: (driverId: string | null | undefined) => Vehicle | undefined
+  updateVehicle: (vehicleId: number, draft: VehicleDraft) => Promise<void>
+  deleteVehicle: (vehicleId: number) => Promise<void>
+  getVehicleById: (vehicleId: number | null | undefined) => Vehicle | undefined
+  getVehicleByDriverId: (
+    driverId: number | null | undefined,
+  ) => Vehicle | undefined
 }
 
 const VehiclesContext = createContext<VehiclesContextValue | null>(null)
@@ -84,7 +89,13 @@ export function VehiclesProvider({ children }: { children: ReactNode }) {
   const updateMutation = useMutation({
     // UpdateVehicleRequest is the one backend DTO with snake_case JSON keys — kept
     // isolated to this single call rather than fixing the backend for a cosmetic quirk.
-    mutationFn: ({ vehicleId, draft }: { vehicleId: string; draft: VehicleDraft }) =>
+    mutationFn: ({
+      vehicleId,
+      draft,
+    }: {
+      vehicleId: number
+      draft: VehicleDraft
+    }) =>
       apiClient.put(`/api/Vehicle/Update/${vehicleId}`, {
         driver_id: Number(draft.driverId),
         plate: draft.plate,
@@ -95,7 +106,8 @@ export function VehiclesProvider({ children }: { children: ReactNode }) {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (vehicleId: string) => apiClient.delete(`/api/Vehicle/Delete/${vehicleId}`),
+    mutationFn: (vehicleId: number) =>
+      apiClient.delete(`/api/Vehicle/Delete/${vehicleId}`),
     onSuccess: invalidate,
   })
 
@@ -103,16 +115,28 @@ export function VehiclesProvider({ children }: { children: ReactNode }) {
     () => ({
       vehicles,
       isLoading,
-      addVehicle: async (draft) => { await addMutation.mutateAsync(draft) },
-      updateVehicle: async (vehicleId, draft) => { await updateMutation.mutateAsync({ vehicleId, draft }) },
-      deleteVehicle: async (vehicleId) => { await deleteMutation.mutateAsync(vehicleId) },
-      getVehicleById: (vehicleId) => vehicles.find((vehicle) => vehicle.id === vehicleId),
-      getVehicleByDriverId: (driverId) => vehicles.find((vehicle) => vehicle.driverId === driverId),
+      addVehicle: async (draft) => {
+        await addMutation.mutateAsync(draft)
+      },
+      updateVehicle: async (vehicleId, draft) => {
+        await updateMutation.mutateAsync({ vehicleId, draft })
+      },
+      deleteVehicle: async (vehicleId) => {
+        await deleteMutation.mutateAsync(vehicleId)
+      },
+      getVehicleById: (vehicleId) =>
+        vehicles.find((vehicle) => vehicle.id === vehicleId),
+      getVehicleByDriverId: (driverId) =>
+        vehicles.find((vehicle) => vehicle.driverId === driverId),
     }),
     [vehicles, isLoading, addMutation, updateMutation, deleteMutation],
   )
 
-  return <VehiclesContext.Provider value={value}>{children}</VehiclesContext.Provider>
+  return (
+    <VehiclesContext.Provider value={value}>
+      {children}
+    </VehiclesContext.Provider>
+  )
 }
 
 export function useVehicles() {

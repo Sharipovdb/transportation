@@ -1,13 +1,20 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createFileRoute } from '@tanstack/react-router'
 import { Map, PencilLine, Plus, Route as RouteIcon, Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useState  } from 'react'
-import type {ReactNode} from 'react';
+import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardEyebrow, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardEyebrow,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
   Table,
@@ -17,8 +24,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useTransportRoutes  } from '@/features/routes/routes-context'
-import type {TransportRouteDraft} from '@/features/routes/routes-context';
+import { useTransportRoutes } from '@/features/routes/routes-context'
+import type { TransportRouteDraft } from '@/features/routes/routes-context'
 import { getErrorMessage } from '@/lib/api-error'
 
 export const Route = createFileRoute('/routes')({
@@ -26,7 +33,10 @@ export const Route = createFileRoute('/routes')({
 })
 
 const routeFormSchema = z.object({
-  name: z.string().trim().min(2, 'Route name must contain at least 2 characters.'),
+  name: z
+    .string()
+    .trim()
+    .min(2, 'Route name must contain at least 2 characters.'),
   distanceKm: z.coerce.number().positive('Distance must be greater than 0.'),
 })
 
@@ -42,17 +52,21 @@ const defaultValues: RouteFormInput = {
 }
 
 function RoutesPage() {
-  const { routes, isLoading, addRoute, updateRoute, deleteRoute } = useTransportRoutes()
+  const { routes, isLoading, addRoute, updateRoute, deleteRoute } =
+    useTransportRoutes()
   const [editingRouteId, setEditingRouteId] = useState<string | null>(null)
   const [formError, setFormError] = useState('')
 
   const sortedRoutes = useMemo(
-    () => [...routes].sort((left, right) => left.name.localeCompare(right.name)),
+    () =>
+      [...routes].sort((left, right) => left.name.localeCompare(right.name)),
     [routes],
   )
 
   const editingRoute =
-    editingRouteId === null ? null : routes.find((route) => route.id === editingRouteId) ?? null
+    editingRouteId === null
+      ? null
+      : (routes.find((route) => route.id === editingRouteId) ?? null)
 
   const {
     register,
@@ -84,6 +98,7 @@ function RoutesPage() {
 
     try {
       if (editingRouteId) {
+        console.log(editingRouteId)
         await updateRoute(editingRouteId, values)
       } else {
         await addRoute(values)
@@ -113,9 +128,12 @@ function RoutesPage() {
         <CardHeader className="flex-row items-start justify-between gap-4">
           <div>
             <CardEyebrow>Routes</CardEyebrow>
-            <CardTitle className="mt-2">{editingRoute ? 'Edit Route' : 'Add Route'}</CardTitle>
+            <CardTitle className="mt-2">
+              {editingRoute ? 'Edit Route' : 'Add Route'}
+            </CardTitle>
             <CardDescription className="mt-2">
-              The standard one-way distance is used as the default commute km for driven days.
+              The standard one-way distance is used as the default commute km
+              for driven days.
             </CardDescription>
           </div>
 
@@ -126,14 +144,31 @@ function RoutesPage() {
 
         <form className="mt-2 space-y-5" onSubmit={onSubmit}>
           <Field label="Route Name" htmlFor="name" error={errors.name?.message}>
-            <Input id="name" placeholder="Karakum Industrial Site" {...register('name')} />
+            <Input
+              id="name"
+              placeholder="Karakum Industrial Site"
+              {...register('name')}
+            />
           </Field>
 
-          <Field label="Standard Distance (km, one-way)" htmlFor="distanceKm" error={errors.distanceKm?.message}>
-            <Input id="distanceKm" type="number" step="0.1" min="0" placeholder="42" {...register('distanceKm')} />
+          <Field
+            label="Standard Distance (km, one-way)"
+            htmlFor="distanceKm"
+            error={errors.distanceKm?.message}
+          >
+            <Input
+              id="distanceKm"
+              type="number"
+              step="0.1"
+              min="0"
+              placeholder="42"
+              {...register('distanceKm')}
+            />
           </Field>
 
-          {formError && <p className="text-xs font-medium text-red-500">{formError}</p>}
+          {formError && (
+            <p className="text-xs font-medium text-red-500">{formError}</p>
+          )}
 
           <div className="flex flex-wrap gap-3 pt-2">
             <Button
@@ -141,7 +176,11 @@ function RoutesPage() {
               className="h-11 rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
               disabled={isSubmitting}
             >
-              {editingRoute ? <PencilLine className="size-4" /> : <Plus className="size-4" />}
+              {editingRoute ? (
+                <PencilLine className="size-4" />
+              ) : (
+                <Plus className="size-4" />
+              )}
               {editingRoute ? 'Save Changes' : 'Add Route'}
             </Button>
 
@@ -163,7 +202,9 @@ function RoutesPage() {
             <CardEyebrow>Routes list</CardEyebrow>
             <CardTitle className="mt-2">Standard Commute Distances</CardTitle>
             <CardDescription className="mt-2">
-              {isLoading ? 'Loading…' : `${sortedRoutes.length} routes configured.`}
+              {isLoading
+                ? 'Loading…'
+                : `${sortedRoutes.length} routes configured.`}
             </CardDescription>
           </div>
 
@@ -184,8 +225,10 @@ function RoutesPage() {
             </TableHeader>
             <TableBody>
               {sortedRoutes.map((route) => (
-                <TableRow key={route.id}>
-                  <TableCell className="font-medium text-slate-900">{route.name}</TableCell>
+                <TableRow key={route.name}>
+                  <TableCell className="font-medium text-slate-900">
+                    {route.name}
+                  </TableCell>
                   <TableCell>{route.distanceKm} km</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
@@ -214,7 +257,10 @@ function RoutesPage() {
 
               {!isLoading && sortedRoutes.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="py-10 text-center text-slate-400">
+                  <TableCell
+                    colSpan={3}
+                    className="py-10 text-center text-slate-400"
+                  >
                     No routes yet — add the first one.
                   </TableCell>
                 </TableRow>

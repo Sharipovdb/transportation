@@ -3,13 +3,21 @@ import { createContext, useContext, useMemo } from 'react'
 import type { ReactNode } from 'react'
 
 import { apiClient } from '@/lib/api-client'
-import type { Leg, MonthlySheet, PayoutLine, TaxiExpenseStatus } from '@/lib/domain-types'
+import type {
+  Leg,
+  MonthlySheet,
+  PayoutLine,
+  TaxiExpenseStatus,
+} from '@/lib/domain-types'
 import { nestedLargePage } from '@/lib/pagination'
 
 // Matches the numeric Leg/TaxiExpenseStatus enum values as they appear nested inside
 // PayoutLineDto.TaxiExpenses (see TaxiExpenseSummaryDto.cs) — numeric here even though
 // the standalone TaxiExpenseController's DTO stringifies the same enums.
-const legFromNumericValue: Record<number, Leg> = { 1: 'morning', 2: 'afternoon' }
+const legFromNumericValue: Record<number, Leg> = {
+  1: 'morning',
+  2: 'afternoon',
+}
 const statusFromNumericValue: Record<number, TaxiExpenseStatus> = {
   1: 'pending',
   2: 'approved',
@@ -108,10 +116,16 @@ interface MonthlySheetsContextValue {
   deleteSheet: (sheetId: string) => Promise<void>
 }
 
-const MonthlySheetsContext = createContext<MonthlySheetsContextValue | null>(null)
+const MonthlySheetsContext = createContext<MonthlySheetsContextValue | null>(
+  null,
+)
 
 function isSamePeriod(sheet: MonthlySheet, period: SheetPeriod) {
-  return sheet.crewId === period.crewId && sheet.year === period.year && sheet.month === period.month
+  return (
+    sheet.crewId === period.crewId &&
+    sheet.year === period.year &&
+    sheet.month === period.month
+  )
 }
 
 export function MonthlySheetsProvider({ children }: { children: ReactNode }) {
@@ -128,11 +142,14 @@ export function MonthlySheetsProvider({ children }: { children: ReactNode }) {
 
   const previewMutation = useMutation({
     mutationFn: async (period: SheetPeriod) => {
-      const response = await apiClient.post<MonthlySheetApiDto>('/api/MonthlyTransportSheets/GetPreview', {
-        crewId: Number(period.crewId),
-        year: period.year,
-        month: period.month,
-      })
+      const response = await apiClient.post<MonthlySheetApiDto>(
+        '/api/MonthlyTransportSheets/GetPreview',
+        {
+          crewId: Number(period.crewId),
+          year: period.year,
+          month: period.month,
+        },
+      )
 
       return toMonthlySheet(response.data)
     },
@@ -140,11 +157,14 @@ export function MonthlySheetsProvider({ children }: { children: ReactNode }) {
 
   const generateMutation = useMutation({
     mutationFn: async (period: SheetPeriod) => {
-      const response = await apiClient.post<MonthlySheetApiDto>('/api/MonthlyTransportSheets/Generate', {
-        crewId: Number(period.crewId),
-        year: period.year,
-        month: period.month,
-      })
+      const response = await apiClient.post<MonthlySheetApiDto>(
+        '/api/MonthlyTransportSheets/Generate',
+        {
+          crewId: Number(period.crewId),
+          year: period.year,
+          month: period.month,
+        },
+      )
 
       return toMonthlySheet(response.data)
     },
@@ -152,12 +172,14 @@ export function MonthlySheetsProvider({ children }: { children: ReactNode }) {
   })
 
   const confirmMutation = useMutation({
-    mutationFn: (sheetId: string) => apiClient.put(`/api/MonthlyTransportSheets/Confirm/${sheetId}`),
+    mutationFn: (sheetId: string) =>
+      apiClient.put(`/api/MonthlyTransportSheets/Confirm/${sheetId}`),
     onSuccess: invalidate,
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (sheetId: string) => apiClient.delete(`/api/MonthlyTransportSheets/Delete/${sheetId}`),
+    mutationFn: (sheetId: number) =>
+      apiClient.delete(`/api/MonthlyTransportSheets/Delete/${sheetId}`),
     onSuccess: invalidate,
   })
 
@@ -168,20 +190,37 @@ export function MonthlySheetsProvider({ children }: { children: ReactNode }) {
       getSheet: (period) => sheets.find((sheet) => isSamePeriod(sheet, period)),
       previewSheet: (period) => previewMutation.mutateAsync(period),
       generateSheet: (period) => generateMutation.mutateAsync(period),
-      confirmSheet: async (sheetId) => { await confirmMutation.mutateAsync(sheetId) },
-      deleteSheet: async (sheetId) => { await deleteMutation.mutateAsync(sheetId) },
+      confirmSheet: async (sheetId) => {
+        await confirmMutation.mutateAsync(sheetId)
+      },
+      deleteSheet: async (sheetId) => {
+        await deleteMutation.mutateAsync(sheetId)
+      },
     }),
-    [sheets, isLoading, previewMutation, generateMutation, confirmMutation, deleteMutation],
+    [
+      sheets,
+      isLoading,
+      previewMutation,
+      generateMutation,
+      confirmMutation,
+      deleteMutation,
+    ],
   )
 
-  return <MonthlySheetsContext.Provider value={value}>{children}</MonthlySheetsContext.Provider>
+  return (
+    <MonthlySheetsContext.Provider value={value}>
+      {children}
+    </MonthlySheetsContext.Provider>
+  )
 }
 
 export function useMonthlySheets() {
   const context = useContext(MonthlySheetsContext)
 
   if (!context) {
-    throw new Error('useMonthlySheets must be used inside MonthlySheetsProvider')
+    throw new Error(
+      'useMonthlySheets must be used inside MonthlySheetsProvider',
+    )
   }
 
   return context

@@ -52,8 +52,6 @@ const rolePagePaths: Record<AppRole, ReadonlyArray<string>> = {
   ],
   Accountant: [
     dashboard,
-    employees,
-    crews,
     transportDays,
     routes,
     vehicles,

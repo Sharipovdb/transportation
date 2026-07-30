@@ -25,15 +25,19 @@ export const employeeRoleLabels: Record<EmployeeRole, string> = {
 // one of the PRD's business roles, so it's deliberately excluded here — an Admin
 // account never shows up as an "Employee".
 export interface Employee {
-  id: string
+  id: number
+  email: string
+  userName: string
   firstName: string
   lastName: string
+  password: string
   phoneNumber: string
   telegramId: string
-  role: EmployeeRole
 }
 
-export function getEmployeeName(employee: Pick<Employee, 'firstName' | 'lastName'>) {
+export function getEmployeeName(
+  employee: Pick<Employee, 'firstName' | 'lastName'>,
+) {
   return `${employee.firstName} ${employee.lastName}`.trim()
 }
 
@@ -44,8 +48,8 @@ export interface TransportRoute {
 }
 
 export interface Vehicle {
-  id: string
-  driverId: string
+  id: number
+  driverId: number
   plate: string
   seatCount: number
   amortizationBasis: number
@@ -117,7 +121,12 @@ export const legLabels: Record<Leg, string> = {
 
 // Mirrors the backend's TaxiExpenseStatus exactly. Only Approved expenses count
 // toward a driver's payout; confirming a monthly sheet bulk-flips Approved -> Paid.
-export const taxiExpenseStatuses = ['pending', 'approved', 'rejected', 'paid'] as const
+export const taxiExpenseStatuses = [
+  'pending',
+  'approved',
+  'rejected',
+  'paid',
+] as const
 export type TaxiExpenseStatus = (typeof taxiExpenseStatuses)[number]
 
 export const taxiExpenseStatusLabels: Record<TaxiExpenseStatus, string> = {

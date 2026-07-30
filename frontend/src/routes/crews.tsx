@@ -1,37 +1,56 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createFileRoute } from '@tanstack/react-router'
-import { AlertTriangle, Bus, PencilLine, Plus, Trash2, Users } from 'lucide-react'
-import { useEffect, useMemo, useState  } from 'react'
-import type {ReactNode} from 'react';
+import {
+  AlertTriangle,
+  Bus,
+  PencilLine,
+  Plus,
+  Trash2,
+  Users,
+} from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardDescription, CardEyebrow, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardDescription,
+  CardEyebrow,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { CrewMembershipDialog } from '@/features/crews/crew-membership-dialog'
 import { useCrewMemberships } from '@/features/crews/crew-memberships-context'
-import { useCrews  } from '@/features/crews/crews-context'
-import type {CrewDraft} from '@/features/crews/crews-context';
+import { useCrews } from '@/features/crews/crews-context'
+import type { CrewDraft } from '@/features/crews/crews-context'
 import { useEmployees } from '@/features/employees/employees-context'
 import { useTransportRoutes } from '@/features/routes/routes-context'
 import { useVehicles } from '@/features/vehicles/vehicles-context'
 import { getErrorMessage } from '@/lib/api-error'
-import { getEmployeeName, leadTypes  } from '@/lib/domain-types'
-import type {LeadType} from '@/lib/domain-types';
+import { getEmployeeName, leadTypes } from '@/lib/domain-types'
+import type { LeadType } from '@/lib/domain-types'
 
 export const Route = createFileRoute('/crews')({
   component: CrewsPage,
 })
 
 const crewFormSchema = z.object({
-  name: z.string().trim().min(2, 'Crew name must contain at least 2 characters.'),
+  name: z
+    .string()
+    .trim()
+    .min(2, 'Crew name must contain at least 2 characters.'),
   routeId: z.string().min(1, 'Select a route.'),
   leadType: z.enum(leadTypes),
   leadId: z.string().min(1, 'Select a crew lead.'),
-  seatCapacity: z.coerce.number().int().positive('Seat capacity must be at least 1.'),
+  seatCapacity: z.coerce
+    .number()
+    .int()
+    .positive('Seat capacity must be at least 1.'),
 })
 
 type CrewFormInput = z.input<typeof crewFormSchema>
@@ -56,7 +75,10 @@ function CrewsPage() {
   const [membershipCrewId, setMembershipCrewId] = useState<string | null>(null)
   const [formError, setFormError] = useState('')
 
-  const editingCrew = editingCrewId === null ? null : crews.find((crew) => crew.id === editingCrewId) ?? null
+  const editingCrew =
+    editingCrewId === null
+      ? null
+      : (crews.find((crew) => crew.id === editingCrewId) ?? null)
 
   const {
     register,
@@ -77,7 +99,9 @@ function CrewsPage() {
   const leadOptions = useMemo(
     () =>
       employees.filter((employee) =>
-        leadType === 'driver' ? employee.role === 'driverLead' : employee.role === 'crewLead',
+        leadType === 'driver'
+          ? employee.role === 'driverLead'
+          : employee.role === 'crewLead',
       ),
     [employees, leadType],
   )
@@ -120,7 +144,8 @@ function CrewsPage() {
     if (values.leadType === 'driver' && !getVehicleByDriverId(values.leadId)) {
       setError('leadId', {
         type: 'validate',
-        message: 'This Driver-Lead has no vehicle yet — add one on the Vehicles page first.',
+        message:
+          'This Driver-Lead has no vehicle yet — add one on the Vehicles page first.',
       })
       return
     }
@@ -161,7 +186,9 @@ function CrewsPage() {
     return employee ? getEmployeeName(employee) : 'Unknown'
   }
 
-  const membershipCrew = membershipCrewId ? crews.find((crew) => crew.id === membershipCrewId) ?? null : null
+  const membershipCrew = membershipCrewId
+    ? (crews.find((crew) => crew.id === membershipCrewId) ?? null)
+    : null
 
   return (
     <section className="space-y-6">
@@ -170,9 +197,12 @@ function CrewsPage() {
           <CardHeader className="flex-row items-start justify-between gap-4">
             <div>
               <CardEyebrow>Crews</CardEyebrow>
-              <CardTitle className="mt-2">{editingCrew ? 'Edit Crew' : 'Add Crew'}</CardTitle>
+              <CardTitle className="mt-2">
+                {editingCrew ? 'Edit Crew' : 'Add Crew'}
+              </CardTitle>
               <CardDescription className="mt-2">
-                A crew has a name, a route, and a lead — either a Driver-Lead or a Manager-Lead.
+                A crew has a name, a route, and a lead — either a Driver-Lead or
+                a Manager-Lead.
               </CardDescription>
             </div>
 
@@ -182,11 +212,23 @@ function CrewsPage() {
           </CardHeader>
 
           <form className="mt-2 space-y-5" onSubmit={onSubmit}>
-            <Field label="Crew Name" htmlFor="name" error={errors.name?.message}>
-              <Input id="name" placeholder="Karakum Site Crew A" {...register('name')} />
+            <Field
+              label="Crew Name"
+              htmlFor="name"
+              error={errors.name?.message}
+            >
+              <Input
+                id="name"
+                placeholder="Karakum Site Crew A"
+                {...register('name')}
+              />
             </Field>
 
-            <Field label="Route" htmlFor="routeId" error={errors.routeId?.message}>
+            <Field
+              label="Route"
+              htmlFor="routeId"
+              error={errors.routeId?.message}
+            >
               <Select id="routeId" {...register('routeId')}>
                 <option value="">Select route…</option>
                 {routes.map((route) => (
@@ -220,7 +262,11 @@ function CrewsPage() {
               </div>
             </div>
 
-            <Field label="Crew Lead" htmlFor="leadId" error={errors.leadId?.message}>
+            <Field
+              label="Crew Lead"
+              htmlFor="leadId"
+              error={errors.leadId?.message}
+            >
               <Select id="leadId" {...register('leadId')}>
                 <option value="">Select lead…</option>
                 {leadOptions.map((employee) => (
@@ -231,19 +277,34 @@ function CrewsPage() {
               </Select>
               {leadOptions.length === 0 && (
                 <p className="text-xs text-amber-600">
-                  No {leadType === 'driver' ? 'Driver-Lead' : 'Manager-Lead'} employees available yet.
+                  No {leadType === 'driver' ? 'Driver-Lead' : 'Manager-Lead'}{' '}
+                  employees available yet.
                 </p>
               )}
             </Field>
 
-            <Field label="Seat Capacity" htmlFor="seatCapacity" error={errors.seatCapacity?.message}>
-              <Input id="seatCapacity" type="number" min="1" step="1" {...register('seatCapacity')} />
+            <Field
+              label="Seat Capacity"
+              htmlFor="seatCapacity"
+              error={errors.seatCapacity?.message}
+            >
+              <Input
+                id="seatCapacity"
+                type="number"
+                min="1"
+                step="1"
+                {...register('seatCapacity')}
+              />
               {leadType === 'driver' && (
-                <p className="text-xs text-slate-400">Defaults from the driver's vehicle — still editable.</p>
+                <p className="text-xs text-slate-400">
+                  Defaults from the driver's vehicle — still editable.
+                </p>
               )}
             </Field>
 
-            {formError && <p className="text-xs font-medium text-red-500">{formError}</p>}
+            {formError && (
+              <p className="text-xs font-medium text-red-500">{formError}</p>
+            )}
 
             <div className="flex flex-wrap gap-3 pt-2">
               <Button
@@ -251,7 +312,11 @@ function CrewsPage() {
                 className="h-11 rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
                 disabled={isSubmitting}
               >
-                {editingCrew ? <PencilLine className="size-4" /> : <Plus className="size-4" />}
+                {editingCrew ? (
+                  <PencilLine className="size-4" />
+                ) : (
+                  <Plus className="size-4" />
+                )}
                 {editingCrew ? 'Save Changes' : 'Add Crew'}
               </Button>
 
@@ -276,11 +341,21 @@ function CrewsPage() {
               <Card key={crew.id} className="flex flex-col">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <Badge variant={crew.leadType === 'driver' ? 'success' : 'default'}>
-                      {crew.leadType === 'driver' ? 'Driver-Lead' : 'Manager-Lead'}
+                    <Badge
+                      variant={
+                        crew.leadType === 'driver' ? 'success' : 'default'
+                      }
+                    >
+                      {crew.leadType === 'driver'
+                        ? 'Driver-Lead'
+                        : 'Manager-Lead'}
                     </Badge>
-                    <h3 className="mt-2 text-lg font-semibold text-slate-950">{crew.name}</h3>
-                    <p className="text-sm text-slate-500">{routeName(crew.routeId)}</p>
+                    <h3 className="mt-2 text-lg font-semibold text-slate-950">
+                      {crew.name}
+                    </h3>
+                    <p className="text-sm text-slate-500">
+                      {routeName(crew.routeId)}
+                    </p>
                   </div>
 
                   <div className="flex gap-1.5">
@@ -307,11 +382,12 @@ function CrewsPage() {
 
                 <div className="mt-4 space-y-1.5 text-sm text-slate-600">
                   <p>
-                    <span className="font-medium text-slate-800">Lead:</span> {employeeName(crew.leadId)}
+                    <span className="font-medium text-slate-800">Lead:</span>{' '}
+                    {employeeName(crew.leadId)}
                   </p>
                   <p>
-                    <span className="font-medium text-slate-800">Seats:</span> {activeMembers.length} /{' '}
-                    {crew.seatCapacity}
+                    <span className="font-medium text-slate-800">Seats:</span>{' '}
+                    {activeMembers.length} / {crew.seatCapacity}
                   </p>
                 </div>
 
@@ -337,7 +413,9 @@ function CrewsPage() {
 
           {!isLoading && crews.length === 0 && (
             <Card className="sm:col-span-2">
-              <p className="py-10 text-center text-slate-400">No crews yet — add the first one.</p>
+              <p className="py-10 text-center text-slate-400">
+                No crews yet — add the first one.
+              </p>
             </Card>
           )}
         </div>
