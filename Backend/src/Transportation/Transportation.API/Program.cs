@@ -44,7 +44,7 @@ builder.Services.AddMediatR(cfg => { cfg.RegisterServicesFromAssembly(Assembly.G
 
 var app = builder.Build();
 
-app.UseCors("AllowFrontendApp"); 
+app.UseCors("AllowFrontend"); 
 
 await using (var scope = app.Services.CreateAsyncScope())
 {
