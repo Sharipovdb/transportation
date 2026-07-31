@@ -3,22 +3,33 @@
 // UI bindings (<select value>, equality checks) stay simple — each context converts
 // to/from the backend's numeric ids at the API boundary.
 
+import type { AppRole } from './app-types'
+
+export const employeeRolesAdd = [
+  'Admin',
+  'RouteManager',
+  'Worker',
+  'Accountant',
+] as const
+
 export const employeeRoles = [
-  'routeManager',
-  'crewLead',
-  'driverLead',
-  'worker',
-  'accountant',
+  'Admin',
+  'RouteManager',
+  'CrewLead',
+  'DriverLead',
+  'Worker',
+  'Accountant',
 ] as const
 
 export type EmployeeRole = (typeof employeeRoles)[number]
 
 export const employeeRoleLabels: Record<EmployeeRole, string> = {
-  routeManager: 'Route Manager',
-  crewLead: 'Crew Lead',
-  driverLead: 'Driver Lead',
-  worker: 'Worker',
-  accountant: 'Accountant',
+  Admin: 'Admin',
+  RouteManager: 'Route Manager',
+  CrewLead: 'Crew Lead',
+  DriverLead: 'Driver Lead',
+  Worker: 'Worker',
+  Accountant: 'Accountant',
 }
 
 // The backend's `Admin` role is a technical access level (see lib/app-types.ts），not
@@ -33,6 +44,7 @@ export interface Employee {
   password: string
   phoneNumber: string
   telegramId: string
+  roles: AppRole[]
 }
 
 export function getEmployeeName(

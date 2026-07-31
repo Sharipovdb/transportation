@@ -1,11 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createFileRoute } from '@tanstack/react-router'
 import { Briefcase, PencilLine, Plus, Trash2, Users } from 'lucide-react'
-import { useEffect, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useEffect, useState, useMemo } from 'react'
+import { useForm, Controller } from 'react-hook-form'
 import { z } from 'zod'
 
-// import { Badge } from '@/components/ui/badge'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -16,7 +16,7 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
-// import { Select } from '@/components/ui/select'
+import { Select } from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -29,11 +29,22 @@ import { useEmployees } from '@/features/employees/employees-context'
 import type { EmployeeDraft } from '@/features/employees/employees-context'
 import { getErrorMessage } from '@/lib/api-error'
 import {
-  // employeeRoleLabels,
-  // employeeRoles,
+  employeeRoleLabels,
+  employeeRolesAdd,
+  employeeRoles,
   getEmployeeName,
 } from '@/lib/domain-types'
-// import type { EmployeeRole } from '@/lib/domain-types'
+import type { EmployeeRole } from '@/lib/domain-types'
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+} from '@/components/ui/combobox'
 
 export const Route = createFileRoute('/employees')({
   component: EmployeesPage,
@@ -77,6 +88,7 @@ const employeeFormSchema = z.object({
     .string()
     .trim()
     .min(2, 'Telegram handle must contain at least 2 characters.'),
+  roles: z.array(z.enum(employeeRoles)),
 })
 
 type EmployeeFormValues = z.infer<typeof employeeFormSchema>
@@ -89,18 +101,20 @@ const defaultValues: EmployeeFormValues = {
   password: '',
   phoneNumber: '',
   telegramId: '',
+  roles: ['Worker'],
 }
 
-// const roleBadgeVariant: Record<
-//   EmployeeRole,
-//   'default' | 'secondary' | 'success' | 'warning'
-// > = {
-//   routeManager: 'warning',
-//   crewLead: 'default',
-//   driverLead: 'success',
-//   worker: 'secondary',
-//   accountant: 'default',
-// }
+const roleBadgeVariant: Record<
+  EmployeeRole,
+  'default' | 'secondary' | 'success' | 'warning'
+> = {
+  Admin: 'warning',
+  RouteManager: 'warning',
+  CrewLead: 'default',
+  DriverLead: 'success',
+  Worker: 'secondary',
+  Accountant: 'default',
+}
 
 function EmployeesPage() {
   const { employees, isLoading, addEmployee, updateEmployee, deleteEmployee } =
@@ -108,19 +122,19 @@ function EmployeesPage() {
   const [editingEmployeeId, setEditingEmployeeId] = useState<number | null>(
     null,
   )
-  // const [roleFilter, setRoleFilter] = useState<EmployeeRole | 'all'>('all')
+  const [roleFilter, setRoleFilter] = useState<EmployeeRole | 'all'>('all')
   const [formError, setFormError] = useState('')
 
-  // const filteredEmployees = useMemo(() => {
-  //   const scoped =
-  //     roleFilter === 'all'
-  //       ? employees
-  //       : employees.filter((employee) => employee.role === roleFilter)
+  const filteredEmployees = useMemo(() => {
+    const scoped =
+      roleFilter === 'all'
+        ? employees
+        : employees.filter((employee) => employee.roles.includes(roleFilter))
 
-  //   return [...scoped].sort((left, right) =>
-  //     getEmployeeName(left).localeCompare(getEmployeeName(right)),
-  //   )
-  // }, [employees, roleFilter])
+    return [...scoped].sort((left, right) =>
+      getEmployeeName(left).localeCompare(getEmployeeName(right)),
+    )
+  }, [employees, roleFilter])
 
   const editingEmployee =
     editingEmployeeId === null
@@ -130,6 +144,7 @@ function EmployeesPage() {
 
   const {
     register,
+    control,
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
@@ -151,6 +166,7 @@ function EmployeesPage() {
       lastName: editingEmployee.lastName,
       phoneNumber: editingEmployee.phoneNumber,
       telegramId: editingEmployee.telegramId,
+      roles: editingEmployee.roles,
     })
   }, [editingEmployee, reset])
 
@@ -286,16 +302,49 @@ function EmployeesPage() {
               {...register('telegramId')}
             />
           </Field>
-          {/* 
-          <Field label="Role" htmlFor="role" error={errors.role?.message}>
-            <Select id="role" {...register('role')}>
-              {employeeRoles.map((role) => (
-                <option key={role} value={role}>
-                  {employeeRoleLabels[role]}
-                </option>
-              ))}
-            </Select>
-          </Field> */}
+
+          <Field label="Roles" htmlFor="roles" error={errors.roles?.message}>
+            <Controller
+              control={control}
+              name="roles"
+              render={({ field }) => (
+                <Combobox
+                  id="roles"
+                  multiple
+                  value={field.value}
+                  onValueChange={(roles) => {
+                    const next = roles.includes('Worker')
+                      ? roles
+                      : [...roles, 'Worker']
+
+                    field.onChange(next)
+                  }}
+                >
+                  <ComboboxChips>
+                    <ComboboxValue>
+                      {field.value.map((role) => (
+                        <ComboboxChip key={role} showRemove={role !== 'Worker'}>
+                          {role}
+                        </ComboboxChip>
+                      ))}
+                    </ComboboxValue>
+
+                    <ComboboxChipsInput placeholder="Select roles" />
+                  </ComboboxChips>
+
+                  <ComboboxContent>
+                    <ComboboxList>
+                      {employeeRolesAdd.map((role) => (
+                        <ComboboxItem key={role} value={role}>
+                          {role}
+                        </ComboboxItem>
+                      ))}
+                    </ComboboxList>
+                  </ComboboxContent>
+                </Combobox>
+              )}
+            />
+          </Field>
 
           {formError && (
             <p className="text-xs font-medium text-red-500">{formError}</p>
@@ -340,7 +389,7 @@ function EmployeesPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* <Select
+            <Select
               value={roleFilter}
               onChange={(event) =>
                 setRoleFilter(event.target.value as EmployeeRole | 'all')
@@ -353,7 +402,7 @@ function EmployeesPage() {
                   {employeeRoleLabels[role]}
                 </option>
               ))}
-            </Select> */}
+            </Select>
 
             <div className="hidden items-center gap-2 rounded-full bg-sky-50 px-4 py-2 text-sm font-medium text-sky-700 sm:inline-flex">
               <Users className="size-4" />
@@ -367,24 +416,29 @@ function EmployeesPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead>Roles</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Telegram</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {employees.map((employee) => (
+              {filteredEmployees.map((employee) => (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium text-slate-900">
                     {getEmployeeName(employee)}
                   </TableCell>
-                  <TableCell>{employee.email}</TableCell>
-                  {/* <TableCell>
-                    <Badge variant={roleBadgeVariant[employee.role]}>
-                      {employeeRoleLabels[employee.role]}
-                    </Badge>
-                  </TableCell> */}
+                  <TableCell>
+                    {employee.roles.map((role) => (
+                      <Badge
+                        key={role}
+                        className="mx-0.5"
+                        variant={roleBadgeVariant[role]}
+                      >
+                        {employeeRoleLabels[role]}
+                      </Badge>
+                    ))}
+                  </TableCell>
                   <TableCell>{employee.phoneNumber}</TableCell>
                   <TableCell>{employee.telegramId}</TableCell>
                   <TableCell className="text-right">

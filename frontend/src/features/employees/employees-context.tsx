@@ -6,6 +6,7 @@ import { apiClient } from '@/lib/api-client'
 import type { ApiResponse } from '@/lib/api-client'
 // import { appRoleToBackendRole, resolveAppRole } from '@/lib/app-types'
 import type { Employee } from '@/lib/domain-types'
+import type { AppRole } from '@/lib/app-types'
 
 // Raw shape of Transportation.Application.User.Models.UserDto — note the backend's
 // own casing (`firstname`, not `firstName`) and that role membership travels
@@ -19,6 +20,7 @@ interface UserApiDto {
   password: string
   phoneNumber: string
   telegramId: string
+  roles: AppRole[]
 }
 
 export interface EmployeeDraft {
@@ -29,6 +31,7 @@ export interface EmployeeDraft {
   password?: string
   phoneNumber: string
   telegramId: string
+  roles: AppRole[]
 }
 
 const EMPLOYEES_QUERY_KEY = ['employees']
@@ -112,6 +115,7 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
         password: draft.password,
         phoneNumber,
         telegramId: draft.telegramId,
+        roles: draft.roles,
       })
 
       // Create only returns a message, not the new user — look it up by the
@@ -152,6 +156,7 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
         lastName: draft.lastName,
         phoneNumber,
         telegramId: draft.telegramId,
+        roles: draft.roles,
       })
 
       // if (previousRole && previousRole !== draft.role) {

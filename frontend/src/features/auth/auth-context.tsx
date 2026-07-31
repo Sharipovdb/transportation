@@ -11,7 +11,6 @@ import {
   setAuthTokens,
   setStoredSession,
 } from '@/lib/auth-tokens'
-import { decodeJwtPayload } from '@/lib/jwt'
 
 interface LoginPayload {
   login: string
@@ -37,6 +36,7 @@ interface CurrentUserResponse {
   lastName: string
   phoneNumber: string
   telegramId: string
+  roles: AppRole[]
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -75,13 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               '/api/User/GetMe',
             )
           const user = meResponse.data.data
-          const jwtPayload = decodeJwtPayload(
-            loginResponse.data.data.accessToken,
-          )
-
-          const roles = jwtPayload?.[
-            'http://schemas.microsoft.com/ws/2008/06/identity/claims/role'
-          ] as AppRole[]
+          const roles = user?.roles
 
           const formattedRoles = [...new Set(roles)]
 

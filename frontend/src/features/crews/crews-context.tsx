@@ -25,8 +25,8 @@ interface PaginatedResult<T> {
 export interface CrewDraft {
   name: string
   routeId: string
-  leadType: LeadType
-  leadId: string
+  driverLeadId: string
+  crewLeadId: string
   seatCapacity: number
 }
 
@@ -47,9 +47,12 @@ function toCrew(dto: CrewApiDto): Crew {
 }
 
 async function fetchCrews() {
-  const response = await apiClient.get<PaginatedResult<CrewApiDto>>('/api/Crew/GetAll', {
-    params: nestedLargePage,
-  })
+  const response = await apiClient.get<PaginatedResult<CrewApiDto>>(
+    '/api/Crew/GetAll',
+    {
+      params: nestedLargePage,
+    },
+  )
 
   return response.data.items.map(toCrew)
 }
@@ -104,7 +107,8 @@ export function CrewsProvider({ children }: { children: ReactNode }) {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (crewId: string) => apiClient.delete(`/api/Crew/Delete/${crewId}`),
+    mutationFn: (crewId: string) =>
+      apiClient.delete(`/api/Crew/Delete/${crewId}`),
     onSuccess: invalidate,
   })
 
@@ -112,9 +116,15 @@ export function CrewsProvider({ children }: { children: ReactNode }) {
     () => ({
       crews,
       isLoading,
-      addCrew: async (draft) => { await addMutation.mutateAsync(draft) },
-      updateCrew: async (crewId, draft) => { await updateMutation.mutateAsync({ crewId, draft }) },
-      deleteCrew: async (crewId) => { await deleteMutation.mutateAsync(crewId) },
+      addCrew: async (draft) => {
+        await addMutation.mutateAsync(draft)
+      },
+      updateCrew: async (crewId, draft) => {
+        await updateMutation.mutateAsync({ crewId, draft })
+      },
+      deleteCrew: async (crewId) => {
+        await deleteMutation.mutateAsync(crewId)
+      },
       getCrewById: (crewId) => crews.find((crew) => crew.id === crewId),
     }),
     [crews, isLoading, addMutation, updateMutation, deleteMutation],

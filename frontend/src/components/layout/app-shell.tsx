@@ -92,7 +92,9 @@ export function AppShell({ children }: AppShellProps) {
                         {session.userName}
                       </span>
                       <span className="block truncate text-xs text-slate-500">
-                        {roleLabels[session.roles[0]]}
+                        {session.roles
+                          .map((role) => roleLabels[role])
+                          .join(', ')}
                       </span>
                     </span>
 
@@ -116,7 +118,9 @@ export function AppShell({ children }: AppShellProps) {
                             {session.userName}
                           </p>
                           <p className="truncate text-xs text-slate-500">
-                            {roleLabels[session.roles[0]]}
+                            {session.roles
+                              .map((role) => roleLabels[role])
+                              .join(', ')}
                           </p>
                         </div>
                       </div>
