@@ -33,8 +33,6 @@ internal static class ConfigureServices
                         {
                             builder.CommandTimeout(600);
                             builder.MigrationsAssembly(TransportationInfrastructureRef.Assembly.FullName);
-
-                            builder.UseNetTopologySuite();
                         }
                     );
 

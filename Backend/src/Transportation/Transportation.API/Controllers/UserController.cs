@@ -44,6 +44,12 @@ public class UserController : BaseController
     {
         return await _userService.GetByNameAsync(username);
     }
+    
+    [HttpGet("{roleName}")]
+    public async Task<ApiResponse<List<UserDto>>> GetUsersByRole(string roleName)
+    {
+        return await _userService.GetUsersByRoleAsync(roleName);
+    }
 
     [HttpPost]
     public async Task<ApiResponse<string>> Create([FromBody] RegisterRequest request)
@@ -52,7 +58,7 @@ public class UserController : BaseController
     }
 
     [HttpPut]
-    public async Task<ApiResponse<UserDto>> Update([FromBody] UserDto request)
+    public async Task<ApiResponse<UserDto>> Update([FromBody] UpdateUserRequest request)
     {
         return await _userService.UpdateAsync(request);
     }

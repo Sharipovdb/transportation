@@ -1,6 +1,6 @@
 ﻿namespace Transportation.Application.User.Models;
 
-public class UserDto
+public class UpdateUserRequest
 {
     public long Id { get; init; }
     public string? Email { get; init; }
@@ -8,7 +8,6 @@ public class UserDto
     public string FirstName { get; init; }
     public string LastName { get; init; }
     public string PhoneNumber { get; init; }
-
     public string? TelegramId { get; init; }
-    public List<string> Roles { get; set; } = new List<string>();
+    public List<string> Roles { get; init; } = [];
 }

@@ -1,8 +1,10 @@
 using System.Reflection;
+using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using Transportation.API;
 using Transportation.Application;
 using Transportation.Infrastructure;
+using Transportation.Infrastructure.Persistence;
 using Transportation.Shared;
 using Transportation.Shared.Middlewares;
 
@@ -42,12 +44,19 @@ builder.Services.AddMediatR(cfg => { cfg.RegisterServicesFromAssembly(Assembly.G
 
 var app = builder.Build();
 
-app.UseCors("AllowFrontend");
+app.UseCors("AllowFrontendApp"); 
+
+await using (var scope = app.Services.CreateAsyncScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<TransportationDbContext>();
+    await dbContext.Database.MigrateAsync();
+}
 
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
     app.MapScalarApiReference(options => { options.Title = "Transportation API"; });
+    app.MapGet("/", () => Results.Redirect("/scalar"));
 }
 
 app.UseExceptionHandler();

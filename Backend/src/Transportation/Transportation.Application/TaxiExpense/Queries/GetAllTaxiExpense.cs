@@ -36,8 +36,8 @@ public sealed class GetAllTaxiExpenseHandler : IQueryHandler<GetAllTaxiExpense, 
         if (!taxiExpenses.Any())
             throw new ResourceNotFoundException(TaxiExpenseErrors.NotFound);
 
-        var mappedTaxiExpence = _mapper.Map(taxiExpenses);
+        var mappedTaxiExpense = _mapper.Map(taxiExpenses);
 
-        return new PaginatedResult<TaxiExpenseDto>(mappedTaxiExpence, totalCount);
+        return new PaginatedResult<TaxiExpenseDto>(mappedTaxiExpense, totalCount);
     }
 }

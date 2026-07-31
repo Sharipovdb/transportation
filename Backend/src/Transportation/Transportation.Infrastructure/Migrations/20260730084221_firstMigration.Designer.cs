@@ -12,8 +12,8 @@ using Transportation.Infrastructure.Persistence;
 namespace Transportation.Infrastructure.Migrations
 {
     [DbContext(typeof(TransportationDbContext))]
-    [Migration("20260727075131_mig")]
-    partial class mig
+    [Migration("20260730084221_firstMigration")]
+    partial class firstMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

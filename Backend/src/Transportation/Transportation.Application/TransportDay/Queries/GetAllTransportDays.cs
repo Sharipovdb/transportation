@@ -30,20 +30,25 @@ internal sealed class GetAllTransportDaysHandler : IQueryHandler<GetAllTransport
     public async Task<PaginatedResult<TransportDayDto>> Handle(
         GetAllTransportDays request, CancellationToken cancellationToken)
     {
+        var startMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).ToUniversalTime();
+
         var spec = new ReadOnlySpecification<Domain.Entities.TransportDay>();
 
+        if (request.DateFrom is null && request.DateTo is null)
+            spec.Query.Where(x => x.Date >= startMonth);
+        
         if (request.CrewId.HasValue)
             spec.Query.Where(x => x.CrewId == request.CrewId);
 
         if (request.DateFrom.HasValue)
-            spec.Query.Where(x => x.Date >= request.DateFrom);
+            spec.Query.Where(x => x.Date >= request.DateFrom.Value.ToUniversalTime());
 
         if (request.DateTo.HasValue)
-            spec.Query.Where(x => x.Date <= request.DateTo);
+            spec.Query.Where(x => x.Date <= request.DateTo.Value.ToUniversalTime());
 
         if (request.Confirmed.HasValue)
             spec.Query.Where(x => x.Confirmed == request.Confirmed);
-
+        
         spec.Query
             .Where(x => !x.IsDeleted)
             .OrderByDescending(x => x.Date)

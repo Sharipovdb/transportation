@@ -12,7 +12,7 @@ namespace Transportation.IntegrationTests.API;
 
 public class CrewMembershipTests : IntegrationTestBase
 {
-    protected readonly CustomWebApplicationFactory Factory;
+    protected new readonly CustomWebApplicationFactory Factory;
 
     public CrewMembershipTests(CustomWebApplicationFactory factory) : base(factory) => Factory = factory;
 

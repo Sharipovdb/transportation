@@ -22,14 +22,6 @@ public class RouteControllerTests : IntegrationTestBase
         _testOutputHelper = testOutputHelper;
     }
     
-    private async Task ResetDatabaseAsync()
-    {
-        using var scope = _factory.Services.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<TransportationDbContext>();
-        await db.Database.EnsureDeletedAsync();
-        await db.Database.EnsureCreatedAsync();
-    }
-
     [Fact]
     public async Task CreateRoute_ShouldSaveToDatabase_WhenDataIsValid()
     {

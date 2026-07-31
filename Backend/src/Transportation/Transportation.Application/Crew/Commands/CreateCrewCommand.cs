@@ -115,15 +115,11 @@ internal sealed class CreateCrewCommandHandler : ICommandHandler<CreateCrewComma
             await _crewMembershipRepository.AddAsync(membership, cancellationToken);
         }
 
-        if (request.CrewLeadId.HasValue && request.DriverLeadId is null)
-        {
+        if (request.CrewLeadId.HasValue)
             await _roleService.AssignAsync(RoleNames.CrewLead, request.CrewLeadId.Value);
-        }
 
-        else if (request.DriverLeadId.HasValue && request.CrewLeadId is null)
-        {
+        else if (request.DriverLeadId.HasValue)
             await _roleService.AssignAsync(RoleNames.DriverLead, request.DriverLeadId.Value);
-        }
         
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

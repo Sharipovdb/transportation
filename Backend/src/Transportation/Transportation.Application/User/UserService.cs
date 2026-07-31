@@ -9,18 +9,35 @@ namespace Transportation.Application.User;
 
 public class UserService (
     UserManager<Domain.Entities.User> userManager,
-    UserMapper userMapper
-    ) : IUserService
+    UserMapper userMapper, 
+    RoleManager<IdentityRole<long>> roleManager) : IUserService
 {
     public async Task<ApiResponse<UserDto>> GetByIdAsync(long userId)
     {
-        var user = await userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);;
+        var user = await userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
         if (user is null) 
             return ApiResponse<UserDto>.Failure("The User not found", 404);
         
         var userDto = userMapper.Map(user);
+        var roles = await userManager.GetRolesAsync(user);
+        userDto.Roles.AddRange(roles);
         
         return ApiResponse<UserDto>.Success(userDto);
+    }
+    
+    public async Task<ApiResponse<List<UserDto>>> GetUsersByRoleAsync(string roleName)
+    {
+        var users = await userManager.GetUsersInRoleAsync(roleName);
+        List<UserDto> userDtos = new List<UserDto>();
+
+        foreach (var user in users)
+        {
+            var userDto = userMapper.Map(user);
+            userDto.Roles.AddRange(await userManager.GetRolesAsync(user));
+            userDtos.Add(userDto);
+        }
+        
+        return ApiResponse<List<UserDto>>.Success(userDtos);
     }
 
     public async Task<ApiResponse<UserDto>> GetByNameAsync(string name)
@@ -30,6 +47,8 @@ public class UserService (
             return ApiResponse<UserDto>.Failure("The User not found", 404);
         
         var userDto = userMapper.Map(user);
+        var roles = await userManager.GetRolesAsync(user);
+        userDto.Roles.AddRange(roles);
         
         return ApiResponse<UserDto>.Success(userDto);
     }
@@ -39,6 +58,14 @@ public class UserService (
         var users = await userManager.Users.AsNoTracking().ToListAsync();
         var userDtos = userMapper.Map(users);
 
+        foreach (var userDto in userDtos)
+        {
+            var user = users.First(u => u.Id == userDto.Id);
+            
+            var roles = await userManager.GetRolesAsync(user);
+            userDto.Roles = roles.ToList();
+        }
+        
         return ApiResponse<List<UserDto>>.Success(userDtos);
     }
 
@@ -62,18 +89,20 @@ public class UserService (
             return ApiResponse<string>.Failure($"User creation failed: {errors}");
         }
 
-        var addRoleResult = await userManager.AddToRoleAsync(user, "Worker");
-
-        if (!addRoleResult.Succeeded)
+        if (request.Roles.Any())
         {
-            return ApiResponse<string>.Failure(
-                string.Join(", ", addRoleResult.Errors.Select(e => e.Description)));
+            var addRoleResult = await userManager.AddToRolesAsync(user, request.Roles);
+            if (!addRoleResult.Succeeded)
+            {
+                return ApiResponse<string>.Failure(
+                    string.Join(", ", addRoleResult.Errors.Select(e => e.Description)));
+            }
         }
 
         return ApiResponse<string>.Success("User created successfully", 200);
     }
 
-    public async Task<ApiResponse<UserDto>> UpdateAsync(UserDto request)
+    public async Task<ApiResponse<UserDto>> UpdateAsync(UpdateUserRequest request)
     {
         var user = await userManager.FindByIdAsync(request.Id.ToString());
         if (user is null) return ApiResponse<UserDto>.Failure("The user was not found!", 404);
@@ -85,8 +114,29 @@ public class UserService (
         user.PhoneNumber = request.PhoneNumber;
         user.TelegramId = request.TelegramId;
         
+        var currentRoles = await userManager.GetRolesAsync(user);
+        var result = await userManager.RemoveFromRolesAsync(user, currentRoles);
+        if (!result.Succeeded)
+        {
+            return ApiResponse<UserDto>.Failure(
+                string.Join(", ", result.Errors.Select(e => e.Description)));
+        }
+    
+        if (request.Roles.Any())
+        {
+            var addRoleResult = await userManager.AddToRolesAsync(user, request.Roles);
+            if (!addRoleResult.Succeeded)
+            {
+                return ApiResponse<UserDto>.Failure(
+                    string.Join(", ", addRoleResult.Errors.Select(e => e.Description)));
+            }
+        }
+        
         await userManager.UpdateAsync(user);
-        return ApiResponse<UserDto>.Success(userMapper.Map(user));
+        var userDto = userMapper.Map(user);
+        userDto.Roles = request.Roles;
+        
+        return ApiResponse<UserDto>.Success(userDto);
     }
 
     public async Task<ApiResponse<string>> DeleteAsync(long userId)

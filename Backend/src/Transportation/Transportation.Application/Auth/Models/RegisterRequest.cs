@@ -7,4 +7,5 @@ public record RegisterRequest(
     string LastName, 
     string Password, 
     string PhoneNumber, 
-    string? TelegramId);
+    string? TelegramId,
+    List<string> Roles);
