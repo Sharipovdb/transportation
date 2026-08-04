@@ -1104,19 +1104,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Intern\\.nuget\\packages\\": {}
+    "C:\\Users\\user\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\floid\\react\\transportation\\Backend\\src\\Shared\\Transportation.Mediator.Helper\\Transportation.Mediator.Helper.csproj",
+      "projectUniqueName": "C:\\Backums\\Front\\react\\transportation\\Backend\\src\\Shared\\Transportation.Mediator.Helper\\Transportation.Mediator.Helper.csproj",
       "projectName": "Transportation.Mediator.Helper",
-      "projectPath": "C:\\floid\\react\\transportation\\Backend\\src\\Shared\\Transportation.Mediator.Helper\\Transportation.Mediator.Helper.csproj",
-      "packagesPath": "C:\\Users\\Intern\\.nuget\\packages\\",
-      "outputPath": "C:\\floid\\react\\transportation\\Backend\\src\\Shared\\Transportation.Mediator.Helper\\obj\\",
+      "projectPath": "C:\\Backums\\Front\\react\\transportation\\Backend\\src\\Shared\\Transportation.Mediator.Helper\\Transportation.Mediator.Helper.csproj",
+      "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
+      "outputPath": "C:\\Backums\\Front\\react\\transportation\\Backend\\src\\Shared\\Transportation.Mediator.Helper\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\Intern\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\user\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net10.0"

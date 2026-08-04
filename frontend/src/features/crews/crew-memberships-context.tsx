@@ -39,9 +39,12 @@ function toCrewMembership(dto: CrewMembershipApiDto): CrewMembership {
 }
 
 async function fetchCrewMemberships() {
-  const response = await apiClient.get<PaginatedResult<CrewMembershipApiDto>>('/api/CrewMembership/GetAll', {
-    params: nestedLargePage,
-  })
+  const response = await apiClient.get<PaginatedResult<CrewMembershipApiDto>>(
+    '/api/CrewMembership/GetAll',
+    {
+      params: nestedLargePage,
+    },
+  )
 
   return response.data.items.map(toCrewMembership)
 }
@@ -49,15 +52,22 @@ async function fetchCrewMemberships() {
 interface CrewMembershipsContextValue {
   memberships: CrewMembership[]
   isLoading: boolean
-  getActiveMembersForCrew: (crewId: string) => CrewMembership[]
-  getActiveMembershipForEmployee: (employeeId: string) => CrewMembership | undefined
+  getActiveMembersForCrew: (crewId: number) => CrewMembership[]
+  getActiveMembershipForEmployee: (
+    employeeId: string,
+  ) => CrewMembership | undefined
   getMembershipHistoryForCrew: (crewId: string) => CrewMembership[]
-  assignMember: (crewId: string, employeeId: string) => Promise<boolean>
-  removeMember: (membershipId: string, activeTo: string) => Promise<void>
-  transferMember: (employeeId: string, fromCrewId: string, toCrewId: string) => Promise<void>
+  assignMember: (crewId: number, employeeId: number) => Promise<boolean>
+  removeMember: (membershipId: number, activeTo: string) => Promise<void>
+  transferMember: (
+    employeeId: number,
+    fromCrewId: string,
+    toCrewId: string,
+  ) => Promise<void>
 }
 
-const CrewMembershipsContext = createContext<CrewMembershipsContextValue | null>(null)
+const CrewMembershipsContext =
+  createContext<CrewMembershipsContextValue | null>(null)
 
 export function CrewMembershipsProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
@@ -68,17 +78,34 @@ export function CrewMembershipsProvider({ children }: { children: ReactNode }) {
   })
 
   function invalidate() {
-    return queryClient.invalidateQueries({ queryKey: CREW_MEMBERSHIPS_QUERY_KEY })
+    return queryClient.invalidateQueries({
+      queryKey: CREW_MEMBERSHIPS_QUERY_KEY,
+    })
   }
 
   const createMutation = useMutation({
-    mutationFn: ({ crewId, employeeId }: { crewId: string; employeeId: string }) =>
-      apiClient.post('/api/CrewMembership/Create', { crewId: Number(crewId), userId: Number(employeeId) }),
+    mutationFn: ({
+      crewId,
+      employeeId,
+    }: {
+      crewId: string
+      employeeId: string
+    }) =>
+      apiClient.post('/api/CrewMembership/Create', {
+        crewId: Number(crewId),
+        userId: Number(employeeId),
+      }),
     onSuccess: invalidate,
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ membershipId, activeTo }: { membershipId: string; activeTo: string }) =>
+    mutationFn: ({
+      membershipId,
+      activeTo,
+    }: {
+      membershipId: string
+      activeTo: string
+    }) =>
       apiClient.put(`/api/CrewMembership/Update/${membershipId}`, { activeTo }),
     onSuccess: invalidate,
   })
@@ -108,14 +135,20 @@ export function CrewMembershipsProvider({ children }: { children: ReactNode }) {
       memberships,
       isLoading,
       getActiveMembersForCrew: (crewId) =>
-        memberships.filter((membership) => membership.crewId === crewId && membership.isActive),
+        memberships.filter(
+          (membership) => membership.crewId === crewId && membership.isActive,
+        ),
       getActiveMembershipForEmployee: (employeeId) =>
-        memberships.find((membership) => membership.employeeId === employeeId && membership.isActive),
+        memberships.find(
+          (membership) =>
+            membership.employeeId === employeeId && membership.isActive,
+        ),
       getMembershipHistoryForCrew: (crewId) =>
         memberships.filter((membership) => membership.crewId === crewId),
       assignMember: async (crewId, employeeId) => {
         const alreadyActiveElsewhere = memberships.some(
-          (membership) => membership.employeeId === employeeId && membership.isActive,
+          (membership) =>
+            membership.employeeId === employeeId && membership.isActive,
         )
 
         if (alreadyActiveElsewhere) {
@@ -135,14 +168,20 @@ export function CrewMembershipsProvider({ children }: { children: ReactNode }) {
     [memberships, isLoading, createMutation, updateMutation, transferMutation],
   )
 
-  return <CrewMembershipsContext.Provider value={value}>{children}</CrewMembershipsContext.Provider>
+  return (
+    <CrewMembershipsContext.Provider value={value}>
+      {children}
+    </CrewMembershipsContext.Provider>
+  )
 }
 
 export function useCrewMemberships() {
   const context = useContext(CrewMembershipsContext)
 
   if (!context) {
-    throw new Error('useCrewMemberships must be used inside CrewMembershipsProvider')
+    throw new Error(
+      'useCrewMemberships must be used inside CrewMembershipsProvider',
+    )
   }
 
   return context

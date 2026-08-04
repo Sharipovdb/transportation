@@ -75,6 +75,14 @@ async function fetchEmployees() {
   return { employees, usersById }
 }
 
+async function fetchEmployeesByRole(role: AppRole) {
+  const response = await apiClient.get<ApiResponse<UserApiDto[]>>(
+    `/api/User/GetUsersByRole/${role}`,
+  )
+
+  return response.data.data ?? []
+}
+
 interface EmployeesContextValue {
   employees: Employee[]
   isLoading: boolean
@@ -213,4 +221,12 @@ export function useEmployees() {
   }
 
   return context
+}
+
+export function useUsersByRole(role: AppRole | undefined) {
+  return useQuery({
+    queryKey: ['users', 'role', role],
+    queryFn: () => fetchEmployeesByRole(role!),
+    enabled: !!role,
+  })
 }

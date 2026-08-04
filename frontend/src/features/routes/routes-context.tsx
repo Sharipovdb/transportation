@@ -25,13 +25,16 @@ export interface TransportRouteDraft {
 const ROUTES_QUERY_KEY = ['routes']
 
 function toRoute(dto: RouteApiDto): TransportRoute {
-  return { id: String(dto.id), name: dto.name, distanceKm: dto.distanceKm }
+  return { id: dto.id, name: dto.name, distanceKm: dto.distanceKm }
 }
 
 async function fetchRoutes() {
-  const response = await apiClient.get<PaginatedResult<RouteApiDto>>('/api/Route/GetAll', {
-    params: nestedLargePage,
-  })
+  const response = await apiClient.get<PaginatedResult<RouteApiDto>>(
+    '/api/Route/GetAll',
+    {
+      params: nestedLargePage,
+    },
+  )
 
   return response.data.items.map(toRoute)
 }
@@ -40,9 +43,11 @@ interface RoutesContextValue {
   routes: TransportRoute[]
   isLoading: boolean
   addRoute: (draft: TransportRouteDraft) => Promise<void>
-  updateRoute: (routeId: string, draft: TransportRouteDraft) => Promise<void>
-  deleteRoute: (routeId: string) => Promise<void>
-  getRouteById: (routeId: string | null | undefined) => TransportRoute | undefined
+  updateRoute: (routeId: number, draft: TransportRouteDraft) => Promise<void>
+  deleteRoute: (routeId: number) => Promise<void>
+  getRouteById: (
+    routeId: number | null | undefined,
+  ) => TransportRoute | undefined
 }
 
 const RoutesContext = createContext<RoutesContextValue | null>(null)
@@ -60,18 +65,25 @@ export function RoutesProvider({ children }: { children: ReactNode }) {
   }
 
   const addMutation = useMutation({
-    mutationFn: (draft: TransportRouteDraft) => apiClient.post('/api/Route/Add', draft),
+    mutationFn: (draft: TransportRouteDraft) =>
+      apiClient.post('/api/Route/Add', draft),
     onSuccess: invalidate,
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ routeId, draft }: { routeId: string; draft: TransportRouteDraft }) =>
-      apiClient.put('/api/Route/Update', { id: Number(routeId), ...draft }),
+    mutationFn: ({
+      routeId,
+      draft,
+    }: {
+      routeId: number
+      draft: TransportRouteDraft
+    }) => apiClient.put('/api/Route/Update', { id: Number(routeId), ...draft }),
     onSuccess: invalidate,
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (routeId: string) => apiClient.delete(`/api/Route/Delete/${routeId}`),
+    mutationFn: (routeId: number) =>
+      apiClient.delete(`/api/Route/Delete/${routeId}`),
     onSuccess: invalidate,
   })
 
@@ -79,15 +91,23 @@ export function RoutesProvider({ children }: { children: ReactNode }) {
     () => ({
       routes,
       isLoading,
-      addRoute: async (draft) => { await addMutation.mutateAsync(draft) },
-      updateRoute: async (routeId, draft) => { await updateMutation.mutateAsync({ routeId, draft }) },
-      deleteRoute: async (routeId) => { await deleteMutation.mutateAsync(routeId) },
+      addRoute: async (draft) => {
+        await addMutation.mutateAsync(draft)
+      },
+      updateRoute: async (routeId, draft) => {
+        await updateMutation.mutateAsync({ routeId, draft })
+      },
+      deleteRoute: async (routeId) => {
+        await deleteMutation.mutateAsync(routeId)
+      },
       getRouteById: (routeId) => routes.find((route) => route.id === routeId),
     }),
     [routes, isLoading, addMutation, updateMutation, deleteMutation],
   )
 
-  return <RoutesContext.Provider value={value}>{children}</RoutesContext.Provider>
+  return (
+    <RoutesContext.Provider value={value}>{children}</RoutesContext.Provider>
+  )
 }
 
 export function useTransportRoutes() {

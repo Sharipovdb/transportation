@@ -8,7 +8,7 @@ import {
   Trash2,
   Users,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -32,8 +32,7 @@ import { useEmployees } from '@/features/employees/employees-context'
 import { useTransportRoutes } from '@/features/routes/routes-context'
 import { useVehicles } from '@/features/vehicles/vehicles-context'
 import { getErrorMessage } from '@/lib/api-error'
-import { getEmployeeName, leadTypes } from '@/lib/domain-types'
-import type { LeadType } from '@/lib/domain-types'
+import { getEmployeeName } from '@/lib/domain-types'
 
 export const Route = createFileRoute('/crews')({
   component: CrewsPage,
@@ -44,9 +43,11 @@ const crewFormSchema = z.object({
     .string()
     .trim()
     .min(2, 'Crew name must contain at least 2 characters.'),
-  routeId: z.string().min(1, 'Select a route.'),
-  leadType: z.enum(leadTypes),
-  leadId: z.string().min(1, 'Select a crew lead.'),
+  routeId: z.number().refine((val) => val !== 0, {
+    message: 'Select route',
+  }),
+  driverLeadId: z.number().nullable(),
+  crewLeadId: z.number().nullable(),
   seatCapacity: z.coerce
     .number()
     .int()
@@ -58,11 +59,13 @@ type CrewFormValues = z.output<typeof crewFormSchema>
 
 const defaultValues: CrewFormInput = {
   name: '',
-  routeId: '',
-  leadType: 'driver',
-  leadId: '',
+  routeId: 0,
+  driverLeadId: null,
+  crewLeadId: null,
   seatCapacity: 4,
 }
+
+type LeadType = 'driverLead' | 'crewLead'
 
 function CrewsPage() {
   const { employees } = useEmployees()
@@ -71,8 +74,9 @@ function CrewsPage() {
   const { crews, isLoading, addCrew, updateCrew, deleteCrew } = useCrews()
   const { getActiveMembersForCrew } = useCrewMemberships()
 
-  const [editingCrewId, setEditingCrewId] = useState<string | null>(null)
-  const [membershipCrewId, setMembershipCrewId] = useState<string | null>(null)
+  const [editingCrewId, setEditingCrewId] = useState<number | null>(null)
+  const [leadType, setLeadType] = useState<LeadType>('driverLead')
+  const [membershipCrewId, setMembershipCrewId] = useState<number | null>(null)
   const [formError, setFormError] = useState('')
 
   const editingCrew =
@@ -86,25 +90,16 @@ function CrewsPage() {
     reset,
     watch,
     setValue,
-    setError,
     formState: { errors, isSubmitting },
   } = useForm<CrewFormInput, any, CrewFormValues>({
     resolver: zodResolver(crewFormSchema),
     defaultValues,
   })
 
-  const leadType = watch('leadType')
-  const leadId = watch('leadId')
+  const driverLeadId = watch('driverLeadId')
+  const crewLeadId = watch('crewLeadId')
 
-  const leadOptions = useMemo(
-    () =>
-      employees.filter((employee) =>
-        leadType === 'driver'
-          ? employee.role === 'driverLead'
-          : employee.role === 'crewLead',
-      ),
-    [employees, leadType],
-  )
+  const leads = leadType === 'driverLead' ? driverLeadId : crewLeadId
 
   useEffect(() => {
     if (!editingCrew) {
@@ -115,24 +110,24 @@ function CrewsPage() {
     reset({
       name: editingCrew.name,
       routeId: editingCrew.routeId,
-      leadType: editingCrew.leadType,
-      leadId: editingCrew.leadId,
+      driverLeadId: editingCrew.driverLeadId,
+      crewLeadId: editingCrew.crewLeadId,
       seatCapacity: editingCrew.seatCapacity,
     })
   }, [editingCrew, reset])
 
   useEffect(() => {
-    if (leadType !== 'driver' || !leadId) {
+    if (driverLeadId === null || !driverLeadId) {
       return
     }
 
-    const vehicle = getVehicleByDriverId(leadId)
+    const vehicle = getVehicleByDriverId(driverLeadId)
 
     if (vehicle) {
       setValue('seatCapacity', vehicle.seatCount)
     }
     // Only re-run when the selected driver-lead (or lead type) changes, not on every render.
-  }, [leadType, leadId])
+  }, [driverLeadId])
 
   function resetForm() {
     setEditingCrewId(null)
@@ -141,15 +136,6 @@ function CrewsPage() {
   }
 
   const onSubmit = handleSubmit(async (values: CrewDraft) => {
-    if (values.leadType === 'driver' && !getVehicleByDriverId(values.leadId)) {
-      setError('leadId', {
-        type: 'validate',
-        message:
-          'This Driver-Lead has no vehicle yet — add one on the Vehicles page first.',
-      })
-      return
-    }
-
     setFormError('')
 
     try {
@@ -165,7 +151,7 @@ function CrewsPage() {
     }
   })
 
-  async function removeCrew(crewId: string) {
+  async function removeCrew(crewId: number) {
     if (editingCrewId === crewId) {
       resetForm()
     }
@@ -177,11 +163,11 @@ function CrewsPage() {
     }
   }
 
-  function routeName(routeId: string) {
+  function routeName(routeId: number) {
     return routes.find((route) => route.id === routeId)?.name ?? 'Unknown route'
   }
 
-  function employeeName(employeeId: string) {
+  function employeeName(employeeId: number | null) {
     const employee = employees.find((candidate) => candidate.id === employeeId)
     return employee ? getEmployeeName(employee) : 'Unknown'
   }
@@ -230,7 +216,7 @@ function CrewsPage() {
               error={errors.routeId?.message}
             >
               <Select id="routeId" {...register('routeId')}>
-                <option value="">Select route…</option>
+                <option value={0}>Select route…</option>
                 {routes.map((route) => (
                   <option key={route.id} value={route.id}>
                     {route.name} ({route.distanceKm} km)
@@ -242,13 +228,14 @@ function CrewsPage() {
             <div className="space-y-2">
               <p className="text-sm font-medium text-slate-700">Lead Type</p>
               <div className="grid grid-cols-2 gap-2">
-                {(['driver', 'manager'] as LeadType[]).map((type) => (
+                {(['driverLead', 'crewLead'] as LeadType[]).map((type) => (
                   <button
                     key={type}
                     type="button"
                     onClick={() => {
-                      setValue('leadType', type)
-                      setValue('leadId', '')
+                      setLeadType(type)
+                      setValue('driverLeadId', null)
+                      setValue('crewLeadId', null)
                     }}
                     className={`rounded-2xl border px-4 py-2.5 text-sm font-medium transition ${
                       leadType === type
@@ -256,29 +243,48 @@ function CrewsPage() {
                         : 'border-sky-100 bg-white text-slate-600 hover:border-sky-200'
                     }`}
                   >
-                    {type === 'driver' ? 'Driver-Lead' : 'Manager-Lead'}
+                    {type === 'driverLead' ? 'Driver-Lead' : 'Manager-Lead'}
                   </button>
                 ))}
               </div>
             </div>
 
             <Field
-              label="Crew Lead"
-              htmlFor="leadId"
-              error={errors.leadId?.message}
+              label={leadType === 'driverLead' ? 'Driver Lead' : 'Manager Lead'}
+              htmlFor="lead"
+              error={
+                leadType === 'driverLead'
+                  ? errors.driverLeadId?.message
+                  : errors.crewLeadId?.message
+              }
             >
-              <Select id="leadId" {...register('leadId')}>
-                <option value="">Select lead…</option>
-                {leadOptions.map((employee) => (
+              <Select
+                id="lead"
+                value={leads ?? 0}
+                onChange={(e) => {
+                  const id = Number(e.target.value)
+
+                  if (leadType === 'driverLead') {
+                    setValue('driverLeadId', id || null)
+                    setValue('crewLeadId', null)
+                  } else {
+                    setValue('crewLeadId', id || null)
+                    setValue('driverLeadId', null)
+                  }
+                }}
+              >
+                <option value={0}>Select leader…</option>
+
+                {employees.map((employee) => (
                   <option key={employee.id} value={employee.id}>
                     {getEmployeeName(employee)}
                   </option>
                 ))}
               </Select>
-              {leadOptions.length === 0 && (
+
+              {employees.length === 0 && (
                 <p className="text-xs text-amber-600">
-                  No {leadType === 'driver' ? 'Driver-Lead' : 'Manager-Lead'}{' '}
-                  employees available yet.
+                  No employees available.
                 </p>
               )}
             </Field>
@@ -295,7 +301,7 @@ function CrewsPage() {
                 step="1"
                 {...register('seatCapacity')}
               />
-              {leadType === 'driver' && (
+              {leadType === 'driverLead' && (
                 <p className="text-xs text-slate-400">
                   Defaults from the driver's vehicle — still editable.
                 </p>
@@ -341,14 +347,8 @@ function CrewsPage() {
               <Card key={crew.id} className="flex flex-col">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <Badge
-                      variant={
-                        crew.leadType === 'driver' ? 'success' : 'default'
-                      }
-                    >
-                      {crew.leadType === 'driver'
-                        ? 'Driver-Lead'
-                        : 'Manager-Lead'}
+                    <Badge variant={crew.driverLeadId ? 'success' : 'default'}>
+                      {crew.driverLeadId ? 'Driver-Lead' : 'Manager-Lead'}
                     </Badge>
                     <h3 className="mt-2 text-lg font-semibold text-slate-950">
                       {crew.name}
@@ -383,7 +383,9 @@ function CrewsPage() {
                 <div className="mt-4 space-y-1.5 text-sm text-slate-600">
                   <p>
                     <span className="font-medium text-slate-800">Lead:</span>{' '}
-                    {employeeName(crew.leadId)}
+                    {crew.driverLeadId
+                      ? employeeName(crew.driverLeadId)
+                      : employeeName(crew.crewLeadId)}
                   </p>
                   <p>
                     <span className="font-medium text-slate-800">Seats:</span>{' '}

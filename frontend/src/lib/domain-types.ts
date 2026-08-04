@@ -54,7 +54,7 @@ export function getEmployeeName(
 }
 
 export interface TransportRoute {
-  id: string
+  id: number
   name: string
   distanceKm: number
 }
@@ -72,15 +72,13 @@ export interface Vehicle {
 // foreign keys on Crew (driverLeadId / crewLeadId); the frontend simplifies this to a
 // single leadId + leadType pair for form handling — translated back to the two FKs at
 // the API boundary in features/crews/crews-context.tsx.
-export const leadTypes = ['driver', 'manager'] as const
-export type LeadType = (typeof leadTypes)[number]
 
 export interface Crew {
-  id: string
+  id: number
   name: string
-  routeId: string
-  leadType: LeadType
-  leadId: string
+  routeId: number
+  driverLeadId: number | null
+  crewLeadId: number | null
   seatCapacity: number
 }
 

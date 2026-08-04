@@ -2984,19 +2984,19 @@
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Intern\\.nuget\\packages\\": {}
+    "C:\\Users\\user\\.nuget\\packages\\": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\floid\\react\\transportation\\Backend\\src\\Transportation\\Transportation.Infrastructure\\Transportation.Infrastructure.csproj",
+      "projectUniqueName": "C:\\Backums\\Front\\react\\transportation\\Backend\\src\\Transportation\\Transportation.Infrastructure\\Transportation.Infrastructure.csproj",
       "projectName": "Transportation.Infrastructure",
-      "projectPath": "C:\\floid\\react\\transportation\\Backend\\src\\Transportation\\Transportation.Infrastructure\\Transportation.Infrastructure.csproj",
-      "packagesPath": "C:\\Users\\Intern\\.nuget\\packages\\",
-      "outputPath": "C:\\floid\\react\\transportation\\Backend\\src\\Transportation\\Transportation.Infrastructure\\obj\\",
+      "projectPath": "C:\\Backums\\Front\\react\\transportation\\Backend\\src\\Transportation\\Transportation.Infrastructure\\Transportation.Infrastructure.csproj",
+      "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
+      "outputPath": "C:\\Backums\\Front\\react\\transportation\\Backend\\src\\Transportation\\Transportation.Infrastructure\\obj\\",
       "projectStyle": "PackageReference",
       "configFilePaths": [
-        "C:\\Users\\Intern\\AppData\\Roaming\\NuGet\\NuGet.Config"
+        "C:\\Users\\user\\AppData\\Roaming\\NuGet\\NuGet.Config"
       ],
       "originalTargetFrameworks": [
         "net10.0"
@@ -3009,14 +3009,14 @@
           "framework": "net10.0",
           "targetAlias": "net10.0",
           "projectReferences": {
-            "C:\\floid\\react\\transportation\\Backend\\src\\Shared\\Transportation.Shared\\Transportation.Shared.csproj": {
-              "projectPath": "C:\\floid\\react\\transportation\\Backend\\src\\Shared\\Transportation.Shared\\Transportation.Shared.csproj"
+            "C:\\Backums\\Front\\react\\transportation\\Backend\\src\\Shared\\Transportation.Shared\\Transportation.Shared.csproj": {
+              "projectPath": "C:\\Backums\\Front\\react\\transportation\\Backend\\src\\Shared\\Transportation.Shared\\Transportation.Shared.csproj"
             },
-            "C:\\floid\\react\\transportation\\Backend\\src\\Transportation\\Transportation.Application\\Transportation.Application.csproj": {
-              "projectPath": "C:\\floid\\react\\transportation\\Backend\\src\\Transportation\\Transportation.Application\\Transportation.Application.csproj"
+            "C:\\Backums\\Front\\react\\transportation\\Backend\\src\\Transportation\\Transportation.Application\\Transportation.Application.csproj": {
+              "projectPath": "C:\\Backums\\Front\\react\\transportation\\Backend\\src\\Transportation\\Transportation.Application\\Transportation.Application.csproj"
             },
-            "C:\\floid\\react\\transportation\\Backend\\src\\Transportation\\Transportation.Domain\\Transportation.Domain.csproj": {
-              "projectPath": "C:\\floid\\react\\transportation\\Backend\\src\\Transportation\\Transportation.Domain\\Transportation.Domain.csproj"
+            "C:\\Backums\\Front\\react\\transportation\\Backend\\src\\Transportation\\Transportation.Domain\\Transportation.Domain.csproj": {
+              "projectPath": "C:\\Backums\\Front\\react\\transportation\\Backend\\src\\Transportation\\Transportation.Domain\\Transportation.Domain.csproj"
             }
           }
         }

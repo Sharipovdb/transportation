@@ -26,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { useEmployees } from '@/features/employees/employees-context'
+import { useUsersByRole } from '@/features/employees/employees-context'
 import { useVehicles } from '@/features/vehicles/vehicles-context'
 import type { VehicleDraft } from '@/features/vehicles/vehicles-context'
 import { getErrorMessage } from '@/lib/api-error'
@@ -61,16 +61,11 @@ const defaultValues: VehicleFormInput = {
 }
 
 function VehiclesPage() {
-  const { employees } = useEmployees()
+  const { data: driverLeads = [] } = useUsersByRole('DriverLead')
   const { vehicles, isLoading, addVehicle, updateVehicle, deleteVehicle } =
     useVehicles()
   const [editingVehicleId, setEditingVehicleId] = useState<number | null>(null)
   const [formError, setFormError] = useState('')
-
-  const driverLeads = useMemo(
-    () => employees.filter((employee) => employee.role === 'driverLead'),
-    [employees],
-  )
 
   const driverLeadsWithoutVehicle = useMemo(
     () =>
@@ -155,7 +150,9 @@ function VehiclesPage() {
   }
 
   function employeeName(employeeId: number) {
-    const employee = employees.find((candidate) => candidate.id === employeeId)
+    const employee = driverLeads.find(
+      (candidate) => candidate.id === employeeId,
+    )
     return employee ? getEmployeeName(employee) : 'Unknown'
   }
 
@@ -185,14 +182,16 @@ function VehiclesPage() {
             htmlFor="driverId"
             error={errors.driverId?.message}
           >
-            <Select id="driverId" {...register('driverId')}>
+            <Select
+              id="driverId"
+              {...register('driverId', { valueAsNumber: true })}
+            >
               <option value={0}>Select driver-lead…</option>
               {availableDriverOptions.map((employee) => (
                 <option key={employee.id} value={employee.id}>
                   {getEmployeeName(employee)}
                 </option>
               ))}
-              <option value={3}>3</option>
             </Select>
           </Field>
 

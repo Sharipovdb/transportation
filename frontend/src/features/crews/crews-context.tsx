@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 
 import { apiClient } from '@/lib/api-client'
 import { nestedLargePage } from '@/lib/pagination'
-import type { Crew, LeadType } from '@/lib/domain-types'
+import type { Crew } from '@/lib/domain-types'
 
 // The backend models "driver-lead XOR manager-lead" as two separate nullable FKs on
 // Crew, rather than the frontend's single leadType+leadId pair — translated here.
@@ -24,24 +24,21 @@ interface PaginatedResult<T> {
 
 export interface CrewDraft {
   name: string
-  routeId: string
-  driverLeadId: string
-  crewLeadId: string
+  routeId: number
+  driverLeadId: number | null
+  crewLeadId: number | null
   seatCapacity: number
 }
 
 const CREWS_QUERY_KEY = ['crews']
 
 function toCrew(dto: CrewApiDto): Crew {
-  const leadType: LeadType = dto.driverLeadId !== null ? 'driver' : 'manager'
-  const leadId = dto.driverLeadId ?? dto.crewLeadId
-
   return {
-    id: String(dto.id),
+    id: dto.id,
     name: dto.name,
-    routeId: String(dto.routeId),
-    leadType,
-    leadId: leadId === null ? '' : String(leadId),
+    routeId: dto.routeId,
+    driverLeadId: dto.driverLeadId,
+    crewLeadId: dto.crewLeadId,
     seatCapacity: dto.seatCapacity,
   }
 }
@@ -61,9 +58,9 @@ interface CrewsContextValue {
   crews: Crew[]
   isLoading: boolean
   addCrew: (draft: CrewDraft) => Promise<void>
-  updateCrew: (crewId: string, draft: CrewDraft) => Promise<void>
-  deleteCrew: (crewId: string) => Promise<void>
-  getCrewById: (crewId: string | null | undefined) => Crew | undefined
+  updateCrew: (crewId: number, draft: CrewDraft) => Promise<void>
+  deleteCrew: (crewId: number) => Promise<void>
+  getCrewById: (crewId: number | null | undefined) => Crew | undefined
 }
 
 const CrewsContext = createContext<CrewsContextValue | null>(null)
@@ -85,9 +82,9 @@ export function CrewsProvider({ children }: { children: ReactNode }) {
       apiClient.post('/api/Crew/Create', {
         name: draft.name,
         routeId: Number(draft.routeId),
+        driverLeadId: draft.driverLeadId,
+        crewLeadId: draft.crewLeadId,
         seatCapacity: draft.seatCapacity,
-        driverLeadId: draft.leadType === 'driver' ? Number(draft.leadId) : null,
-        leadId: draft.leadType === 'manager' ? Number(draft.leadId) : null,
       }),
     onSuccess: invalidate,
   })
@@ -95,19 +92,19 @@ export function CrewsProvider({ children }: { children: ReactNode }) {
   const updateMutation = useMutation({
     // Note: Update's field name for the driver-lead FK is `driverId`, not
     // `driverLeadId` like Create — an inconsistency in the backend's own commands.
-    mutationFn: ({ crewId, draft }: { crewId: string; draft: CrewDraft }) =>
+    mutationFn: ({ crewId, draft }: { crewId: number; draft: CrewDraft }) =>
       apiClient.put(`/api/Crew/Update/${crewId}`, {
         name: draft.name,
         routeId: Number(draft.routeId),
         seatCapacity: draft.seatCapacity,
-        driverId: draft.leadType === 'driver' ? Number(draft.leadId) : null,
-        leadId: draft.leadType === 'manager' ? Number(draft.leadId) : null,
+        driverLeadId: draft.driverLeadId,
+        crewLeadId: draft.crewLeadId,
       }),
     onSuccess: invalidate,
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (crewId: string) =>
+    mutationFn: (crewId: number) =>
       apiClient.delete(`/api/Crew/Delete/${crewId}`),
     onSuccess: invalidate,
   })
