@@ -17,10 +17,21 @@ import { useEmployees } from '@/features/employees/employees-context'
 import { getErrorMessage } from '@/lib/api-error'
 import type { Crew } from '@/lib/domain-types'
 import { getEmployeeName } from '@/lib/domain-types'
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipsInput,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxValue,
+} from '@/components/ui/combobox'
 
-function todayIsoDate() {
-  return new Date().toISOString().slice(0, 10)
-}
+// function todayIsoDate() {
+//   return new Date().toISOString().slice(0, 10)
+// }
 
 interface CrewMembershipDialogProps {
   crew: Crew
@@ -28,55 +39,72 @@ interface CrewMembershipDialogProps {
   onOpenChange: (open: boolean) => void
 }
 
-export function CrewMembershipDialog({ crew, open, onOpenChange }: CrewMembershipDialogProps) {
+export function CrewMembershipDialog({
+  crew,
+  open,
+  onOpenChange,
+}: CrewMembershipDialogProps) {
   const { employees } = useEmployees()
   const { crews } = useCrews()
-  const { memberships, getActiveMembersForCrew, assignMember, removeMember, transferMember } =
-    useCrewMemberships()
+  const {
+    memberships,
+    getActiveMembersForCrew,
+    assignMember,
+    removeMember,
+    transferMember,
+  } = useCrewMemberships()
 
-  const [newEmployeeId, setNewEmployeeId] = useState('')
+  const [newEmployeeIds, setNewEmployeeIds] = useState<number[]>([])
   const [assignError, setAssignError] = useState('')
-  const [transferTargetByMembership, setTransferTargetByMembership] = useState<Record<string, string>>({})
+  const [transferTargetByMembership, setTransferTargetByMembership] = useState<
+    Record<number, number>
+  >({})
 
   const activeMembers = getActiveMembersForCrew(crew.id)
 
   const unassignedEmployees = useMemo(
     () =>
       employees.filter(
-        (employee) => !memberships.some((membership) => membership.employeeId === employee.id && membership.isActive),
+        (employee) =>
+          !memberships.some(
+            (membership) =>
+              membership.employeeId === employee.id && membership.isActive,
+          ),
       ),
     [employees, memberships],
   )
 
   const otherCrews = crews.filter((otherCrew) => otherCrew.id !== crew.id)
 
-  function employeeName(employeeId: string) {
+  function employeeName(employeeId: number) {
     const employee = employees.find((candidate) => candidate.id === employeeId)
     return employee ? getEmployeeName(employee) : 'Unknown'
   }
 
   async function handleAssign() {
-    if (!newEmployeeId) {
+    if (newEmployeeIds.length === 0) {
       setAssignError('Select an employee to assign.')
       return
     }
 
     try {
-      const success = await assignMember(crew.id, newEmployeeId)
+      const success = await assignMember(crew.id, newEmployeeIds)
 
       if (!success) {
-        setAssignError('This employee already has an active crew — use Transfer instead.')
+        setAssignError(
+          'This employee already has an active crew — use Transfer instead.',
+        )
         return
       }
 
       setAssignError('')
-      setNewEmployeeId('')
+      setNewEmployeeIds([])
     } catch (error) {
       setAssignError(getErrorMessage(error, 'Could not assign this employee.'))
     }
   }
 
-  async function handleTransfer(membershipId: string, employeeId: string) {
+  async function handleTransfer(membershipId: number, employeeId: number) {
     const targetCrewId = transferTargetByMembership[membershipId]
 
     if (!targetCrewId) {
@@ -91,13 +119,15 @@ export function CrewMembershipDialog({ crew, open, onOpenChange }: CrewMembershi
         return next
       })
     } catch (error) {
-      setAssignError(getErrorMessage(error, 'Could not transfer this employee.'))
+      setAssignError(
+        getErrorMessage(error, 'Could not transfer this employee.'),
+      )
     }
   }
 
-  async function handleRemove(membershipId: string) {
+  async function handleRemove(membershipId: number) {
     try {
-      await removeMember(membershipId, todayIsoDate())
+      await removeMember(membershipId)
     } catch (error) {
       setAssignError(getErrorMessage(error, 'Could not remove this member.'))
     }
@@ -109,7 +139,8 @@ export function CrewMembershipDialog({ crew, open, onOpenChange }: CrewMembershi
         <DialogHeader>
           <DialogTitle>{crew.name} — Membership</DialogTitle>
           <DialogDescription>
-            Manage active crew members. Transferring moves the member to another crew immediately.
+            Manage active crew members. Transferring moves the member to another
+            crew immediately.
           </DialogDescription>
         </DialogHeader>
 
@@ -125,18 +156,22 @@ export function CrewMembershipDialog({ crew, open, onOpenChange }: CrewMembershi
                 className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-100 bg-sky-50/50 px-4 py-3"
               >
                 <div>
-                  <p className="text-sm font-medium text-slate-900">{employeeName(membership.employeeId)}</p>
-                  <p className="text-xs text-slate-500">Active since {membership.activeFrom}</p>
+                  <p className="text-sm font-medium text-slate-900">
+                    {employeeName(membership.employeeId)}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Active since {membership.activeFrom}
+                  </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
                   <Select
-                    className="h-9 w-44 text-xs"
+                    className="h-10 w-44 text-xs"
                     value={transferTargetByMembership[membership.id] ?? ''}
                     onChange={(event) =>
                       setTransferTargetByMembership((current) => ({
                         ...current,
-                        [membership.id]: event.target.value,
+                        [membership.id]: Number(event.target.value),
                       }))
                     }
                   >
@@ -153,7 +188,9 @@ export function CrewMembershipDialog({ crew, open, onOpenChange }: CrewMembershi
                     size="icon-sm"
                     className="rounded-full border-sky-100 text-sky-700"
                     disabled={!transferTargetByMembership[membership.id]}
-                    onClick={() => handleTransfer(membership.id, membership.employeeId)}
+                    onClick={() =>
+                      handleTransfer(membership.id, membership.employeeId)
+                    }
                   >
                     <ArrowRightLeft className="size-3.5" />
                   </Button>
@@ -185,19 +222,52 @@ export function CrewMembershipDialog({ crew, open, onOpenChange }: CrewMembershi
         </div>
 
         <div className="rounded-2xl border border-sky-100 bg-white p-4">
-          <p className="text-sm font-semibold text-slate-700">Assign a new member</p>
+          <p className="text-sm font-semibold text-slate-700">
+            Assign a new member
+          </p>
 
           <div className="mt-3 flex flex-wrap items-end gap-3">
             <div className="min-w-48 flex-1 space-y-1.5">
-              <label className="text-xs font-medium text-slate-500">Employee</label>
-              <Select value={newEmployeeId} onChange={(event) => setNewEmployeeId(event.target.value)}>
-                <option value="">Select employee…</option>
-                {unassignedEmployees.map((employee) => (
-                  <option key={employee.id} value={employee.id}>
-                    {getEmployeeName(employee)}
-                  </option>
-                ))}
-              </Select>
+              <label className="text-xs font-medium text-slate-500">
+                Employees
+              </label>
+              <Combobox
+                multiple
+                items={unassignedEmployees}
+                value={newEmployeeIds}
+                onValueChange={setNewEmployeeIds}
+              >
+                <ComboboxChips>
+                  <ComboboxValue>
+                    {(values) =>
+                      values.map((id: number) => {
+                        const employee = unassignedEmployees.find(
+                          (e) => e.id === id,
+                        )
+
+                        return (
+                          <ComboboxChip key={id}>
+                            {employee ? getEmployeeName(employee) : id}
+                          </ComboboxChip>
+                        )
+                      })
+                    }
+                  </ComboboxValue>
+
+                  <ComboboxChipsInput placeholder="Select employees" />
+                </ComboboxChips>
+
+                <ComboboxContent>
+                  <ComboboxEmpty>No items found.</ComboboxEmpty>
+                  <ComboboxList>
+                    {(item) => (
+                      <ComboboxItem key={item.id} value={item.id}>
+                        {getEmployeeName(item)}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
             </div>
 
             <Button
@@ -210,7 +280,11 @@ export function CrewMembershipDialog({ crew, open, onOpenChange }: CrewMembershi
             </Button>
           </div>
 
-          {assignError && <p className="mt-2 text-xs font-medium text-red-500">{assignError}</p>}
+          {assignError && (
+            <p className="mt-2 text-xs font-medium text-red-500">
+              {assignError}
+            </p>
+          )}
         </div>
       </DialogContent>
     </Dialog>

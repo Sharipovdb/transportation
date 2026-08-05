@@ -107,6 +107,12 @@ function CrewsPage() {
       return
     }
 
+    if (editingCrew.driverLeadId) {
+      setLeadType('driverLead')
+    } else {
+      setLeadType('crewLead')
+    }
+
     reset({
       name: editingCrew.name,
       routeId: editingCrew.routeId,
@@ -215,7 +221,10 @@ function CrewsPage() {
               htmlFor="routeId"
               error={errors.routeId?.message}
             >
-              <Select id="routeId" {...register('routeId')}>
+              <Select
+                id="routeId"
+                {...register('routeId', { valueAsNumber: true })}
+              >
                 <option value={0}>Select route…</option>
                 {routes.map((route) => (
                   <option key={route.id} value={route.id}>

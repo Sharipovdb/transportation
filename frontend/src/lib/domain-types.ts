@@ -83,9 +83,9 @@ export interface Crew {
 }
 
 export interface CrewMembership {
-  id: string
-  crewId: string
-  employeeId: string
+  id: number
+  crewId: number
+  employeeId: number
   activeFrom: string
   activeTo: string | null
   isActive: boolean

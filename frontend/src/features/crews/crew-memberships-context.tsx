@@ -29,9 +29,9 @@ function isMembershipActive(activeTo: string | null) {
 
 function toCrewMembership(dto: CrewMembershipApiDto): CrewMembership {
   return {
-    id: String(dto.id),
-    crewId: String(dto.crewId),
-    employeeId: String(dto.userId),
+    id: dto.id,
+    crewId: dto.crewId,
+    employeeId: dto.userId,
     activeFrom: dto.activeFrom,
     activeTo: dto.activeTo,
     isActive: isMembershipActive(dto.activeTo),
@@ -54,15 +54,15 @@ interface CrewMembershipsContextValue {
   isLoading: boolean
   getActiveMembersForCrew: (crewId: number) => CrewMembership[]
   getActiveMembershipForEmployee: (
-    employeeId: string,
+    employeeId: number,
   ) => CrewMembership | undefined
-  getMembershipHistoryForCrew: (crewId: string) => CrewMembership[]
-  assignMember: (crewId: number, employeeId: number) => Promise<boolean>
-  removeMember: (membershipId: number, activeTo: string) => Promise<void>
+  getMembershipHistoryForCrew: (crewId: number) => CrewMembership[]
+  assignMember: (crewId: number, employeeIds: Array) => Promise<boolean>
+  removeMember: (membershipId: number) => Promise<void>
   transferMember: (
     employeeId: number,
-    fromCrewId: string,
-    toCrewId: string,
+    fromCrewId: number,
+    toCrewId: number,
   ) => Promise<void>
 }
 
@@ -88,12 +88,12 @@ export function CrewMembershipsProvider({ children }: { children: ReactNode }) {
       crewId,
       employeeId,
     }: {
-      crewId: string
-      employeeId: string
+      crewId: number
+      employeeId: number
     }) =>
       apiClient.post('/api/CrewMembership/Create', {
-        crewId: Number(crewId),
-        userId: Number(employeeId),
+        crewId,
+        userId: employeeId,
       }),
     onSuccess: invalidate,
   })
@@ -103,10 +103,16 @@ export function CrewMembershipsProvider({ children }: { children: ReactNode }) {
       membershipId,
       activeTo,
     }: {
-      membershipId: string
+      membershipId: number
       activeTo: string
     }) =>
       apiClient.put(`/api/CrewMembership/Update/${membershipId}`, { activeTo }),
+    onSuccess: invalidate,
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: ({ membershipId }: { membershipId: number }) =>
+      apiClient.delete(`/api/CrewMembership/Delete/${membershipId}`),
     onSuccess: invalidate,
   })
 
@@ -118,14 +124,14 @@ export function CrewMembershipsProvider({ children }: { children: ReactNode }) {
       fromCrewId,
       toCrewId,
     }: {
-      employeeId: string
-      fromCrewId: string
-      toCrewId: string
+      employeeId: number
+      fromCrewId: number
+      toCrewId: number
     }) =>
-      apiClient.put('/api/CrewMembership/Transfer', {
-        userId: Number(employeeId),
-        oldCrewId: Number(fromCrewId),
-        newCrewId: Number(toCrewId),
+      apiClient.post('/api/CrewMembership/Transfer/transfer', {
+        userId: employeeId,
+        oldCrewId: fromCrewId,
+        newCrewId: toCrewId,
       }),
     onSuccess: invalidate,
   })
@@ -145,21 +151,21 @@ export function CrewMembershipsProvider({ children }: { children: ReactNode }) {
         ),
       getMembershipHistoryForCrew: (crewId) =>
         memberships.filter((membership) => membership.crewId === crewId),
-      assignMember: async (crewId, employeeId) => {
+      assignMember: async (crewId, employeeIds) => {
         const alreadyActiveElsewhere = memberships.some(
           (membership) =>
-            membership.employeeId === employeeId && membership.isActive,
+            membership.employeeId === employeeIds && membership.isActive,
         )
 
         if (alreadyActiveElsewhere) {
           return false
         }
 
-        await createMutation.mutateAsync({ crewId, employeeId })
+        await createMutation.mutateAsync({ crewId, employeeIds })
         return true
       },
-      removeMember: async (membershipId, activeTo) => {
-        await updateMutation.mutateAsync({ membershipId, activeTo })
+      removeMember: async (membershipId) => {
+        await deleteMutation.mutateAsync({ membershipId })
       },
       transferMember: async (employeeId, fromCrewId, toCrewId) => {
         await transferMutation.mutateAsync({ employeeId, fromCrewId, toCrewId })
