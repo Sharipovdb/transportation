@@ -57,7 +57,7 @@ interface CrewMembershipsContextValue {
     employeeId: number,
   ) => CrewMembership | undefined
   getMembershipHistoryForCrew: (crewId: number) => CrewMembership[]
-  assignMember: (crewId: number, employeeIds: Array) => Promise<boolean>
+  assignMember: (crewId: number, employeeIds: number[]) => Promise<boolean>
   removeMember: (membershipId: number) => Promise<void>
   transferMember: (
     employeeId: number,
@@ -86,14 +86,14 @@ export function CrewMembershipsProvider({ children }: { children: ReactNode }) {
   const createMutation = useMutation({
     mutationFn: ({
       crewId,
-      employeeId,
+      employeeIds,
     }: {
       crewId: number
-      employeeId: number
+      employeeIds: number[]
     }) =>
       apiClient.post('/api/CrewMembership/Create', {
         crewId,
-        userId: employeeId,
+        userIds: employeeIds,
       }),
     onSuccess: invalidate,
   })
@@ -154,7 +154,7 @@ export function CrewMembershipsProvider({ children }: { children: ReactNode }) {
       assignMember: async (crewId, employeeIds) => {
         const alreadyActiveElsewhere = memberships.some(
           (membership) =>
-            membership.employeeId === employeeIds && membership.isActive,
+            employeeIds.includes(membership.employeeId) && membership.isActive,
         )
 
         if (alreadyActiveElsewhere) {

@@ -257,7 +257,10 @@ export function CrewMembershipDialog({
                   <ComboboxChipsInput placeholder="Select employees" />
                 </ComboboxChips>
 
-                <ComboboxContent>
+                <ComboboxContent
+                  style={{ pointerEvents: 'auto' }}
+                  onWheel={(e) => e.stopPropagation()}
+                >
                   <ComboboxEmpty>No items found.</ComboboxEmpty>
                   <ComboboxList>
                     {(item) => (
