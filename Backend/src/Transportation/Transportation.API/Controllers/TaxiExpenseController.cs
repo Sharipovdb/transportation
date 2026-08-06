@@ -77,39 +77,38 @@ public class TaxiExpenseController : BaseController
         return new NoContentResult();
     }
 
-    [HttpPut("{id:long}/approve")]
+    [HttpPut("{id:long}")]
     [RoleAuthorize(RoleNames.Admin, RoleNames.Accountant)]
-    public async Task<NoContentResult> Approve(long id, CancellationToken cancellationToken = default)
+    public Task<NoContentResult> Approve(long id, CancellationToken cancellationToken = default)
     {
-        await _mediator.Send(
-            new UpdateTaxiExpenseReimbursementStatusCommand(
-                TaxiExpenseId: id,
-                TaxiExpenseStatus: TaxiExpenseStatus.Approved
-            ), cancellationToken
-        );
-
-        return new NoContentResult();
+        return SetStatus(id, TaxiExpenseStatus.Approved, cancellationToken);
     }
 
-    [HttpPut("{id:long}/reject")]
+    [HttpPut("{id:long}")]
     [RoleAuthorize(RoleNames.Admin, RoleNames.Accountant)]
-    public async Task<NoContentResult> Reject(long id, CancellationToken cancellationToken = default)
+    public Task<NoContentResult> Reject(long id, CancellationToken cancellationToken = default)
     {
-        await _mediator.Send(
-            new UpdateTaxiExpenseReimbursementStatusCommand(
-                TaxiExpenseId: id,
-                TaxiExpenseStatus: TaxiExpenseStatus.Rejected
-            ), cancellationToken
-        );
-
-        return new NoContentResult();
+        return SetStatus(id, TaxiExpenseStatus.Rejected, cancellationToken);
     }
 
-    [HttpPut("{id:long}/paid")]
+    [HttpPut("{id:long}")]
     [RoleAuthorize(RoleNames.Admin, RoleNames.Accountant)]
     public async Task<NoContentResult> Paid(long id, CancellationToken cancellationToken = default)
     {
         await _mediator.Send(new TaxiExpensePaidCommand(TaxiExpenseId: id), cancellationToken);
+
+        return new NoContentResult();
+    }
+
+    private async Task<NoContentResult> SetStatus(long id, TaxiExpenseStatus status,
+        CancellationToken cancellationToken)
+    {
+        await _mediator.Send(
+            new UpdateTaxiExpenseReimbursementStatusCommand(
+                TaxiExpenseId: id,
+                TaxiExpenseStatus: status
+            ), cancellationToken
+        );
 
         return new NoContentResult();
     }
