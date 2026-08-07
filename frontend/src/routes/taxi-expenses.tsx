@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import type { Period } from '@/components/month-picker'
 import { MonthPicker } from '@/components/month-picker'
 import { Badge } from '@/components/ui/badge'
@@ -80,6 +81,9 @@ function TaxiExpensesPage() {
   const [crewFilter, setCrewFilter] = useState('')
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null)
   const [formError, setFormError] = useState('')
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
+    null,
+  )
 
   const {
     register,
@@ -397,7 +401,7 @@ function TaxiExpensesPage() {
                           variant="destructive"
                           size="icon-sm"
                           className="rounded-full"
-                          onClick={() => removeExpense(expense.id)}
+                          onClick={() => setDeletingExpenseId(expense.id)}
                         >
                           <Trash2 className="size-3.5" />
                         </Button>
@@ -418,6 +422,18 @@ function TaxiExpensesPage() {
           </Table>
         </div>
       </Card>
+
+      <ConfirmDialog
+        open={deletingExpenseId !== null}
+        onOpenChange={(open) => !open && setDeletingExpenseId(null)}
+        title="Delete this taxi expense?"
+        description="This action cannot be undone."
+        onConfirm={() => {
+          if (deletingExpenseId !== null) {
+            removeExpense(deletingExpenseId)
+          }
+        }}
+      />
     </section>
   )
 }

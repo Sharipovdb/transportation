@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import type { Period } from '@/components/month-picker'
 import { MonthPicker } from '@/components/month-picker'
 import { Badge } from '@/components/ui/badge'
@@ -84,6 +85,7 @@ function TransportDaysPage() {
   const [crewFilter, setCrewFilter] = useState('')
   const [editingDayId, setEditingDayId] = useState<string | null>(null)
   const [formError, setFormError] = useState('')
+  const [deletingDayId, setDeletingDayId] = useState<string | null>(null)
 
   const {
     register,
@@ -369,7 +371,7 @@ function TransportDaysPage() {
                         variant="destructive"
                         size="icon-sm"
                         className="rounded-full"
-                        onClick={() => removeDay(day.id)}
+                        onClick={() => setDeletingDayId(day.id)}
                       >
                         <Trash2 className="size-3.5" />
                       </Button>
@@ -389,6 +391,18 @@ function TransportDaysPage() {
           </Table>
         </div>
       </Card>
+
+      <ConfirmDialog
+        open={deletingDayId !== null}
+        onOpenChange={(open) => !open && setDeletingDayId(null)}
+        title="Delete this transport day?"
+        description="This action cannot be undone."
+        onConfirm={() => {
+          if (deletingDayId !== null) {
+            removeDay(deletingDayId)
+          }
+        }}
+      />
     </section>
   )
 }

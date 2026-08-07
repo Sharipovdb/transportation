@@ -5,6 +5,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useForm, Controller } from 'react-hook-form'
 import { z } from 'zod'
 
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -124,6 +125,9 @@ function EmployeesPage() {
   )
   const [roleFilter, setRoleFilter] = useState<EmployeeRole | 'all'>('all')
   const [formError, setFormError] = useState('')
+  const [deletingEmployeeId, setDeletingEmployeeId] = useState<number | null>(
+    null,
+  )
 
   const filteredEmployees = useMemo(() => {
     const scoped =
@@ -457,7 +461,7 @@ function EmployeesPage() {
                         variant="destructive"
                         size="icon"
                         className="rounded-full"
-                        onClick={() => removeEmployee(employee.id)}
+                        onClick={() => setDeletingEmployeeId(employee.id)}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -480,6 +484,18 @@ function EmployeesPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={deletingEmployeeId !== null}
+        onOpenChange={(open) => !open && setDeletingEmployeeId(null)}
+        title="Delete this employee?"
+        description="This action cannot be undone."
+        onConfirm={() => {
+          if (deletingEmployeeId !== null) {
+            removeEmployee(deletingEmployeeId)
+          }
+        }}
+      />
     </section>
   )
 }

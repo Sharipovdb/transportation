@@ -1,6 +1,7 @@
 import { ArrowRightLeft, UserMinus, UserPlus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -56,6 +57,9 @@ export function CrewMembershipDialog({
 
   const [newEmployeeIds, setNewEmployeeIds] = useState<number[]>([])
   const [assignError, setAssignError] = useState('')
+  const [removingMembershipId, setRemovingMembershipId] = useState<
+    number | null
+  >(null)
   const [transferTargetByMembership, setTransferTargetByMembership] = useState<
     Record<number, number>
   >({})
@@ -199,7 +203,7 @@ export function CrewMembershipDialog({
                     variant="destructive"
                     size="icon-sm"
                     className="rounded-full"
-                    onClick={() => handleRemove(membership.id)}
+                    onClick={() => setRemovingMembershipId(membership.id)}
                   >
                     <UserMinus className="size-3.5" />
                   </Button>
@@ -290,6 +294,19 @@ export function CrewMembershipDialog({
           )}
         </div>
       </DialogContent>
+
+      <ConfirmDialog
+        open={removingMembershipId !== null}
+        onOpenChange={(isOpen) => !isOpen && setRemovingMembershipId(null)}
+        title="Remove this member from the crew?"
+        description="This action cannot be undone."
+        confirmLabel="Remove"
+        onConfirm={() => {
+          if (removingMembershipId !== null) {
+            handleRemove(removingMembershipId)
+          }
+        }}
+      />
     </Dialog>
   )
 }

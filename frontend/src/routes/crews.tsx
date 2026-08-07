@@ -13,6 +13,7 @@ import type { ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -78,6 +79,7 @@ function CrewsPage() {
   const [leadType, setLeadType] = useState<LeadType>('driverLead')
   const [membershipCrewId, setMembershipCrewId] = useState<number | null>(null)
   const [formError, setFormError] = useState('')
+  const [deletingCrewId, setDeletingCrewId] = useState<number | null>(null)
 
   const editingCrew =
     editingCrewId === null
@@ -382,7 +384,7 @@ function CrewsPage() {
                       variant="destructive"
                       size="icon-sm"
                       className="rounded-full"
-                      onClick={() => removeCrew(crew.id)}
+                      onClick={() => setDeletingCrewId(crew.id)}
                     >
                       <Trash2 className="size-3.5" />
                     </Button>
@@ -443,6 +445,18 @@ function CrewsPage() {
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={deletingCrewId !== null}
+        onOpenChange={(open) => !open && setDeletingCrewId(null)}
+        title="Delete this crew?"
+        description="This action cannot be undone."
+        onConfirm={() => {
+          if (deletingCrewId !== null) {
+            removeCrew(deletingCrewId)
+          }
+        }}
+      />
     </section>
   )
 }

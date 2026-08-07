@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -56,6 +57,7 @@ function RoutesPage() {
     useTransportRoutes()
   const [editingRouteId, setEditingRouteId] = useState<string | null>(null)
   const [formError, setFormError] = useState('')
+  const [deletingRouteId, setDeletingRouteId] = useState<string | null>(null)
 
   const sortedRoutes = useMemo(
     () =>
@@ -246,7 +248,7 @@ function RoutesPage() {
                         variant="destructive"
                         size="icon"
                         className="rounded-full"
-                        onClick={() => removeRoute(route.id)}
+                        onClick={() => setDeletingRouteId(route.id)}
                       >
                         <Trash2 className="size-4" />
                       </Button>
@@ -269,6 +271,18 @@ function RoutesPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={deletingRouteId !== null}
+        onOpenChange={(open) => !open && setDeletingRouteId(null)}
+        title="Delete this route?"
+        description="This action cannot be undone."
+        onConfirm={() => {
+          if (deletingRouteId !== null) {
+            removeRoute(deletingRouteId)
+          }
+        }}
+      />
     </section>
   )
 }

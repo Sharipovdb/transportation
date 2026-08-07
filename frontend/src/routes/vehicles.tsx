@@ -6,6 +6,7 @@ import type { ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -66,6 +67,7 @@ function VehiclesPage() {
     useVehicles()
   const [editingVehicleId, setEditingVehicleId] = useState<number | null>(null)
   const [formError, setFormError] = useState('')
+  const [deletingVehicleId, setDeletingVehicleId] = useState<number | null>(null)
 
   const driverLeadsWithoutVehicle = useMemo(
     () =>
@@ -343,7 +345,7 @@ function VehiclesPage() {
                           variant="destructive"
                           size="icon"
                           className="rounded-full"
-                          onClick={() => removeVehicle(vehicle.id)}
+                          onClick={() => setDeletingVehicleId(vehicle.id)}
                         >
                           <Trash2 className="size-4" />
                         </Button>
@@ -367,6 +369,18 @@ function VehiclesPage() {
           </CardContent>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={deletingVehicleId !== null}
+        onOpenChange={(open) => !open && setDeletingVehicleId(null)}
+        title="Delete this vehicle?"
+        description="This action cannot be undone."
+        onConfirm={() => {
+          if (deletingVehicleId !== null) {
+            removeVehicle(deletingVehicleId)
+          }
+        }}
+      />
     </section>
   )
 }

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { Fragment, useState } from 'react'
 
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import type { Period } from '@/components/month-picker'
 import { MonthPicker } from '@/components/month-picker'
 import { Badge } from '@/components/ui/badge'
@@ -65,6 +66,7 @@ function MonthlySheetsPage() {
   const [preview, setPreview] = useState<MonthlySheet | null>(null)
   const [isBusy, setIsBusy] = useState(false)
   const [actionError, setActionError] = useState('')
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(
     null,
   )
@@ -285,7 +287,7 @@ function MonthlySheetsPage() {
                   size="sm"
                   className="rounded-full"
                   disabled={isBusy}
-                  onClick={handleDelete}
+                  onClick={() => setConfirmingDelete(true)}
                 >
                   <Trash2 className="size-3.5" />
                   Delete
@@ -425,6 +427,14 @@ function MonthlySheetsPage() {
           </div>
         </Card>
       )}
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        onOpenChange={setConfirmingDelete}
+        title="Delete this monthly sheet?"
+        description="This action cannot be undone."
+        onConfirm={handleDelete}
+      />
     </section>
   )
 }
