@@ -9,55 +9,20 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as VehiclesRouteImport } from './routes/vehicles'
-import { Route as TransportDaysRouteImport } from './routes/transport-days'
-import { Route as TaxiExpensesRouteImport } from './routes/taxi-expenses'
-import { Route as RoutesRouteImport } from './routes/routes'
-import { Route as PayoutsRouteImport } from './routes/payouts'
-import { Route as MonthlySheetsRouteImport } from './routes/monthly-sheets'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as EmployeesRouteImport } from './routes/employees'
-import { Route as CrewsRouteImport } from './routes/crews'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CrewsRouteImport } from './routes/crews'
+import { Route as EmployeesRouteImport } from './routes/employees'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as MonthlySheetsRouteImport } from './routes/monthly-sheets'
+import { Route as PayoutsRouteImport } from './routes/payouts'
+import { Route as RoutesRouteImport } from './routes/routes'
+import { Route as TaxiExpensesRouteImport } from './routes/taxi-expenses'
+import { Route as TransportDaysRouteImport } from './routes/transport-days'
+import { Route as VehiclesRouteImport } from './routes/vehicles'
 
-const VehiclesRoute = VehiclesRouteImport.update({
-  id: '/vehicles',
-  path: '/vehicles',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TransportDaysRoute = TransportDaysRouteImport.update({
-  id: '/transport-days',
-  path: '/transport-days',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const TaxiExpensesRoute = TaxiExpensesRouteImport.update({
-  id: '/taxi-expenses',
-  path: '/taxi-expenses',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RoutesRoute = RoutesRouteImport.update({
-  id: '/routes',
-  path: '/routes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PayoutsRoute = PayoutsRouteImport.update({
-  id: '/payouts',
-  path: '/payouts',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MonthlySheetsRoute = MonthlySheetsRouteImport.update({
-  id: '/monthly-sheets',
-  path: '/monthly-sheets',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const EmployeesRoute = EmployeesRouteImport.update({
-  id: '/employees',
-  path: '/employees',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CrewsRoute = CrewsRouteImport.update({
@@ -65,9 +30,44 @@ const CrewsRoute = CrewsRouteImport.update({
   path: '/crews',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const EmployeesRoute = EmployeesRouteImport.update({
+  id: '/employees',
+  path: '/employees',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonthlySheetsRoute = MonthlySheetsRouteImport.update({
+  id: '/monthly-sheets',
+  path: '/monthly-sheets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PayoutsRoute = PayoutsRouteImport.update({
+  id: '/payouts',
+  path: '/payouts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RoutesRoute = RoutesRouteImport.update({
+  id: '/routes',
+  path: '/routes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TaxiExpensesRoute = TaxiExpensesRouteImport.update({
+  id: '/taxi-expenses',
+  path: '/taxi-expenses',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TransportDaysRoute = TransportDaysRouteImport.update({
+  id: '/transport-days',
+  path: '/transport-days',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VehiclesRoute = VehiclesRouteImport.update({
+  id: '/vehicles',
+  path: '/vehicles',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -162,60 +162,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/vehicles': {
-      id: '/vehicles'
-      path: '/vehicles'
-      fullPath: '/vehicles'
-      preLoaderRoute: typeof VehiclesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/transport-days': {
-      id: '/transport-days'
-      path: '/transport-days'
-      fullPath: '/transport-days'
-      preLoaderRoute: typeof TransportDaysRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/taxi-expenses': {
-      id: '/taxi-expenses'
-      path: '/taxi-expenses'
-      fullPath: '/taxi-expenses'
-      preLoaderRoute: typeof TaxiExpensesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/routes': {
-      id: '/routes'
-      path: '/routes'
-      fullPath: '/routes'
-      preLoaderRoute: typeof RoutesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/payouts': {
-      id: '/payouts'
-      path: '/payouts'
-      fullPath: '/payouts'
-      preLoaderRoute: typeof PayoutsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/monthly-sheets': {
-      id: '/monthly-sheets'
-      path: '/monthly-sheets'
-      fullPath: '/monthly-sheets'
-      preLoaderRoute: typeof MonthlySheetsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/employees': {
-      id: '/employees'
-      path: '/employees'
-      fullPath: '/employees'
-      preLoaderRoute: typeof EmployeesRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/crews': {
@@ -225,11 +176,60 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CrewsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/employees': {
+      id: '/employees'
+      path: '/employees'
+      fullPath: '/employees'
+      preLoaderRoute: typeof EmployeesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monthly-sheets': {
+      id: '/monthly-sheets'
+      path: '/monthly-sheets'
+      fullPath: '/monthly-sheets'
+      preLoaderRoute: typeof MonthlySheetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/payouts': {
+      id: '/payouts'
+      path: '/payouts'
+      fullPath: '/payouts'
+      preLoaderRoute: typeof PayoutsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/routes': {
+      id: '/routes'
+      path: '/routes'
+      fullPath: '/routes'
+      preLoaderRoute: typeof RoutesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/taxi-expenses': {
+      id: '/taxi-expenses'
+      path: '/taxi-expenses'
+      fullPath: '/taxi-expenses'
+      preLoaderRoute: typeof TaxiExpensesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/transport-days': {
+      id: '/transport-days'
+      path: '/transport-days'
+      fullPath: '/transport-days'
+      preLoaderRoute: typeof TransportDaysRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/vehicles': {
+      id: '/vehicles'
+      path: '/vehicles'
+      fullPath: '/vehicles'
+      preLoaderRoute: typeof VehiclesRouteImport
       parentRoute: typeof rootRouteImport
     }
   }

@@ -3,14 +3,26 @@ import { createContext, useContext, useMemo } from 'react'
 import type { ReactNode } from 'react'
 
 import { apiClient } from '@/lib/api-client'
-import type { TransportDay, TransportMode } from '@/lib/domain-types'
+import type {
+  TransportDay,
+  TransportMode,
+  TaxiExpense,
+} from '@/lib/domain-types'
 import { getMonthYear } from '@/lib/format'
 import { nestedLargePage } from '@/lib/pagination'
 
 // TransportMode has no explicit int values on the backend (Driven=0, Taxi=1, None=2 by
 // ordinal) — request bodies want the number, response DTOs give back the string name.
-const modeToApiValue: Record<TransportMode, number> = { driven: 0, taxi: 1, none: 2 }
-const modeFromApiValue: Record<string, TransportMode> = { Driven: 'driven', Taxi: 'taxi', None: 'none' }
+const modeToApiValue: Record<TransportMode, number> = {
+  Driven: 0,
+  Taxi: 1,
+  None: 2,
+}
+const modeFromApiValue: Record<string, TransportMode> = {
+  Driven: 'Driven',
+  Taxi: 'Taxi',
+  None: 'None',
+}
 
 interface TransportDayApiDto {
   id: number
@@ -22,7 +34,10 @@ interface TransportDayApiDto {
   totalCommuteKm: number
   extraBusinessKm: number
   notes: string | null
+  loggedBy: number
+  loggedAt: string
   confirmed: boolean
+  taxiExpenses: TaxiExpense[]
 }
 
 interface PaginatedResult<T> {
@@ -33,35 +48,44 @@ interface PaginatedResult<T> {
 // The driver is derived server-side from the crew's Driver-Lead at creation time —
 // there's nothing to send for it (see Backend's CreateTransportDayCommandHandler).
 export interface TransportDayDraft {
-  crewId: string
+  crewId: number
   date: string
   morningMode: TransportMode
-  afternoonMode: TransportMode
-  extraBusinessKm: number
-  notes: string
+  afternoonMode: TransportMode | null
+  extraCommuteKm: number | null
+  extraBusinessKm: number | null
+  notes: string | null
 }
 
 const TRANSPORT_DAYS_QUERY_KEY = ['transport-days']
 
 function toTransportDay(dto: TransportDayApiDto): TransportDay {
   return {
-    id: String(dto.id),
-    crewId: String(dto.crewId),
+    id: dto.id,
+    crewId: dto.crewId,
     date: dto.date.slice(0, 10),
     morningMode: modeFromApiValue[dto.morningMode] ?? 'none',
-    afternoonMode: dto.afternoonMode ? modeFromApiValue[dto.afternoonMode] ?? 'none' : 'none',
-    driverId: dto.driverId === null ? null : String(dto.driverId),
-    commuteKm: dto.totalCommuteKm,
+    afternoonMode: dto.afternoonMode
+      ? (modeFromApiValue[dto.afternoonMode] ?? 'None')
+      : 'None',
+    driverId: dto.driverId === null ? null : dto.driverId,
+    totalCommuteKm: dto.totalCommuteKm,
     extraBusinessKm: dto.extraBusinessKm,
     notes: dto.notes ?? '',
+    loggedBy: dto.loggedBy,
+    loggedAt: dto.loggedAt,
     confirmed: dto.confirmed,
+    taxiExpenses: dto.taxiExpenses,
   }
 }
 
 async function fetchTransportDays() {
-  const response = await apiClient.get<PaginatedResult<TransportDayApiDto>>('/api/TransportDays/GetAll', {
-    params: nestedLargePage,
-  })
+  const response = await apiClient.get<PaginatedResult<TransportDayApiDto>>(
+    '/api/TransportDays/GetAll',
+    {
+      params: nestedLargePage,
+    },
+  )
 
   return response.data.items.map(toTransportDay)
 }
@@ -69,16 +93,25 @@ async function fetchTransportDays() {
 interface TransportDaysContextValue {
   transportDays: TransportDay[]
   isLoading: boolean
-  getDayById: (dayId: string | null | undefined) => TransportDay | undefined
-  getDaysForCrewMonth: (crewId: string, year: number, month: number) => TransportDay[]
+  getDayById: (dayId: number | null | undefined) => TransportDay | undefined
+  getDaysForCrewMonth: (
+    crewId: number,
+    year: number,
+    month: number,
+  ) => TransportDay[]
   addTransportDay: (draft: TransportDayDraft) => Promise<void>
-  updateTransportDay: (dayId: string, draft: Omit<TransportDayDraft, 'crewId' | 'date'>) => Promise<void>
-  deleteTransportDay: (dayId: string) => Promise<void>
-  confirmTransportDay: (dayId: string) => Promise<void>
-  unconfirmTransportDay: (dayId: string) => Promise<void>
+  updateTransportDay: (
+    dayId: number,
+    draft: Omit<TransportDayDraft, 'crewId' | 'date'>,
+  ) => Promise<void>
+  deleteTransportDay: (dayId: number) => Promise<void>
+  confirmTransportDay: (dayId: number) => Promise<void>
+  unconfirmTransportDay: (dayId: number) => Promise<void>
 }
 
-const TransportDaysContext = createContext<TransportDaysContextValue | null>(null)
+const TransportDaysContext = createContext<TransportDaysContextValue | null>(
+  null,
+)
 
 export function TransportDaysProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
@@ -98,7 +131,8 @@ export function TransportDaysProvider({ children }: { children: ReactNode }) {
         crewId: Number(draft.crewId),
         date: draft.date,
         morningMode: modeToApiValue[draft.morningMode],
-        afternoonMode: modeToApiValue[draft.afternoonMode],
+        afternoonMode: modeToApiValue[draft.afternoonMode ?? 'None'],
+        extraCommuteKm: draft.extraCommuteKm,
         extraBusinessCm: draft.extraBusinessKm,
         notes: draft.notes,
       }),
@@ -112,12 +146,13 @@ export function TransportDaysProvider({ children }: { children: ReactNode }) {
       dayId,
       draft,
     }: {
-      dayId: string
+      dayId: number
       draft: Omit<TransportDayDraft, 'crewId' | 'date'>
     }) =>
       apiClient.put(`/api/TransportDays/Update/${dayId}`, {
         morningMode: modeToApiValue[draft.morningMode],
-        afternoonMode: modeToApiValue[draft.afternoonMode],
+        afternoonMode: modeToApiValue[draft.afternoonMode ?? 'None'],
+        extraCommuteKm: draft.extraCommuteKm,
         extraBusinessKm: draft.extraBusinessKm,
         notes: draft.notes,
       }),
@@ -125,17 +160,20 @@ export function TransportDaysProvider({ children }: { children: ReactNode }) {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (dayId: string) => apiClient.delete(`/api/TransportDays/Delete/${dayId}`),
+    mutationFn: (dayId: number) =>
+      apiClient.delete(`/api/TransportDays/Delete/${dayId}`),
     onSuccess: invalidate,
   })
 
   const confirmMutation = useMutation({
-    mutationFn: (dayId: string) => apiClient.post(`/api/TransportDays/Confirm/${dayId}/confirm`),
+    mutationFn: (dayId: number) =>
+      apiClient.post(`/api/TransportDays/Confirm/${dayId}/confirm`),
     onSuccess: invalidate,
   })
 
   const unconfirmMutation = useMutation({
-    mutationFn: (dayId: string) => apiClient.post(`/api/TransportDays/UnConfirm/${dayId}/unconfirm`),
+    mutationFn: (dayId: number) =>
+      apiClient.post(`/api/TransportDays/UnConfirm/${dayId}/unconfirm`),
     onSuccess: invalidate,
   })
 
@@ -155,23 +193,47 @@ export function TransportDaysProvider({ children }: { children: ReactNode }) {
             return period.year === year && period.month === month
           })
           .sort((first, second) => first.date.localeCompare(second.date)),
-      addTransportDay: async (draft) => { await addMutation.mutateAsync(draft) },
-      updateTransportDay: async (dayId, draft) => { await updateMutation.mutateAsync({ dayId, draft }) },
-      deleteTransportDay: async (dayId) => { await deleteMutation.mutateAsync(dayId) },
-      confirmTransportDay: async (dayId) => { await confirmMutation.mutateAsync(dayId) },
-      unconfirmTransportDay: async (dayId) => { await unconfirmMutation.mutateAsync(dayId) },
+      addTransportDay: async (draft) => {
+        await addMutation.mutateAsync(draft)
+      },
+      updateTransportDay: async (dayId, draft) => {
+        await updateMutation.mutateAsync({ dayId, draft })
+      },
+      deleteTransportDay: async (dayId) => {
+        await deleteMutation.mutateAsync(dayId)
+      },
+      confirmTransportDay: async (dayId) => {
+        await confirmMutation.mutateAsync(dayId)
+      },
+      unconfirmTransportDay: async (dayId) => {
+        await unconfirmMutation.mutateAsync(dayId)
+      },
     }),
-    [transportDays, isLoading, addMutation, updateMutation, deleteMutation, confirmMutation, unconfirmMutation],
+    [
+      transportDays,
+      isLoading,
+      addMutation,
+      updateMutation,
+      deleteMutation,
+      confirmMutation,
+      unconfirmMutation,
+    ],
   )
 
-  return <TransportDaysContext.Provider value={value}>{children}</TransportDaysContext.Provider>
+  return (
+    <TransportDaysContext.Provider value={value}>
+      {children}
+    </TransportDaysContext.Provider>
+  )
 }
 
 export function useTransportDays() {
   const context = useContext(TransportDaysContext)
 
   if (!context) {
-    throw new Error('useTransportDays must be used inside TransportDaysProvider')
+    throw new Error(
+      'useTransportDays must be used inside TransportDaysProvider',
+    )
   }
 
   return context

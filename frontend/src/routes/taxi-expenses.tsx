@@ -10,7 +10,13 @@ import type { Period } from '@/components/month-picker'
 import { MonthPicker } from '@/components/month-picker'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardDescription, CardEyebrow, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardDescription,
+  CardEyebrow,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import {
@@ -28,20 +34,25 @@ import type { TaxiExpenseDraft } from '@/features/taxi-expenses/taxi-expenses-co
 import { useTaxiExpenses } from '@/features/taxi-expenses/taxi-expenses-context'
 import { useTransportDays } from '@/features/transport-days/transport-days-context'
 import { getErrorMessage } from '@/lib/api-error'
-import { getEmployeeName, legLabels, legs, taxiExpenseStatusLabels } from '@/lib/domain-types'
+import { legLabels, legs, taxiExpenseStatusLabels } from '@/lib/domain-types'
 import type { TaxiExpenseStatus } from '@/lib/domain-types'
-import { formatCurrency, formatDayLabel, formatMonthLabel, getMonthYear } from '@/lib/format'
+import {
+  formatCurrency,
+  formatDayLabel,
+  formatMonthLabel,
+  getMonthYear,
+} from '@/lib/format'
 
 export const Route = createFileRoute('/taxi-expenses')({
   component: TaxiExpensesPage,
 })
 
 const expenseFormSchema = z.object({
-  crewId: z.string().min(1, 'Select a crew.'),
-  transportDayId: z.string().min(1, 'Select a transport day.'),
+  crewId: z.number().min(1, 'Select a crew.'),
+  transportDayId: z.number().min(1, 'Select a transport day.'),
   leg: z.enum(legs),
-  amount: z.coerce.number().positive('Amount must be greater than 0.'),
-  paidById: z.string().min(1, 'Select who paid.'),
+  amount: z.number().positive('Amount must be greater than 0.'),
+  paidById: z.number().min(1, 'Select who paid.'),
 })
 
 type ExpenseFormInput = z.input<typeof expenseFormSchema>
@@ -52,14 +63,23 @@ function todayIsoDate() {
 }
 
 function defaultValues(): ExpenseFormInput {
-  return { crewId: '', transportDayId: '', leg: 'morning', amount: 0, paidById: '' }
+  return {
+    crewId: 0,
+    transportDayId: 0,
+    leg: 'Morning',
+    amount: 0,
+    paidById: 0,
+  }
 }
 
-const statusBadgeVariant: Record<TaxiExpenseStatus, 'warning' | 'success' | 'destructive' | 'secondary'> = {
-  pending: 'warning',
-  approved: 'success',
-  rejected: 'destructive',
-  paid: 'secondary',
+const statusBadgeVariant: Record<
+  TaxiExpenseStatus,
+  'warning' | 'success' | 'destructive' | 'secondary'
+> = {
+  Pending: 'warning',
+  Approved: 'success',
+  Rejected: 'destructive',
+  Paid: 'secondary',
 }
 
 function TaxiExpensesPage() {
@@ -77,11 +97,13 @@ function TaxiExpensesPage() {
     rejectTaxiExpense,
   } = useTaxiExpenses()
 
-  const [period, setPeriod] = useState<Period>(() => getMonthYear(todayIsoDate()))
-  const [crewFilter, setCrewFilter] = useState('')
-  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null)
+  const [period, setPeriod] = useState<Period>(() =>
+    getMonthYear(todayIsoDate()),
+  )
+  const [crewFilter, setCrewFilter] = useState<number | null>(null)
+  const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null)
   const [formError, setFormError] = useState('')
-  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
+  const [deletingExpenseId, setDeletingExpenseId] = useState<number | null>(
     null,
   )
 
@@ -115,14 +137,18 @@ function TaxiExpensesPage() {
           return false
         }
 
-        const inPeriod = getMonthYear(day.date).year === period.year && getMonthYear(day.date).month === period.month
+        const inPeriod =
+          getMonthYear(day.date).year === period.year &&
+          getMonthYear(day.date).month === period.month
         const inCrew = !crewFilter || day.crewId === crewFilter
 
         return inPeriod && inCrew
       })
-      .sort((first, second) => (getDayById(second.transportDayId)?.date ?? '').localeCompare(
-        getDayById(first.transportDayId)?.date ?? '',
-      ))
+      .sort((first, second) =>
+        (getDayById(second.transportDayId)?.date ?? '').localeCompare(
+          getDayById(first.transportDayId)?.date ?? '',
+        ),
+      )
   }, [taxiExpenses, period, crewFilter, getDayById])
 
   function resetForm() {
@@ -131,7 +157,7 @@ function TaxiExpensesPage() {
     reset(defaultValues())
   }
 
-  function startEdit(expenseId: string) {
+  function startEdit(expenseId: number) {
     const expense = taxiExpenses.find((candidate) => candidate.id === expenseId)
     const day = expense ? getDayById(expense.transportDayId) : null
 
@@ -158,7 +184,7 @@ function TaxiExpensesPage() {
       leg: values.leg,
       amount: values.amount,
       paidById: values.paidById,
-      status: 'pending',
+      status: 'Pending',
     }
 
     try {
@@ -174,7 +200,7 @@ function TaxiExpensesPage() {
     }
   })
 
-  async function removeExpense(expenseId: string) {
+  async function removeExpense(expenseId: number) {
     if (editingExpenseId === expenseId) {
       resetForm()
     }
@@ -186,7 +212,7 @@ function TaxiExpensesPage() {
     }
   }
 
-  async function handleApprove(expenseId: string) {
+  async function handleApprove(expenseId: number) {
     try {
       await approveTaxiExpense(expenseId)
     } catch (error) {
@@ -194,7 +220,7 @@ function TaxiExpensesPage() {
     }
   }
 
-  async function handleReject(expenseId: string) {
+  async function handleReject(expenseId: number) {
     try {
       await rejectTaxiExpense(expenseId)
     } catch (error) {
@@ -202,13 +228,13 @@ function TaxiExpensesPage() {
     }
   }
 
-  function crewName(crewId: string) {
+  function crewName(crewId: number) {
     return crews.find((crew) => crew.id === crewId)?.name ?? 'Unknown crew'
   }
 
-  function payerName(employeeId: string) {
+  function payerName(employeeId: number) {
     const employee = getEmployeeById(employeeId)
-    return employee ? getEmployeeName(employee) : 'Unknown'
+    return employee ? employee.fullname : 'Unknown'
   }
 
   return (
@@ -217,10 +243,12 @@ function TaxiExpensesPage() {
         <CardHeader className="flex-row items-start justify-between gap-4">
           <div>
             <CardEyebrow>Reimbursements</CardEyebrow>
-            <CardTitle className="mt-2">{editingExpenseId ? 'Edit Taxi Expense' : 'Record Taxi Expense'}</CardTitle>
+            <CardTitle className="mt-2">
+              {editingExpenseId ? 'Edit Taxi Expense' : 'Record Taxi Expense'}
+            </CardTitle>
             <CardDescription className="mt-2">
-              Every taxi ride is recorded against a specific day and leg. New expenses start Pending
-              until approved.
+              Every taxi ride is recorded against a specific day and leg. New
+              expenses start Pending until approved.
             </CardDescription>
           </div>
 
@@ -231,7 +259,11 @@ function TaxiExpensesPage() {
 
         <form className="mt-2 space-y-5" onSubmit={onSubmit}>
           <Field label="Crew" htmlFor="crewId" error={errors.crewId?.message}>
-            <Select id="crewId" disabled={!!editingExpenseId} {...register('crewId')}>
+            <Select
+              id="crewId"
+              disabled={!!editingExpenseId}
+              {...register('crewId', { valueAsNumber: true })}
+            >
               <option value="">Select crew…</option>
               {crews.map((crew) => (
                 <option key={crew.id} value={crew.id}>
@@ -241,8 +273,16 @@ function TaxiExpensesPage() {
             </Select>
           </Field>
 
-          <Field label="Transport Day" htmlFor="transportDayId" error={errors.transportDayId?.message}>
-            <Select id="transportDayId" disabled={!!editingExpenseId || !formCrewId} {...register('transportDayId')}>
+          <Field
+            label="Transport Day"
+            htmlFor="transportDayId"
+            error={errors.transportDayId?.message}
+          >
+            <Select
+              id="transportDayId"
+              disabled={!!editingExpenseId || !formCrewId}
+              {...register('transportDayId', { valueAsNumber: true })}
+            >
               <option value="">Select day…</option>
               {dayOptions.map((day) => (
                 <option key={day.id} value={day.id}>
@@ -250,8 +290,10 @@ function TaxiExpensesPage() {
                 </option>
               ))}
             </Select>
-            {formCrewId && dayOptions.length === 0 && (
-              <p className="text-xs text-amber-600">No transport days logged for this crew yet.</p>
+            {formCrewId > 0 && dayOptions.length === 0 && (
+              <p className="text-xs text-amber-600">
+                No transport days logged for this crew yet.
+              </p>
             )}
           </Field>
 
@@ -265,22 +307,41 @@ function TaxiExpensesPage() {
             </Select>
           </Field>
 
-          <Field label="Amount (TJS)" htmlFor="amount" error={errors.amount?.message}>
-            <Input id="amount" type="number" min="0" step="1" {...register('amount')} />
+          <Field
+            label="Amount (TJS)"
+            htmlFor="amount"
+            error={errors.amount?.message}
+          >
+            <Input
+              id="amount"
+              type="number"
+              min="0"
+              step="1"
+              {...register('amount', { valueAsNumber: true })}
+            />
           </Field>
 
-          <Field label="Paid By" htmlFor="paidById" error={errors.paidById?.message}>
-            <Select id="paidById" {...register('paidById')}>
+          <Field
+            label="Paid By"
+            htmlFor="paidById"
+            error={errors.paidById?.message}
+          >
+            <Select
+              id="paidById"
+              {...register('paidById', { valueAsNumber: true })}
+            >
               <option value="">Select employee…</option>
               {employees.map((employee) => (
                 <option key={employee.id} value={employee.id}>
-                  {getEmployeeName(employee)}
+                  {employee.fullname}
                 </option>
               ))}
             </Select>
           </Field>
 
-          {formError && <p className="text-xs font-medium text-red-500">{formError}</p>}
+          {formError && (
+            <p className="text-xs font-medium text-red-500">{formError}</p>
+          )}
 
           <div className="flex flex-wrap gap-3 pt-2">
             <Button
@@ -288,7 +349,11 @@ function TaxiExpensesPage() {
               className="h-11 rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
               disabled={isSubmitting}
             >
-              {editingExpenseId ? <PencilLine className="size-4" /> : <Plus className="size-4" />}
+              {editingExpenseId ? (
+                <PencilLine className="size-4" />
+              ) : (
+                <Plus className="size-4" />
+              )}
               {editingExpenseId ? 'Save Changes' : 'Record Expense'}
             </Button>
 
@@ -308,14 +373,22 @@ function TaxiExpensesPage() {
         <CardHeader className="flex-col gap-4 border-b border-sky-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <CardEyebrow>Taxi expenses</CardEyebrow>
-            <CardTitle className="mt-2">{formatMonthLabel(period.year, period.month)}</CardTitle>
+            <CardTitle className="mt-2">
+              {formatMonthLabel(period.year, period.month)}
+            </CardTitle>
             <CardDescription className="mt-2">
-              {isLoading ? 'Loading…' : `${visibleExpenses.length} expense(s) shown.`}
+              {isLoading
+                ? 'Loading…'
+                : `${visibleExpenses.length} expense(s) shown.`}
             </CardDescription>
           </div>
 
           <div className="flex flex-wrap items-end gap-3">
-            <Select value={crewFilter} onChange={(event) => setCrewFilter(event.target.value)} className="w-48">
+            <Select
+              value={crewFilter ?? ''}
+              onChange={(event) => setCrewFilter(Number(event.target.value))}
+              className="w-48"
+            >
               <option value="">All crews</option>
               {crews.map((crew) => (
                 <option key={crew.id} value={crew.id}>
@@ -343,7 +416,7 @@ function TaxiExpensesPage() {
             <TableBody>
               {visibleExpenses.map((expense) => {
                 const day = getDayById(expense.transportDayId)
-                const isPending = expense.status === 'pending'
+                const isPending = expense.taxiExpenseStatus === 'Pending'
 
                 return (
                   <TableRow key={expense.id}>
@@ -352,11 +425,15 @@ function TaxiExpensesPage() {
                     </TableCell>
                     <TableCell>{day ? crewName(day.crewId) : '—'}</TableCell>
                     <TableCell>{legLabels[expense.leg]}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(expense.amount)}</TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(expense.amount)}
+                    </TableCell>
                     <TableCell>{payerName(expense.paidById)}</TableCell>
                     <TableCell>
-                      <Badge variant={statusBadgeVariant[expense.status]}>
-                        {taxiExpenseStatusLabels[expense.status]}
+                      <Badge
+                        variant={statusBadgeVariant[expense.taxiExpenseStatus]}
+                      >
+                        {taxiExpenseStatusLabels[expense.taxiExpenseStatus]}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -413,7 +490,10 @@ function TaxiExpensesPage() {
 
               {!isLoading && visibleExpenses.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-slate-400">
+                  <TableCell
+                    colSpan={7}
+                    className="py-10 text-center text-slate-400"
+                  >
                     No taxi expenses recorded for this period.
                   </TableCell>
                 </TableRow>

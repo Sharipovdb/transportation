@@ -32,8 +32,7 @@ interface CurrentUserResponse {
   id: number
   email: string
   userName: string
-  firstName: string
-  lastName: string
+  fullname: string
   phoneNumber: string
   telegramId: string
   roles: AppRole[]
@@ -89,8 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSession({
             id: user.id,
             userName: user.userName,
-            firstName: user.firstName,
-            lastName: user.lastName,
+            fullname: user.fullname,
             email: user.email,
             phoneNumber: user.phoneNumber,
             telegramId: user.telegramId,

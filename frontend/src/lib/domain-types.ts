@@ -37,21 +37,19 @@ export const employeeRoleLabels: Record<EmployeeRole, string> = {
 // account never shows up as an "Employee".
 export interface Employee {
   id: number
-  email: string
+  email: string | null
   userName: string
-  firstName: string
-  lastName: string
-  password: string
+  fullname: string
   phoneNumber: string
-  telegramId: string
+  telegramId: string | null
   roles: AppRole[]
 }
 
-export function getEmployeeName(
-  employee: Pick<Employee, 'firstName' | 'lastName'>,
-) {
-  return `${employee.firstName} ${employee.lastName}`.trim()
-}
+// export function getEmployeeName(
+//   employee: Pick<Employee, 'firstName' | 'lastName'>,
+// ) {
+//   return `${employee.firstName} ${employee.lastName}`.trim()
+// }
 
 export interface TransportRoute {
   id: number
@@ -94,81 +92,84 @@ export interface CrewMembership {
 // --- Daily operations (mirrors Transportation.Domain.Entities.TransportDay) ---
 
 // How a crew travelled on a single leg (morning / afternoon) of a working day.
-export const transportModes = ['driven', 'taxi', 'none'] as const
+export const transportModes = ['Driven', 'Taxi', 'None'] as const
 export type TransportMode = (typeof transportModes)[number]
 
 export const transportModeLabels: Record<TransportMode, string> = {
-  driven: 'Driven',
-  taxi: 'Taxi',
-  none: 'None',
+  Driven: 'Driven',
+  Taxi: 'Taxi',
+  None: 'None',
 }
 
 // A working day for one crew. Splitting the mode into two legs is what makes the
 // "drove in the morning, taxied home" case representable without a hack. The driver
 // is derived server-side from the crew's Driver-Lead — it isn't set here.
 export interface TransportDay {
-  id: string
-  crewId: string
+  id: number
+  crewId: number
   date: string // ISO yyyy-mm-dd
   morningMode: TransportMode
-  afternoonMode: TransportMode
-  driverId: string | null
-  commuteKm: number // backend's TotalCommuteKm (route distance + any extra commute km)
+  afternoonMode: TransportMode | null
+  driverId: number | null
+  totalCommuteKm: number // backend's TotalCommuteKm (route distance + any extra commute km)
   extraBusinessKm: number // km driven for company purposes beyond the commute
-  notes: string
+  notes: string | null
+  loggedBy: number
+  loggedAt: string
   confirmed: boolean
+  taxiExpenses: TaxiExpense[]
 }
 
 // --- Taxi expenses (mirrors Transportation.Domain.Entities.TaxiExpense) ---
 
-export const legs = ['morning', 'afternoon'] as const
+export const legs = ['Morning', 'Afternoon'] as const
 export type Leg = (typeof legs)[number]
 
 export const legLabels: Record<Leg, string> = {
-  morning: 'Morning',
-  afternoon: 'Afternoon',
+  Morning: 'Morning',
+  Afternoon: 'Afternoon',
 }
 
 // Mirrors the backend's TaxiExpenseStatus exactly. Only Approved expenses count
 // toward a driver's payout; confirming a monthly sheet bulk-flips Approved -> Paid.
 export const taxiExpenseStatuses = [
-  'pending',
-  'approved',
-  'rejected',
-  'paid',
+  'Pending',
+  'Approved',
+  'Rejected',
+  'Paid',
 ] as const
 export type TaxiExpenseStatus = (typeof taxiExpenseStatuses)[number]
 
 export const taxiExpenseStatusLabels: Record<TaxiExpenseStatus, string> = {
-  pending: 'Pending',
-  approved: 'Approved',
-  rejected: 'Rejected',
-  paid: 'Paid',
+  Pending: 'Pending',
+  Approved: 'Approved',
+  Rejected: 'Rejected',
+  Paid: 'Paid',
 }
 
 export interface TaxiExpense {
-  id: string
-  transportDayId: string
+  id: number
+  transportDayId: number
+  paidById: number
   leg: Leg
   amount: number
-  paidById: string // employee who fronted the cash
-  status: TaxiExpenseStatus
+  taxiExpenseStatus: TaxiExpenseStatus
 }
 
 // --- Payout line (mirrors Transportation.Domain.Entities.PayoutLine) ---
 // Fully computed server-side (commute km x rate, extra km x rate, approved taxi
 // expenses) — read-only from the frontend's perspective.
 export interface PayoutLineTaxiExpense {
-  id: string
+  id: number
   amount: number
   leg: Leg
-  status: TaxiExpenseStatus
+  taxiExpenseStatus: TaxiExpenseStatus
 }
 
 export interface PayoutLine {
-  id: string
-  employeeId: string
-  employeeName: string // denormalized onto PayoutLineDto by the backend
+  id: number
+  userId: number
+  fullname: string // denormalized onto PayoutLineDto by the backend
   driverPayment: number
   extraKmPayment: number
   taxiCompensation: number
@@ -179,8 +180,8 @@ export interface PayoutLine {
 // --- Monthly sheet (mirrors Transportation.Domain.Entities.MonthlyTransportSheet) ---
 // `id` is null for an unsaved preview (POST /GetPreview computes but doesn't persist).
 export interface MonthlySheet {
-  id: string | null
-  crewId: string
+  id: number
+  crewId: number
   year: number
   month: number // 1-12
   isConfirmed: boolean

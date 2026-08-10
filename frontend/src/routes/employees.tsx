@@ -33,7 +33,6 @@ import {
   employeeRoleLabels,
   employeeRolesAdd,
   employeeRoles,
-  getEmployeeName,
 } from '@/lib/domain-types'
 import type { EmployeeRole } from '@/lib/domain-types'
 import {
@@ -56,15 +55,11 @@ const employeeFormSchema = z.object({
     .string()
     .trim()
     .min(2, 'First name must contain at least 2 characters.'),
-  email: z.email().trim(),
-  firstName: z
+  email: z.email().trim().nullable(),
+  fullname: z
     .string()
     .trim()
-    .min(2, 'First name must contain at least 2 characters.'),
-  lastName: z
-    .string()
-    .trim()
-    .min(2, 'Last name must contain at least 2 characters.'),
+    .min(2, 'Full name must contain at least 2 characters.'),
   password: z
     .string()
     .min(6, { message: 'Passwords must be at least 6 characters' })
@@ -88,7 +83,8 @@ const employeeFormSchema = z.object({
   telegramId: z
     .string()
     .trim()
-    .min(2, 'Telegram handle must contain at least 2 characters.'),
+    .min(2, 'Telegram handle must contain at least 2 characters.')
+    .nullable(),
   roles: z.array(z.enum(employeeRoles)),
 })
 
@@ -97,8 +93,7 @@ type EmployeeFormValues = z.infer<typeof employeeFormSchema>
 const defaultValues: EmployeeFormValues = {
   userName: '',
   email: '',
-  firstName: '',
-  lastName: '',
+  fullname: '',
   password: '',
   phoneNumber: '',
   telegramId: '',
@@ -136,7 +131,7 @@ function EmployeesPage() {
         : employees.filter((employee) => employee.roles.includes(roleFilter))
 
     return [...scoped].sort((left, right) =>
-      getEmployeeName(left).localeCompare(getEmployeeName(right)),
+      left.fullname.localeCompare(right.fullname),
     )
   }, [employees, roleFilter])
 
@@ -166,8 +161,7 @@ function EmployeesPage() {
     reset({
       userName: editingEmployee.userName,
       email: editingEmployee.email,
-      firstName: editingEmployee.firstName,
-      lastName: editingEmployee.lastName,
+      fullname: editingEmployee.fullname,
       phoneNumber: editingEmployee.phoneNumber,
       telegramId: editingEmployee.telegramId,
       roles: editingEmployee.roles,
@@ -246,26 +240,14 @@ function EmployeesPage() {
           </Field>
 
           <Field
-            label="First Name"
-            htmlFor="firstName"
-            error={errors.firstName?.message}
+            label="Full Name"
+            htmlFor="fullname"
+            error={errors.fullname?.message}
           >
             <Input
-              id="firstName"
-              placeholder="Aziz"
-              {...register('firstName')}
-            />
-          </Field>
-
-          <Field
-            label="Last Name"
-            htmlFor="lastName"
-            error={errors.lastName?.message}
-          >
-            <Input
-              id="lastName"
-              placeholder="Karimov"
-              {...register('lastName')}
+              id="fullname"
+              placeholder="Aziz Azizov"
+              {...register('fullname')}
             />
           </Field>
 
@@ -430,7 +412,7 @@ function EmployeesPage() {
               {filteredEmployees.map((employee) => (
                 <TableRow key={employee.id}>
                   <TableCell className="font-medium text-slate-900">
-                    {getEmployeeName(employee)}
+                    {employee.fullname}
                   </TableCell>
                   <TableCell>
                     {employee.roles.map((role) => (
