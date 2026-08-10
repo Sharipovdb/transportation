@@ -264,7 +264,7 @@ function TaxiExpensesPage() {
               disabled={!!editingExpenseId}
               {...register('crewId', { valueAsNumber: true })}
             >
-              <option value="">Select crew…</option>
+              <option value="0">Select crew…</option>
               {crews.map((crew) => (
                 <option key={crew.id} value={crew.id}>
                   {crew.name}
@@ -283,7 +283,7 @@ function TaxiExpensesPage() {
               disabled={!!editingExpenseId || !formCrewId}
               {...register('transportDayId', { valueAsNumber: true })}
             >
-              <option value="">Select day…</option>
+              <option value="0">Select day…</option>
               {dayOptions.map((day) => (
                 <option key={day.id} value={day.id}>
                   {formatDayLabel(day.date)}
@@ -330,7 +330,7 @@ function TaxiExpensesPage() {
               id="paidById"
               {...register('paidById', { valueAsNumber: true })}
             >
-              <option value="">Select employee…</option>
+              <option value="0">Select employee…</option>
               {employees.map((employee) => (
                 <option key={employee.id} value={employee.id}>
                   {employee.fullname}

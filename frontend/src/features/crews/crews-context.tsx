@@ -78,29 +78,14 @@ export function CrewsProvider({ children }: { children: ReactNode }) {
   }
 
   const addMutation = useMutation({
-    mutationFn: async (draft: CrewDraft) => {
-      const crew = await apiClient.post('/api/Crew/Create', {
+    mutationFn: (draft: CrewDraft) =>
+      apiClient.post('/api/Crew/Create', {
         name: draft.name,
-        routeId: Number(draft.routeId),
+        routeId: draft.routeId,
         driverLeadId: draft.driverLeadId,
         crewLeadId: draft.crewLeadId,
         seatCapacity: draft.seatCapacity,
-      })
-
-      if (draft.crewLeadId) {
-        await apiClient.post('/api/Role/Assign/assign', {
-          roleName: 'CrewLead',
-          userId: draft.crewLeadId,
-        })
-      } else if (draft.driverLeadId) {
-        await apiClient.post('/api/Role/Assign/assign', {
-          roleName: 'DriverLead',
-          userId: draft.driverLeadId,
-        })
-      }
-
-      return crew.data.data
-    },
+      }),
     onSuccess: invalidate,
   })
 

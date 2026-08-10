@@ -58,7 +58,6 @@ const dayFormSchema = z.object({
   date: z.string().min(1, 'Select a date.'),
   morningMode: z.enum(transportModes),
   afternoonMode: z.enum(transportModes).nullable(),
-  extraCommuteKm: z.number().nonnegative('Extra km cannot be negative.'),
   extraBusinessKm: z.number().nonnegative('Extra km cannot be negative.'),
   notes: z.string().nullable(),
 })
@@ -76,7 +75,6 @@ function defaultValues(): DayFormInput {
     date: todayIsoDate(),
     morningMode: 'Driven',
     afternoonMode: 'Driven',
-    extraCommuteKm: 0,
     extraBusinessKm: 0,
     notes: '',
   }
@@ -171,7 +169,6 @@ function TransportDaysPage() {
         await updateTransportDay(editingDayId, {
           morningMode: values.morningMode,
           afternoonMode: values.afternoonMode,
-          extraCommuteKm: values.extraCommuteKm,
           extraBusinessKm: values.extraBusinessKm,
           notes: values.notes,
         })
@@ -249,7 +246,7 @@ function TransportDaysPage() {
               disabled={!!editingDay}
               {...register('crewId', { valueAsNumber: true })}
             >
-              <option value="">Select crew…</option>
+              <option value="0">Select crew…</option>
               {crews.map((crew) => (
                 <option key={crew.id} value={crew.id}>
                   {crew.name}
@@ -296,20 +293,6 @@ function TransportDaysPage() {
               </Select>
             </Field>
           </div>
-
-          <Field
-            label="Extra Commute Km"
-            htmlFor="extraCommuteKm"
-            error={errors.extraCommuteKm?.message}
-          >
-            <Input
-              id="extraCommuteKm"
-              type="number"
-              min="0"
-              step="0.1"
-              {...register('extraCommuteKm', { valueAsNumber: true })}
-            />
-          </Field>
 
           <Field
             label="Extra Business Km"

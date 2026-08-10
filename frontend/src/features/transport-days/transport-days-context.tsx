@@ -52,7 +52,6 @@ export interface TransportDayDraft {
   date: string
   morningMode: TransportMode
   afternoonMode: TransportMode | null
-  extraCommuteKm: number | null
   extraBusinessKm: number | null
   notes: string | null
 }
@@ -132,7 +131,6 @@ export function TransportDaysProvider({ children }: { children: ReactNode }) {
         date: draft.date,
         morningMode: modeToApiValue[draft.morningMode],
         afternoonMode: modeToApiValue[draft.afternoonMode ?? 'None'],
-        extraCommuteKm: draft.extraCommuteKm,
         extraBusinessCm: draft.extraBusinessKm,
         notes: draft.notes,
       }),
@@ -152,7 +150,6 @@ export function TransportDaysProvider({ children }: { children: ReactNode }) {
       apiClient.put(`/api/TransportDays/Update/${dayId}`, {
         morningMode: modeToApiValue[draft.morningMode],
         afternoonMode: modeToApiValue[draft.afternoonMode ?? 'None'],
-        extraCommuteKm: draft.extraCommuteKm,
         extraBusinessKm: draft.extraBusinessKm,
         notes: draft.notes,
       }),
