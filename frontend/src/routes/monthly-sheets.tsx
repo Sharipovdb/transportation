@@ -31,7 +31,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { usePermissions } from '@/features/auth/use-permissions'
 import { useCrews } from '@/features/crews/crews-context'
 import { useMonthlySheets } from '@/features/monthly-sheets/monthly-sheets-context'
 import { getErrorMessage } from '@/lib/api-error'
@@ -48,7 +47,6 @@ function todayIsoDate() {
 }
 
 function MonthlySheetsPage() {
-  const { can } = usePermissions()
   const { crews } = useCrews()
   const {
     isLoading,
@@ -252,22 +250,20 @@ function MonthlySheetsPage() {
                     <Eye className="size-3.5" />
                     Preview
                   </Button>
-                  {can('generateSheet') && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="rounded-full bg-sky-600 text-white hover:bg-sky-700"
-                      disabled={isBusy}
-                      onClick={handleGenerate}
-                    >
-                      <Sparkles className="size-3.5" />
-                      Generate &amp; Save
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="rounded-full bg-sky-600 text-white hover:bg-sky-700"
+                    disabled={isBusy}
+                    onClick={handleGenerate}
+                  >
+                    <Sparkles className="size-3.5" />
+                    Generate &amp; Save
+                  </Button>
                 </>
               )}
 
-              {sheet && !sheet.isConfirmed && can('confirmSheet') && (
+              {sheet && !sheet.isConfirmed && (
                 <Button
                   type="button"
                   size="sm"
@@ -280,7 +276,7 @@ function MonthlySheetsPage() {
                 </Button>
               )}
 
-              {sheet && can('deleteSheet') && (
+              {sheet && (
                 <Button
                   type="button"
                   variant="destructive"
