@@ -195,7 +195,7 @@ function CrewsPage() {
               </CardTitle>
               <CardDescription className="mt-2">
                 A crew has a name, a route, and a lead — either a Driver-Lead or
-                a Manager-Lead.
+                a Crew-Lead.
               </CardDescription>
             </div>
 
@@ -253,7 +253,7 @@ function CrewsPage() {
                         : 'border-sky-100 bg-white text-slate-600 hover:border-sky-200'
                     }`}
                   >
-                    {type === 'driverLead' ? 'Driver-Lead' : 'Manager-Lead'}
+                    {type === 'driverLead' ? 'Driver-Lead' : 'Crew-Lead'}
                   </button>
                 ))}
               </div>

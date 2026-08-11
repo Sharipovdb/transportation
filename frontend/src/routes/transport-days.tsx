@@ -48,6 +48,8 @@ import {
   formatMonthLabel,
   getMonthYear,
 } from '@/lib/format'
+import { useCapability } from '@/lib/use-capability'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/transport-days')({
   component: TransportDaysPage,
@@ -109,6 +111,12 @@ function TransportDaysPage() {
   const [editingDayId, setEditingDayId] = useState<number | null>(null)
   const [formError, setFormError] = useState('')
   const [deletingDayId, setDeletingDayId] = useState<number | null>(null)
+
+  const canCreateTransportDay = useCapability('createTransportDay')
+  const canUpdateTransportDay = useCapability('updateTransportDay')
+  const canDeleteTransportDay = useCapability('deleteTransportDay')
+  const canConfirmTransportDay = useCapability('confirmTransportDay')
+  const canUnconfirmTransportDay = useCapability('unconfirmTransportDay')
 
   const {
     register,
@@ -220,132 +228,141 @@ function TransportDaysPage() {
   }
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
-      <Card>
-        <CardHeader className="flex-row items-start justify-between gap-4">
-          <div>
-            <CardEyebrow>Daily Log</CardEyebrow>
-            <CardTitle className="mt-2">
-              {editingDay ? 'Edit Transport Day' : 'Log Transport Day'}
-            </CardTitle>
-            <CardDescription className="mt-2">
-              One record per crew per working day. The driver and base commute
-              km are derived automatically from the crew.
-            </CardDescription>
-          </div>
+    <section
+      className={cn(
+        'grid gap-6',
+        canCreateTransportDay
+          ? 'xl:grid-cols-[380px_minmax(0,1fr)]'
+          : 'grid-cols-1',
+      )}
+    >
+      {canCreateTransportDay && (
+        <Card>
+          <CardHeader className="flex-row items-start justify-between gap-4">
+            <div>
+              <CardEyebrow>Daily Log</CardEyebrow>
+              <CardTitle className="mt-2">
+                {editingDay ? 'Edit Transport Day' : 'Log Transport Day'}
+              </CardTitle>
+              <CardDescription className="mt-2">
+                One record per crew per working day. The driver and base commute
+                km are derived automatically from the crew.
+              </CardDescription>
+            </div>
 
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
-            <RouteIcon className="size-5" />
-          </div>
-        </CardHeader>
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+              <RouteIcon className="size-5" />
+            </div>
+          </CardHeader>
 
-        <form className="mt-2 space-y-5" onSubmit={onSubmit}>
-          <Field label="Crew" htmlFor="crewId" error={errors.crewId?.message}>
-            <Select
-              id="crewId"
-              disabled={!!editingDay}
-              {...register('crewId', { valueAsNumber: true })}
-            >
-              <option value="0">Select crew…</option>
-              {crews.map((crew) => (
-                <option key={crew.id} value={crew.id}>
-                  {crew.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          <Field label="Date" htmlFor="date" error={errors.date?.message}>
-            <Input
-              id="date"
-              type="date"
-              disabled={!!editingDay}
-              {...register('date')}
-            />
-          </Field>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Field
-              label="Morning"
-              htmlFor="morningMode"
-              error={errors.morningMode?.message}
-            >
-              <Select id="morningMode" {...register('morningMode')}>
-                {transportModes.map((mode) => (
-                  <option key={mode} value={mode}>
-                    {transportModeLabels[mode]}
+          <form className="mt-2 space-y-5" onSubmit={onSubmit}>
+            <Field label="Crew" htmlFor="crewId" error={errors.crewId?.message}>
+              <Select
+                id="crewId"
+                disabled={!!editingDay}
+                {...register('crewId', { valueAsNumber: true })}
+              >
+                <option value="0">Select crew…</option>
+                {crews.map((crew) => (
+                  <option key={crew.id} value={crew.id}>
+                    {crew.name}
                   </option>
                 ))}
               </Select>
             </Field>
 
-            <Field
-              label="Afternoon"
-              htmlFor="afternoonMode"
-              error={errors.afternoonMode?.message}
-            >
-              <Select id="afternoonMode" {...register('afternoonMode')}>
-                {transportModes.map((mode) => (
-                  <option key={mode} value={mode}>
-                    {transportModeLabels[mode]}
-                  </option>
-                ))}
-              </Select>
+            <Field label="Date" htmlFor="date" error={errors.date?.message}>
+              <Input
+                id="date"
+                type="date"
+                disabled={!!editingDay}
+                {...register('date')}
+              />
             </Field>
-          </div>
 
-          <Field
-            label="Extra Business Km"
-            htmlFor="extraBusinessKm"
-            error={errors.extraBusinessKm?.message}
-          >
-            <Input
-              id="extraBusinessKm"
-              type="number"
-              min="0"
-              step="0.1"
-              {...register('extraBusinessKm', { valueAsNumber: true })}
-            />
-          </Field>
+            <div className="grid grid-cols-2 gap-4">
+              <Field
+                label="Morning"
+                htmlFor="morningMode"
+                error={errors.morningMode?.message}
+              >
+                <Select id="morningMode" {...register('morningMode')}>
+                  {transportModes.map((mode) => (
+                    <option key={mode} value={mode}>
+                      {transportModeLabels[mode]}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
 
-          <Field label="Notes" htmlFor="notes" error={errors.notes?.message}>
-            <Textarea
-              id="notes"
-              rows={3}
-              placeholder="Optional context for this day"
-              {...register('notes')}
-            />
-          </Field>
+              <Field
+                label="Afternoon"
+                htmlFor="afternoonMode"
+                error={errors.afternoonMode?.message}
+              >
+                <Select id="afternoonMode" {...register('afternoonMode')}>
+                  {transportModes.map((mode) => (
+                    <option key={mode} value={mode}>
+                      {transportModeLabels[mode]}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
 
-          {formError && (
-            <p className="text-xs font-medium text-red-500">{formError}</p>
-          )}
-
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Button
-              type="submit"
-              className="h-11 rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
-              disabled={isSubmitting}
+            <Field
+              label="Extra Business Km"
+              htmlFor="extraBusinessKm"
+              error={errors.extraBusinessKm?.message}
             >
-              {editingDay ? (
-                <PencilLine className="size-4" />
-              ) : (
-                <Plus className="size-4" />
-              )}
-              {editingDay ? 'Save Changes' : 'Log Day'}
-            </Button>
+              <Input
+                id="extraBusinessKm"
+                type="number"
+                min="0"
+                step="0.1"
+                {...register('extraBusinessKm', { valueAsNumber: true })}
+              />
+            </Field>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-2xl border-sky-100 px-5 text-slate-700"
-              onClick={resetForm}
-            >
-              Clear Form
-            </Button>
-          </div>
-        </form>
-      </Card>
+            <Field label="Notes" htmlFor="notes" error={errors.notes?.message}>
+              <Textarea
+                id="notes"
+                rows={3}
+                placeholder="Optional context for this day"
+                {...register('notes')}
+              />
+            </Field>
+
+            {formError && (
+              <p className="text-xs font-medium text-red-500">{formError}</p>
+            )}
+
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button
+                type="submit"
+                className="h-11 rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
+                disabled={isSubmitting}
+              >
+                {editingDay ? (
+                  <PencilLine className="size-4" />
+                ) : (
+                  <Plus className="size-4" />
+                )}
+                {editingDay ? 'Save Changes' : 'Log Day'}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-2xl border-sky-100 px-5 text-slate-700"
+                onClick={resetForm}
+              >
+                Clear Form
+              </Button>
+            </div>
+          </form>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="flex-col gap-4 border-b border-sky-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
@@ -387,8 +404,24 @@ function TransportDaysPage() {
                 <TableHead>Driver</TableHead>
                 <TableHead className="text-right">Commute</TableHead>
                 <TableHead className="text-right">Extra km</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead
+                  className={cn(
+                    !(
+                      canUpdateTransportDay ||
+                      canDeleteTransportDay ||
+                      canConfirmTransportDay ||
+                      canUnconfirmTransportDay
+                    ) && 'text-right',
+                  )}
+                >
+                  Status
+                </TableHead>
+                {(canUpdateTransportDay ||
+                  canDeleteTransportDay ||
+                  canConfirmTransportDay ||
+                  canUnconfirmTransportDay) && (
+                  <TableHead className="text-right">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -419,7 +452,16 @@ function TransportDaysPage() {
                       ? formatKm(day.extraBusinessKm)
                       : '—'}
                   </TableCell>
-                  <TableCell>
+                  <TableCell
+                    className={cn(
+                      !(
+                        canUpdateTransportDay ||
+                        canDeleteTransportDay ||
+                        canConfirmTransportDay ||
+                        canUnconfirmTransportDay
+                      ) && 'text-right',
+                    )}
+                  >
                     {day.confirmed ? (
                       <Badge variant="success">Confirmed</Badge>
                     ) : (
@@ -428,38 +470,49 @@ function TransportDaysPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-sm"
-                        className="rounded-full border-sky-100 text-sky-700"
-                        onClick={() => toggleConfirm(day.id, day.confirmed)}
-                        title={day.confirmed ? 'Unconfirm' : 'Confirm'}
-                      >
-                        {day.confirmed ? (
-                          <RotateCcw className="size-3.5" />
-                        ) : (
-                          <CheckCircle2 className="size-3.5" />
-                        )}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-sm"
-                        className="rounded-full border-sky-100 text-sky-700"
-                        onClick={() => startEdit(day.id)}
-                      >
-                        <PencilLine className="size-3.5" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon-sm"
-                        className="rounded-full"
-                        onClick={() => setDeletingDayId(day.id)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
+                      {(canConfirmTransportDay || canUnconfirmTransportDay) && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          className="rounded-full border-sky-100 text-sky-700"
+                          onClick={() => toggleConfirm(day.id, day.confirmed)}
+                          title={day.confirmed ? 'Unconfirm' : 'Confirm'}
+                          disabled={
+                            day.confirmed
+                              ? !canUnconfirmTransportDay
+                              : !canConfirmTransportDay
+                          }
+                        >
+                          {day.confirmed ? (
+                            <RotateCcw className="size-3.5" />
+                          ) : (
+                            <CheckCircle2 className="size-3.5" />
+                          )}
+                        </Button>
+                      )}
+                      {canUpdateTransportDay && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          className="rounded-full border-sky-100 text-sky-700"
+                          onClick={() => startEdit(day.id)}
+                        >
+                          <PencilLine className="size-3.5" />
+                        </Button>
+                      )}
+                      {canDeleteTransportDay && (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon-sm"
+                          className="rounded-full"
+                          onClick={() => setDeletingDayId(day.id)}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

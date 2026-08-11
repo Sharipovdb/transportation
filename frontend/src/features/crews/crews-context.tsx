@@ -31,6 +31,7 @@ export interface CrewDraft {
 }
 
 const CREWS_QUERY_KEY = ['crews']
+const CREW_MEMBERSHIPS_QUERY_KEY = ['crew-memberships']
 
 function toCrew(dto: CrewApiDto): Crew {
   return {
@@ -86,7 +87,16 @@ export function CrewsProvider({ children }: { children: ReactNode }) {
         crewLeadId: draft.crewLeadId,
         seatCapacity: draft.seatCapacity,
       }),
-    onSuccess: invalidate,
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: CREWS_QUERY_KEY,
+        }),
+        queryClient.invalidateQueries({
+          queryKey: CREW_MEMBERSHIPS_QUERY_KEY,
+        }),
+      ])
+    },
   })
 
   const updateMutation = useMutation({

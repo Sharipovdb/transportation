@@ -27,7 +27,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { usePermissions } from '@/features/auth/use-permissions'
 import { useCrews } from '@/features/crews/crews-context'
 import { useEmployees } from '@/features/employees/employees-context'
 import type { TaxiExpenseDraft } from '@/features/taxi-expenses/taxi-expenses-context'
@@ -42,6 +41,8 @@ import {
   formatMonthLabel,
   getMonthYear,
 } from '@/lib/format'
+import { useCapability } from '@/lib/use-capability'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/taxi-expenses')({
   component: TaxiExpensesPage,
@@ -83,7 +84,6 @@ const statusBadgeVariant: Record<
 }
 
 function TaxiExpensesPage() {
-  const { can } = usePermissions()
   const { crews } = useCrews()
   const { employees, getEmployeeById } = useEmployees()
   const { transportDays, getDayById } = useTransportDays()
@@ -106,6 +106,12 @@ function TaxiExpensesPage() {
   const [deletingExpenseId, setDeletingExpenseId] = useState<number | null>(
     null,
   )
+
+  const canCreateTaxiExpense = useCapability('createTaxiExpense')
+  const canUpdateTaxiExpense = useCapability('updateTaxiExpense')
+  const canDeleteTaxiExpense = useCapability('deleteTaxiExpense')
+  const canApproveTaxiExpense = useCapability('approveTaxiExpense')
+  const canRejectTaxiExpense = useCapability('rejectTaxiExpense')
 
   const {
     register,
@@ -238,136 +244,145 @@ function TaxiExpensesPage() {
   }
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
-      <Card>
-        <CardHeader className="flex-row items-start justify-between gap-4">
-          <div>
-            <CardEyebrow>Reimbursements</CardEyebrow>
-            <CardTitle className="mt-2">
-              {editingExpenseId ? 'Edit Taxi Expense' : 'Record Taxi Expense'}
-            </CardTitle>
-            <CardDescription className="mt-2">
-              Every taxi ride is recorded against a specific day and leg. New
-              expenses start Pending until approved.
-            </CardDescription>
-          </div>
+    <section
+      className={cn(
+        'grid gap-6',
+        canCreateTaxiExpense
+          ? 'xl:grid-cols-[380px_minmax(0,1fr)]'
+          : 'grid-cols-1',
+      )}
+    >
+      {canCreateTaxiExpense && (
+        <Card>
+          <CardHeader className="flex-row items-start justify-between gap-4">
+            <div>
+              <CardEyebrow>Reimbursements</CardEyebrow>
+              <CardTitle className="mt-2">
+                {editingExpenseId ? 'Edit Taxi Expense' : 'Record Taxi Expense'}
+              </CardTitle>
+              <CardDescription className="mt-2">
+                Every taxi ride is recorded against a specific day and leg. New
+                expenses start Pending until approved.
+              </CardDescription>
+            </div>
 
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
-            <Receipt className="size-5" />
-          </div>
-        </CardHeader>
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+              <Receipt className="size-5" />
+            </div>
+          </CardHeader>
 
-        <form className="mt-2 space-y-5" onSubmit={onSubmit}>
-          <Field label="Crew" htmlFor="crewId" error={errors.crewId?.message}>
-            <Select
-              id="crewId"
-              disabled={!!editingExpenseId}
-              {...register('crewId', { valueAsNumber: true })}
+          <form className="mt-2 space-y-5" onSubmit={onSubmit}>
+            <Field label="Crew" htmlFor="crewId" error={errors.crewId?.message}>
+              <Select
+                id="crewId"
+                disabled={!!editingExpenseId}
+                {...register('crewId', { valueAsNumber: true })}
+              >
+                <option value="0">Select crew…</option>
+                {crews.map((crew) => (
+                  <option key={crew.id} value={crew.id}>
+                    {crew.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field
+              label="Transport Day"
+              htmlFor="transportDayId"
+              error={errors.transportDayId?.message}
             >
-              <option value="0">Select crew…</option>
-              {crews.map((crew) => (
-                <option key={crew.id} value={crew.id}>
-                  {crew.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          <Field
-            label="Transport Day"
-            htmlFor="transportDayId"
-            error={errors.transportDayId?.message}
-          >
-            <Select
-              id="transportDayId"
-              disabled={!!editingExpenseId || !formCrewId}
-              {...register('transportDayId', { valueAsNumber: true })}
-            >
-              <option value="0">Select day…</option>
-              {dayOptions.map((day) => (
-                <option key={day.id} value={day.id}>
-                  {formatDayLabel(day.date)}
-                </option>
-              ))}
-            </Select>
-            {formCrewId > 0 && dayOptions.length === 0 && (
-              <p className="text-xs text-amber-600">
-                No transport days logged for this crew yet.
-              </p>
-            )}
-          </Field>
-
-          <Field label="Leg" htmlFor="leg" error={errors.leg?.message}>
-            <Select id="leg" {...register('leg')}>
-              {legs.map((leg) => (
-                <option key={leg} value={leg}>
-                  {legLabels[leg]}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          <Field
-            label="Amount (TJS)"
-            htmlFor="amount"
-            error={errors.amount?.message}
-          >
-            <Input
-              id="amount"
-              type="number"
-              min="0"
-              step="1"
-              {...register('amount', { valueAsNumber: true })}
-            />
-          </Field>
-
-          <Field
-            label="Paid By"
-            htmlFor="paidById"
-            error={errors.paidById?.message}
-          >
-            <Select
-              id="paidById"
-              {...register('paidById', { valueAsNumber: true })}
-            >
-              <option value="0">Select employee…</option>
-              {employees.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.fullname}
-                </option>
-              ))}
-            </Select>
-          </Field>
-
-          {formError && (
-            <p className="text-xs font-medium text-red-500">{formError}</p>
-          )}
-
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Button
-              type="submit"
-              className="h-11 rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
-              disabled={isSubmitting}
-            >
-              {editingExpenseId ? (
-                <PencilLine className="size-4" />
-              ) : (
-                <Plus className="size-4" />
+              <Select
+                id="transportDayId"
+                disabled={!!editingExpenseId || !formCrewId}
+                {...register('transportDayId', { valueAsNumber: true })}
+              >
+                <option value="0">Select day…</option>
+                {dayOptions.map((day) => (
+                  <option key={day.id} value={day.id}>
+                    {formatDayLabel(day.date)}
+                  </option>
+                ))}
+              </Select>
+              {formCrewId > 0 && dayOptions.length === 0 && (
+                <p className="text-xs text-amber-600">
+                  No transport days logged for this crew yet.
+                </p>
               )}
-              {editingExpenseId ? 'Save Changes' : 'Record Expense'}
-            </Button>
+            </Field>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-2xl border-sky-100 px-5 text-slate-700"
-              onClick={resetForm}
+            <Field label="Leg" htmlFor="leg" error={errors.leg?.message}>
+              <Select id="leg" {...register('leg')}>
+                {legs.map((leg) => (
+                  <option key={leg} value={leg}>
+                    {legLabels[leg]}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            <Field
+              label="Amount (TJS)"
+              htmlFor="amount"
+              error={errors.amount?.message}
             >
-              Clear Form
-            </Button>
-          </div>
-        </form>
-      </Card>
+              <Input
+                id="amount"
+                type="number"
+                min="0"
+                step="1"
+                {...register('amount', { valueAsNumber: true })}
+              />
+            </Field>
+
+            <Field
+              label="Paid By"
+              htmlFor="paidById"
+              error={errors.paidById?.message}
+            >
+              <Select
+                id="paidById"
+                {...register('paidById', { valueAsNumber: true })}
+              >
+                <option value="0">Select employee…</option>
+                {employees.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.fullname}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+
+            {formError && (
+              <p className="text-xs font-medium text-red-500">{formError}</p>
+            )}
+
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button
+                type="submit"
+                className="h-11 rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
+                disabled={isSubmitting}
+              >
+                {editingExpenseId ? (
+                  <PencilLine className="size-4" />
+                ) : (
+                  <Plus className="size-4" />
+                )}
+                {editingExpenseId ? 'Save Changes' : 'Record Expense'}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-2xl border-sky-100 px-5 text-slate-700"
+                onClick={resetForm}
+              >
+                Clear Form
+              </Button>
+            </div>
+          </form>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="flex-col gap-4 border-b border-sky-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
@@ -410,7 +425,12 @@ function TaxiExpensesPage() {
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Paid By</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                {(canUpdateTaxiExpense ||
+                  canDeleteTaxiExpense ||
+                  canApproveTaxiExpense ||
+                  canRejectTaxiExpense) && (
+                  <TableHead className="text-right">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -438,31 +458,35 @@ function TaxiExpensesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {isPending && can('approveTaxiExpense') && (
+                        {isPending && (
                           <>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon-sm"
-                              className="rounded-full border-emerald-200 text-emerald-700"
-                              onClick={() => handleApprove(expense.id)}
-                              title="Approve"
-                            >
-                              <Check className="size-3.5" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon-sm"
-                              className="rounded-full border-red-200 text-red-600"
-                              onClick={() => handleReject(expense.id)}
-                              title="Reject"
-                            >
-                              <X className="size-3.5" />
-                            </Button>
+                            {canApproveTaxiExpense && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon-sm"
+                                className="rounded-full border-emerald-200 text-emerald-700"
+                                onClick={() => handleApprove(expense.id)}
+                                title="Approve"
+                              >
+                                <Check className="size-3.5" />
+                              </Button>
+                            )}
+                            {canRejectTaxiExpense && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon-sm"
+                                className="rounded-full border-red-200 text-red-600"
+                                onClick={() => handleReject(expense.id)}
+                                title="Reject"
+                              >
+                                <X className="size-3.5" />
+                              </Button>
+                            )}
                           </>
                         )}
-                        {isPending && (
+                        {isPending && canUpdateTaxiExpense && (
                           <Button
                             type="button"
                             variant="outline"
@@ -473,15 +497,17 @@ function TaxiExpensesPage() {
                             <PencilLine className="size-3.5" />
                           </Button>
                         )}
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon-sm"
-                          className="rounded-full"
-                          onClick={() => setDeletingExpenseId(expense.id)}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
+                        {canUpdateTaxiExpense && (
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon-sm"
+                            className="rounded-full"
+                            onClick={() => setDeletingExpenseId(expense.id)}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

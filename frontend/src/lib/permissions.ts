@@ -38,7 +38,7 @@ const {
 // - A worker only notifies absence, so they get the dashboard until an Absences page exists.
 // Employees (login accounts + business profile in one, backed by /api/User) is where
 // an Admin manages everyone, including role assignment — there's no separate "Users" page.
-const rolePagePaths: Record<AppRole, ReadonlyArray<string>> = {
+const rolePagePaths: Partial<Record<AppRole, ReadonlyArray<string>>> = {
   Admin: [
     dashboard,
     employees,
@@ -50,6 +50,17 @@ const rolePagePaths: Record<AppRole, ReadonlyArray<string>> = {
     payouts,
     monthlySheets,
   ],
+  RouteManager: [
+    dashboard,
+    employees,
+    crews,
+    transportDays,
+    routes,
+    vehicles,
+    taxiExpenses,
+  ],
+  CrewLead: [dashboard, transportDays, taxiExpenses],
+  DriverLead: [dashboard, transportDays, taxiExpenses],
   Accountant: [
     dashboard,
     transportDays,
@@ -59,9 +70,6 @@ const rolePagePaths: Record<AppRole, ReadonlyArray<string>> = {
     payouts,
     monthlySheets,
   ],
-  RouteManager: [dashboard, employees, crews, transportDays, routes, vehicles],
-  CrewLead: [dashboard, crews, transportDays, taxiExpenses],
-  DriverLead: [dashboard, crews, transportDays, taxiExpenses, vehicles],
   Worker: [dashboard],
 }
 
@@ -75,7 +83,7 @@ function matchesPath(allowedPath: string, pathname: string) {
 
 export function canAccessPath(roles: AppRole[], pathname: string) {
   return roles.some((role) =>
-    rolePagePaths[role].some((allowedPath) =>
+    (rolePagePaths[role] ?? []).some((allowedPath) =>
       matchesPath(allowedPath, pathname),
     ),
   )
@@ -83,32 +91,88 @@ export function canAccessPath(roles: AppRole[], pathname: string) {
 
 // Rights inside a page that is already visible to several roles.
 export type Capability =
-  | 'viewFinance' // payout figures and outstanding money on the dashboard
-  | 'generateSheet'
-  | 'confirmSheet' // the crew lead confirms their own sheet (FR-20)
-  | 'deleteSheet' // the backend has no "reopen" — the correction path is delete + regenerate
-  | 'approveTaxiExpense' // Approve/Reject a taxi expense before it counts toward a payout
+  // Transport days
+  | 'createTransportDay'
+  | 'updateTransportDay'
+  | 'deleteTransportDay'
+  | 'confirmTransportDay'
+  | 'unconfirmTransportDay'
 
-const roleCapabilities: Record<AppRole, ReadonlyArray<Capability>> = {
+  // Taxi expenses
+  | 'createTaxiExpense'
+  | 'updateTaxiExpense'
+  | 'deleteTaxiExpense'
+  | 'approveTaxiExpense'
+  | 'rejectTaxiExpense'
+
+  // Routes
+  | 'createRoute'
+  | 'updateRoute'
+  | 'deleteRoute'
+
+  // Vehicles
+  | 'createVehicle'
+  | 'updateVehicle'
+  | 'deleteVehicle'
+
+const roleCapabilities: Partial<Record<AppRole, ReadonlyArray<Capability>>> = {
   Admin: [
-    'viewFinance',
-    'generateSheet',
-    'confirmSheet',
-    'deleteSheet',
+    'createTransportDay',
+    'updateTransportDay',
+    'deleteTransportDay',
+    'confirmTransportDay',
+    'unconfirmTransportDay',
+
+    'createTaxiExpense',
+    'updateTaxiExpense',
+    'deleteTaxiExpense',
     'approveTaxiExpense',
+    'rejectTaxiExpense',
+
+    'createRoute',
+    'updateRoute',
+    'deleteRoute',
+
+    'createVehicle',
+    'updateVehicle',
+    'deleteVehicle',
   ],
-  Accountant: [
-    'viewFinance',
-    'generateSheet',
-    'deleteSheet',
-    'approveTaxiExpense',
+  RouteManager: [
+    'createRoute',
+    'updateRoute',
+    'deleteRoute',
+
+    'createVehicle',
+    'updateVehicle',
+    'deleteVehicle',
   ],
-  RouteManager: [],
-  CrewLead: ['confirmSheet'],
-  DriverLead: ['confirmSheet'],
-  Worker: [],
+  CrewLead: [
+    'createTransportDay',
+    'updateTransportDay',
+    'deleteTransportDay',
+    'confirmTransportDay',
+    'unconfirmTransportDay',
+
+    'createTaxiExpense',
+    'updateTaxiExpense',
+    'deleteTaxiExpense',
+  ],
+  DriverLead: [
+    'createTaxiExpense',
+    'updateTaxiExpense',
+    'deleteTaxiExpense',
+
+    'createTransportDay',
+    'updateTransportDay',
+    'deleteTransportDay',
+    'confirmTransportDay',
+    'unconfirmTransportDay',
+  ],
+  Accountant: ['approveTaxiExpense', 'rejectTaxiExpense'],
 }
 
 export function hasCapability(roles: AppRole[], capability: Capability) {
-  return roles.some((role) => roleCapabilities[role].includes(capability))
+  return roles.some((role) =>
+    (roleCapabilities[role] ?? []).includes(capability),
+  )
 }

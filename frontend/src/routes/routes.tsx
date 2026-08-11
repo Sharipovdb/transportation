@@ -28,6 +28,8 @@ import {
 import { useTransportRoutes } from '@/features/routes/routes-context'
 import type { TransportRouteDraft } from '@/features/routes/routes-context'
 import { getErrorMessage } from '@/lib/api-error'
+import { cn } from '@/lib/utils'
+import { useCapability } from '@/lib/use-capability'
 
 export const Route = createFileRoute('/routes')({
   component: RoutesPage,
@@ -55,9 +57,13 @@ const defaultValues: RouteFormInput = {
 function RoutesPage() {
   const { routes, isLoading, addRoute, updateRoute, deleteRoute } =
     useTransportRoutes()
-  const [editingRouteId, setEditingRouteId] = useState<string | null>(null)
+  const [editingRouteId, setEditingRouteId] = useState<number | null>(null)
   const [formError, setFormError] = useState('')
-  const [deletingRouteId, setDeletingRouteId] = useState<string | null>(null)
+  const [deletingRouteId, setDeletingRouteId] = useState<number | null>(null)
+
+  const canCreateRoute = useCapability('createRoute')
+  const canUpdateRoute = useCapability('updateRoute')
+  const canDeleteRoute = useCapability('deleteRoute')
 
   const sortedRoutes = useMemo(
     () =>
@@ -112,7 +118,7 @@ function RoutesPage() {
     }
   })
 
-  async function removeRoute(routeId: string) {
+  async function removeRoute(routeId: number) {
     if (editingRouteId === routeId) {
       resetForm()
     }
@@ -125,78 +131,89 @@ function RoutesPage() {
   }
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
-      <Card>
-        <CardHeader className="flex-row items-start justify-between gap-4">
-          <div>
-            <CardEyebrow>Routes</CardEyebrow>
-            <CardTitle className="mt-2">
-              {editingRoute ? 'Edit Route' : 'Add Route'}
-            </CardTitle>
-            <CardDescription className="mt-2">
-              The standard one-way distance is used as the default commute km
-              for driven days.
-            </CardDescription>
-          </div>
+    <section
+      className={cn(
+        'grid gap-6',
+        canCreateRoute ? 'xl:grid-cols-[380px_minmax(0,1fr)]' : 'grid-cols-1',
+      )}
+    >
+      {canCreateRoute && (
+        <Card>
+          <CardHeader className="flex-row items-start justify-between gap-4">
+            <div>
+              <CardEyebrow>Routes</CardEyebrow>
+              <CardTitle className="mt-2">
+                {editingRoute ? 'Edit Route' : 'Add Route'}
+              </CardTitle>
+              <CardDescription className="mt-2">
+                The standard one-way distance is used as the default commute km
+                for driven days.
+              </CardDescription>
+            </div>
 
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
-            <Map className="size-5" />
-          </div>
-        </CardHeader>
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+              <Map className="size-5" />
+            </div>
+          </CardHeader>
 
-        <form className="mt-2 space-y-5" onSubmit={onSubmit}>
-          <Field label="Route Name" htmlFor="name" error={errors.name?.message}>
-            <Input
-              id="name"
-              placeholder="Karakum Industrial Site"
-              {...register('name')}
-            />
-          </Field>
-
-          <Field
-            label="Standard Distance (km, one-way)"
-            htmlFor="distanceKm"
-            error={errors.distanceKm?.message}
-          >
-            <Input
-              id="distanceKm"
-              type="number"
-              step="0.1"
-              min="0"
-              placeholder="42"
-              {...register('distanceKm')}
-            />
-          </Field>
-
-          {formError && (
-            <p className="text-xs font-medium text-red-500">{formError}</p>
-          )}
-
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Button
-              type="submit"
-              className="h-11 rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
-              disabled={isSubmitting}
+          <form className="mt-2 space-y-5" onSubmit={onSubmit}>
+            <Field
+              label="Route Name"
+              htmlFor="name"
+              error={errors.name?.message}
             >
-              {editingRoute ? (
-                <PencilLine className="size-4" />
-              ) : (
-                <Plus className="size-4" />
-              )}
-              {editingRoute ? 'Save Changes' : 'Add Route'}
-            </Button>
+              <Input
+                id="name"
+                placeholder="Karakum Industrial Site"
+                {...register('name')}
+              />
+            </Field>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-2xl border-sky-100 px-5 text-slate-700"
-              onClick={resetForm}
+            <Field
+              label="Standard Distance (km, one-way)"
+              htmlFor="distanceKm"
+              error={errors.distanceKm?.message}
             >
-              Clear Form
-            </Button>
-          </div>
-        </form>
-      </Card>
+              <Input
+                id="distanceKm"
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="42"
+                {...register('distanceKm')}
+              />
+            </Field>
+
+            {formError && (
+              <p className="text-xs font-medium text-red-500">{formError}</p>
+            )}
+
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button
+                type="submit"
+                className="h-11 rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
+                disabled={isSubmitting}
+              >
+                {editingRoute ? (
+                  <PencilLine className="size-4" />
+                ) : (
+                  <Plus className="size-4" />
+                )}
+                {editingRoute ? 'Save Changes' : 'Add Route'}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-2xl border-sky-100 px-5 text-slate-700"
+                onClick={resetForm}
+              >
+                Clear Form
+              </Button>
+            </div>
+          </form>
+        </Card>
+      )}
 
       <Card>
         <CardHeader className="flex-col gap-4 border-b border-sky-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
@@ -222,7 +239,9 @@ function RoutesPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Distance (km)</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                {(canUpdateRoute || canDeleteRoute) && (
+                  <TableHead className="text-right">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -232,28 +251,34 @@ function RoutesPage() {
                     {route.name}
                   </TableCell>
                   <TableCell>{route.distanceKm} km</TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="rounded-full border-sky-100 text-sky-700"
-                        onClick={() => setEditingRouteId(route.id)}
-                      >
-                        <PencilLine className="size-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="rounded-full"
-                        onClick={() => setDeletingRouteId(route.id)}
-                      >
-                        <Trash2 className="size-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+                  {(canUpdateRoute || canDeleteRoute) && (
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        {canUpdateRoute && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="rounded-full border-sky-100 text-sky-700"
+                            onClick={() => setEditingRouteId(route.id)}
+                          >
+                            <PencilLine className="size-4" />
+                          </Button>
+                        )}
+                        {canDeleteRoute && (
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon"
+                            className="rounded-full"
+                            onClick={() => setDeletingRouteId(route.id)}
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
 
