@@ -10,8 +10,8 @@ namespace Transportation.Application.PayoutLine.Commands;
 
 public sealed record UpdatePayoutLineCommand(
     long Id,
-    decimal DriverPayment,
-    decimal ExtraKmPayment,
+    double DriverKm,
+    double ExtraBusinessKm,
     decimal TaxiCompensation
 ) : ICommand<PayoutLineDto>;
 
@@ -39,8 +39,8 @@ internal sealed class UpdatePayoutLineCommandHandler : ICommandHandler<UpdatePay
         if (entity is null)
             throw new ResourceNotFoundException(PayoutLineErrors.NotFound);
 
-        entity.DriverPayment = request.DriverPayment;
-        entity.ExtraKmPayment = request.ExtraKmPayment;
+        entity.DriverKm = request.DriverKm;
+        entity.ExtraBusinessKm = request.ExtraBusinessKm;
         entity.TaxiCompensation = request.TaxiCompensation;
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);

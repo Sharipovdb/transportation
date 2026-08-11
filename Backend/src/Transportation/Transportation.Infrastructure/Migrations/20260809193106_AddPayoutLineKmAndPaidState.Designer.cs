@@ -12,8 +12,8 @@ using Transportation.Infrastructure.Persistence;
 namespace Transportation.Infrastructure.Migrations
 {
     [DbContext(typeof(TransportationDbContext))]
-    [Migration("20260730084221_firstMigration")]
-    partial class firstMigration
+    [Migration("20260809193106_AddPayoutLineKmAndPaidState")]
+    partial class AddPayoutLineKmAndPaidState
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -355,9 +355,15 @@ namespace Transportation.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<double>("DriverKm")
+                        .HasColumnType("double precision");
+
                     b.Property<decimal?>("DriverPayment")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
+
+                    b.Property<double>("ExtraBusinessKm")
+                        .HasColumnType("double precision");
 
                     b.Property<decimal?>("ExtraKmPayment")
                         .HasPrecision(18, 2)
@@ -366,7 +372,16 @@ namespace Transportation.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsPaid")
+                        .HasColumnType("boolean");
+
                     b.Property<long>("MonthlyTransportSheetId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("PaidById")
                         .HasColumnType("bigint");
 
                     b.Property<decimal?>("TaxiCompensation")
@@ -382,6 +397,8 @@ namespace Transportation.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("MonthlyTransportSheetId");
+
+                    b.HasIndex("PaidById");
 
                     b.HasIndex("UserId");
 
@@ -852,6 +869,11 @@ namespace Transportation.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Transportation.Domain.Entities.User", "PaidBy")
+                        .WithMany()
+                        .HasForeignKey("PaidById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Transportation.Domain.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -859,6 +881,8 @@ namespace Transportation.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("MonthlyTransportSheet");
+
+                    b.Navigation("PaidBy");
 
                     b.Navigation("User");
                 });

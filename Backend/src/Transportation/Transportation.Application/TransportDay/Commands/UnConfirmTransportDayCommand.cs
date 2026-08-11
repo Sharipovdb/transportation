@@ -1,6 +1,7 @@
 ﻿using Transportation.Application.TransportDay.Models;
 using Transportation.Application.TransportDay.Repositories;
 using Transportation.Application.TransportDay.Specifications;
+using Transportation.Domain.Entities;
 using Transportation.Mediator.Helper.Commands;
 using Transportation.Mediator.Helper.Common.Extensions;
 using Transportation.Mediator.Helper.Exceptions;
@@ -42,8 +43,20 @@ internal sealed class UnConfirmTransportDayCommandHandler
         if (!transportDay.Confirmed)
             throw new BusinessLogicException(TransportDayErrors.AlreadyUnConfirmed);
 
+        var now = _timeProvider.GetLocalDateTimeNowKindUtc();
+
         transportDay.Confirmed = false;
-        transportDay.UpdatedAt = _timeProvider.GetLocalDateTimeNowKindUtc();
+        transportDay.UpdatedAt = now;
+
+        // Confirming approved the day's pending fares; unconfirming takes that approval
+        // back so the day is editable again. Fares that were rejected, or already paid
+        // out, are decisions of their own and stay where they are.
+        foreach (var taxiExpense in transportDay.TaxiExpenses
+                     .Where(x => !x.IsDeleted && x.TaxiExpenseStatus is TaxiExpenseStatus.Approved))
+        {
+            taxiExpense.TaxiExpenseStatus = TaxiExpenseStatus.Pending;
+            taxiExpense.UpdatedAt = now;
+        }
 
         await _transportDayRepository.SaveChangesAsync(cancellationToken);
 

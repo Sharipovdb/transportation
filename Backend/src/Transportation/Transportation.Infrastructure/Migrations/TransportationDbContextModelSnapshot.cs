@@ -352,18 +352,25 @@ namespace Transportation.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<decimal?>("DriverPayment")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
+                    b.Property<double>("DriverKm")
+                        .HasColumnType("double precision");
 
-                    b.Property<decimal?>("ExtraKmPayment")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
+                    b.Property<double>("ExtraBusinessKm")
+                        .HasColumnType("double precision");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsPaid")
+                        .HasColumnType("boolean");
+
                     b.Property<long>("MonthlyTransportSheetId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("PaidById")
                         .HasColumnType("bigint");
 
                     b.Property<decimal?>("TaxiCompensation")
@@ -379,6 +386,8 @@ namespace Transportation.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("MonthlyTransportSheetId");
+
+                    b.HasIndex("PaidById");
 
                     b.HasIndex("UserId");
 
@@ -517,8 +526,8 @@ namespace Transportation.Infrastructure.Migrations
                     b.Property<long>("CrewId")
                         .HasColumnType("bigint");
 
-                    b.Property<DateTime>("Date")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
 
                     b.Property<long?>("DriverId")
                         .HasColumnType("bigint");
@@ -849,6 +858,11 @@ namespace Transportation.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Transportation.Domain.Entities.User", "PaidBy")
+                        .WithMany()
+                        .HasForeignKey("PaidById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Transportation.Domain.Entities.User", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
@@ -856,6 +870,8 @@ namespace Transportation.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("MonthlyTransportSheet");
+
+                    b.Navigation("PaidBy");
 
                     b.Navigation("User");
                 });

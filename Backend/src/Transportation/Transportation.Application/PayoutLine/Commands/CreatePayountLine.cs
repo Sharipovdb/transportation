@@ -10,8 +10,8 @@ namespace Transportation.Application.PayoutLine.Commands;
 public sealed record CreatePayoutLineCommand(
     long MonthlyTransportSheetId,
     long UserId,
-    decimal DriverPayment,
-    decimal ExtraKmPayment,
+    double DriverKm,
+    double ExtraBusinessKm,
     decimal TaxiCompensation
 ) : ICommand<PayoutLineDto>;
 
@@ -22,8 +22,8 @@ public sealed class CreatePayoutLineCommandValidator : AbstractValidator<CreateP
     {
         RuleFor(x => x.MonthlyTransportSheetId).GreaterThan(0);
         RuleFor(x => x.UserId).GreaterThan(0);
-        RuleFor(x => x.DriverPayment).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.ExtraKmPayment).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.DriverKm).GreaterThanOrEqualTo(0);
+        RuleFor(x => x.ExtraBusinessKm).GreaterThanOrEqualTo(0);
         RuleFor(x => x.TaxiCompensation).GreaterThanOrEqualTo(0);
     }
 }
@@ -53,8 +53,8 @@ internal sealed class CreatePayoutLineCommandHandler : ICommandHandler<CreatePay
         {
             MonthlyTransportSheetId = request.MonthlyTransportSheetId,
             UserId = request.UserId,
-            DriverPayment = request.DriverPayment,
-            ExtraKmPayment = request.ExtraKmPayment,
+            DriverKm = request.DriverKm,
+            ExtraBusinessKm = request.ExtraBusinessKm,
             TaxiCompensation = request.TaxiCompensation,
             CreatedAt = _timeProvider.GetLocalDateTimeNowKindUtc(),
         };

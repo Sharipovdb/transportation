@@ -10,8 +10,8 @@ namespace Transportation.Application.TransportDay.Queries;
 
 public sealed record GetAllTransportDays(
     long? CrewId,
-    DateTime? DateFrom,
-    DateTime? DateTo,
+    DateOnly? DateFrom,
+    DateOnly? DateTo,
     bool? Confirmed,
     PaginationInfo PaginationInfo
 ) : IQuery<PaginatedResult<TransportDayDto>>;
@@ -30,21 +30,20 @@ internal sealed class GetAllTransportDaysHandler : IQueryHandler<GetAllTransport
     public async Task<PaginatedResult<TransportDayDto>> Handle(
         GetAllTransportDays request, CancellationToken cancellationToken)
     {
-        var startMonth = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1).ToUniversalTime();
-
+        // No implicit date floor: a query with no filters returns every logged day.
+        // Defaulting to "this month onwards" made the month picker show nothing for any
+        // past period, and hid the day behind a taxi expense whenever the two were on
+        // opposite sides of that boundary.
         var spec = new ReadOnlySpecification<Domain.Entities.TransportDay>();
 
-        if (request.DateFrom is null && request.DateTo is null)
-            spec.Query.Where(x => x.Date >= startMonth);
-        
         if (request.CrewId.HasValue)
             spec.Query.Where(x => x.CrewId == request.CrewId);
 
         if (request.DateFrom.HasValue)
-            spec.Query.Where(x => x.Date >= request.DateFrom.Value.ToUniversalTime());
+            spec.Query.Where(x => x.Date >= request.DateFrom.Value);
 
         if (request.DateTo.HasValue)
-            spec.Query.Where(x => x.Date <= request.DateTo.Value.ToUniversalTime());
+            spec.Query.Where(x => x.Date <= request.DateTo.Value);
 
         if (request.Confirmed.HasValue)
             spec.Query.Where(x => x.Confirmed == request.Confirmed);

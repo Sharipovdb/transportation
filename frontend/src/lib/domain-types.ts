@@ -5,6 +5,25 @@
 
 import type { AppRole } from './app-types'
 
+/**
+ * Backend ids are `long`. Some contexts keep them as numbers (Employee, Crew, Vehicle,
+ * TransportRoute, CrewMembership) while the operational ones stringify them
+ * (TransportDay, TaxiExpense, PayoutLine, MonthlySheet). A plain `===` across that
+ * boundary compares 1 to "1" and is silently always false, which is what used to turn
+ * every crew into "Unknown crew". Cross-entity lookups must go through this helper.
+ */
+export function isSameId(
+  left: string | number | null | undefined,
+  right: string | number | null | undefined,
+) {
+  if (left === null || left === undefined) return false
+  if (right === null || right === undefined) return false
+
+  return String(left) === String(right)
+}
+
+export type EntityId = string | number
+
 export const employeeRolesAdd = [
   'Admin',
   'RouteManager',
@@ -105,7 +124,7 @@ export const transportModeLabels: Record<TransportMode, string> = {
 
 // A working day for one crew. Splitting the mode into two legs is what makes the
 // "drove in the morning, taxied home" case representable without a hack. The driver
-// is derived server-side from the crew's Driver-Lead — it isn't set here.
+// and the route distance are derived server-side from the crew — not set here.
 export interface TransportDay {
   id: string
   crewId: string
@@ -113,10 +132,23 @@ export interface TransportDay {
   morningMode: TransportMode
   afternoonMode: TransportMode
   driverId: string | null
-  commuteKm: number // backend's TotalCommuteKm (route distance + any extra commute km)
+  // Length of one leg (crew route + any detour) versus what was actually driven:
+  // a taxi leg costs money and covers no distance, so it adds nothing to drivenKm.
+  commuteKmPerLeg: number
+  drivenKm: number
   extraBusinessKm: number // km driven for company purposes beyond the commute
   notes: string
   confirmed: boolean
+  // Every taxi leg carries its fare — recorded here, in the daily log, so a ride can
+  // never end up without a reimbursable expense behind it.
+  taxiFares: TaxiFare[]
+}
+
+// The fare of one taxi leg as captured on the transport day.
+export interface TaxiFare {
+  leg: Leg
+  amount: number
+  paidById: string
 }
 
 // --- Taxi expenses (mirrors Transportation.Domain.Entities.TaxiExpense) ---
@@ -156,8 +188,10 @@ export interface TaxiExpense {
 }
 
 // --- Payout line (mirrors Transportation.Domain.Entities.PayoutLine) ---
-// Fully computed server-side (commute km x rate, extra km x rate, approved taxi
-// expenses) — read-only from the frontend's perspective.
+// Fully computed server-side — read-only from the frontend's perspective. Two units
+// of account, deliberately never mixed: kilometres driven in a member's own car are
+// *reported* (priced by hand outside this system), while approved taxi fares are
+// *settled* — they are the only money a payout line owes.
 export interface PayoutLineTaxiExpense {
   id: string
   amount: number
@@ -169,10 +203,13 @@ export interface PayoutLine {
   id: string
   employeeId: string
   employeeName: string // denormalized onto PayoutLineDto by the backend
-  driverPayment: number
-  extraKmPayment: number
+  driverKm: number // distance driven on commute legs — reported, not priced
+  extraBusinessKm: number // company km beyond the commute — reported, not priced
   taxiCompensation: number
-  totalAmount: number
+  totalAmount: number // == taxiCompensation: km never turn into money here
+  // Settlement is per member per month: once paid, the line is closed for the period.
+  isPaid: boolean
+  paidAt: string | null
   taxiExpenses: PayoutLineTaxiExpense[]
 }
 
@@ -185,5 +222,9 @@ export interface MonthlySheet {
   month: number // 1-12
   isConfirmed: boolean
   payoutLines: PayoutLine[]
+  // Km and taxi spend are totalled separately: different units of account.
+  totalDriverKm: number
+  totalExtraBusinessKm: number
+  totalTaxiAmount: number
   totalAmount: number
 }

@@ -25,7 +25,7 @@ internal sealed class TransportDayDatabaseSeeder : IDemoDataSeeder
         var users = await _context.Users
             .ToDictionaryAsync(x => x.UserName!, x => x.Id);
 
-        var today = DateTime.UtcNow.Date;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         await CreateTransportDayIfNotExistsAsync(
             crewName: "Crew A",
@@ -96,7 +96,7 @@ internal sealed class TransportDayDatabaseSeeder : IDemoDataSeeder
 
     private async Task CreateTransportDayIfNotExistsAsync(
         string crewName,
-        DateTime date,
+        DateOnly date,
         TransportMode morningMode,
         TransportMode? afternoonMode,
         double baseRouteKm,
@@ -118,7 +118,7 @@ internal sealed class TransportDayDatabaseSeeder : IDemoDataSeeder
         }
 
         var exists = await _context.TransportDays
-            .AnyAsync(x => x.CrewId == crewId && x.Date.Date == date.Date);
+            .AnyAsync(x => x.CrewId == crewId && x.Date == date);
 
         if (exists)
             return;

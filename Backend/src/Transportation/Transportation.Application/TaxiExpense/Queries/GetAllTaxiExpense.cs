@@ -27,14 +27,15 @@ public sealed class GetAllTaxiExpenseHandler : IQueryHandler<GetAllTaxiExpense, 
     {
         var spec = new ReadOnlySpecification<Domain.Entities.TaxiExpense>();
 
+        // An empty list is a valid answer, not a 404 — a fresh month simply has no rides
+        // yet, and throwing here made the whole expenses screen fail to load.
         spec.Query
+            .Where(x => !x.IsDeleted)
+            .OrderByDescending(x => x.Id)
             .WithPagination(request.PaginationInfo);
 
         var taxiExpenses = await _taxiExpenseRepository.ListAsync(spec, cancellationToken);
         var totalCount = await _taxiExpenseRepository.CountAsync(spec, cancellationToken);
-
-        if (!taxiExpenses.Any())
-            throw new ResourceNotFoundException(TaxiExpenseErrors.NotFound);
 
         var mappedTaxiExpense = _mapper.Map(taxiExpenses);
 

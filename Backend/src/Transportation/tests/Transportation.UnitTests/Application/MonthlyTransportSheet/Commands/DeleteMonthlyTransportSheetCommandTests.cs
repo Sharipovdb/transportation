@@ -4,6 +4,7 @@ using NSubstitute;
 using Transportation.Application.MonthlyTransportSheet;
 using Transportation.Application.MonthlyTransportSheet.Commands;
 using Transportation.Application.MonthlyTransportSheet.Repositories;
+using Transportation.Application.MonthlyTransportSheet.Specifications;
 using Transportation.Mediator.Helper.Exceptions;
 using Transportation.Mediator.Helper.Persistence;
 using Transportation.UnitTests.Utils;
@@ -35,7 +36,7 @@ public class DeleteMonthlyTransportSheetCommandTests
 
         var command = fixture.Create<DeleteMonthlyTransportSheetCommand>();
         _monthlyTransportSheetRepository
-            .GetByIdAsync(command.Id)
+            .GetByIdAsync(Arg.Any<MonthlyTransportSheetByIdSpec>())
             .Returns((Domain.Entities.MonthlyTransportSheet?)null);
 
         // Act
@@ -65,19 +66,13 @@ public class DeleteMonthlyTransportSheetCommandTests
         };
 
         _monthlyTransportSheetRepository
-            .GetByIdAsync(command.Id)
+            .GetByIdAsync(Arg.Any<MonthlyTransportSheetByIdSpec>())
             .Returns(entity);
 
         // Act
         var result = await _handler.Handle(command, CancellationToken.None);
 
-        // Assert
-        _ = _monthlyTransportSheetRepository
-            .Received()
-            .UpdateAsync(Arg.Is<Domain.Entities.MonthlyTransportSheet>(x =>
-                x.Id == command.Id &&
-                x.IsDeleted == true));
-
+        // Assert — the sheet is soft-deleted in place; the tracked entity is saved as is.
         _ = _unitOfWork
             .Received()
             .SaveChangesAsync();

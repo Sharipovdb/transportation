@@ -37,9 +37,11 @@ interface PayoutLineApiDto {
   userId: number
   firstName: string
   lastName: string
-  driverPayment: number
-  extraKmPayment: number
+  driverKm: number
+  extraBusinessKm: number
   taxiCompensation: number
+  isPaid: boolean
+  paidAt: string | null
   totalAmount: number
   taxiExpenses: TaxiExpenseSummaryApiDto[]
 }
@@ -51,6 +53,9 @@ interface MonthlySheetApiDto {
   month: number
   isConfirmed: boolean
   payoutLines: PayoutLineApiDto[]
+  totalDriverKm: number
+  totalExtraBusinessKm: number
+  totalTaxiAmount: number
   totalAmount: number
 }
 
@@ -66,9 +71,11 @@ function toPayoutLine(dto: PayoutLineApiDto): PayoutLine {
     id: String(dto.id),
     employeeId: String(dto.userId),
     employeeName: `${dto.firstName} ${dto.lastName}`.trim(),
-    driverPayment: dto.driverPayment,
-    extraKmPayment: dto.extraKmPayment,
+    driverKm: dto.driverKm,
+    extraBusinessKm: dto.extraBusinessKm,
     taxiCompensation: dto.taxiCompensation,
+    isPaid: dto.isPaid,
+    paidAt: dto.paidAt,
     totalAmount: dto.totalAmount,
     taxiExpenses: dto.taxiExpenses.map((expense) => ({
       id: String(expense.id),
@@ -87,6 +94,9 @@ function toMonthlySheet(dto: MonthlySheetApiDto): MonthlySheet {
     month: dto.month,
     isConfirmed: dto.isConfirmed,
     payoutLines: dto.payoutLines.map(toPayoutLine),
+    totalDriverKm: dto.totalDriverKm,
+    totalExtraBusinessKm: dto.totalExtraBusinessKm,
+    totalTaxiAmount: dto.totalTaxiAmount,
     totalAmount: dto.totalAmount,
   }
 }
@@ -114,6 +124,7 @@ interface MonthlySheetsContextValue {
   generateSheet: (period: SheetPeriod) => Promise<MonthlySheet>
   confirmSheet: (sheetId: string) => Promise<void>
   deleteSheet: (sheetId: string) => Promise<void>
+  markPayoutLinePaid: (payoutLineId: string) => Promise<void>
 }
 
 const MonthlySheetsContext = createContext<MonthlySheetsContextValue | null>(
@@ -178,8 +189,16 @@ export function MonthlySheetsProvider({ children }: { children: ReactNode }) {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (sheetId: number) =>
+    mutationFn: (sheetId: string) =>
       apiClient.delete(`/api/MonthlyTransportSheets/Delete/${sheetId}`),
+    onSuccess: invalidate,
+  })
+
+  // Settling a member closes their line for the month; the backend refuses a second
+  // call, so the refetched sheet is the source of truth for the button's state.
+  const markPaidMutation = useMutation({
+    mutationFn: (payoutLineId: string) =>
+      apiClient.put(`/api/PayoutLine/MarkPaid/${payoutLineId}`),
     onSuccess: invalidate,
   })
 
@@ -196,6 +215,9 @@ export function MonthlySheetsProvider({ children }: { children: ReactNode }) {
       deleteSheet: async (sheetId) => {
         await deleteMutation.mutateAsync(sheetId)
       },
+      markPayoutLinePaid: async (payoutLineId) => {
+        await markPaidMutation.mutateAsync(payoutLineId)
+      },
     }),
     [
       sheets,
@@ -204,6 +226,7 @@ export function MonthlySheetsProvider({ children }: { children: ReactNode }) {
       generateMutation,
       confirmMutation,
       deleteMutation,
+      markPaidMutation,
     ],
   )
 

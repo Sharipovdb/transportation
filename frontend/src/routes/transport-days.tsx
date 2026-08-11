@@ -1,8 +1,9 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createFileRoute } from '@tanstack/react-router'
 import { CheckCircle2, PencilLine, Plus, Route as RouteIcon, RotateCcw, Trash2 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
+import type { UseFormRegisterReturn } from 'react-hook-form'
 import { z } from 'zod'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -22,27 +23,67 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { useCrewMemberships } from '@/features/crews/crew-memberships-context'
 import { useCrews } from '@/features/crews/crews-context'
 import { useEmployees } from '@/features/employees/employees-context'
 import type { TransportDayDraft } from '@/features/transport-days/transport-days-context'
 import { useTransportDays } from '@/features/transport-days/transport-days-context'
 import { getErrorMessage } from '@/lib/api-error'
-import { getEmployeeName, transportModeLabels, transportModes } from '@/lib/domain-types'
-import type { TransportMode } from '@/lib/domain-types'
-import { formatDayLabel, formatKm, formatMonthLabel, getMonthYear } from '@/lib/format'
+import { isSameId, legLabels, transportModeLabels, transportModes } from '@/lib/domain-types'
+import type { Leg, TaxiFare, TransportMode } from '@/lib/domain-types'
+import { formatCurrency, formatDayLabel, formatKm, formatMonthLabel, getMonthYear } from '@/lib/format'
 
 export const Route = createFileRoute('/transport-days')({
   component: TransportDaysPage,
 })
 
-const dayFormSchema = z.object({
-  crewId: z.string().min(1, 'Select a crew.'),
-  date: z.string().min(1, 'Select a date.'),
-  morningMode: z.enum(transportModes),
-  afternoonMode: z.enum(transportModes),
-  extraBusinessKm: z.coerce.number().nonnegative('Extra km cannot be negative.'),
-  notes: z.string(),
+// A leg travelled by taxi has to say what it cost and who paid, otherwise the ride can
+// never be reimbursed — the backend rejects a taxi leg without its fare, so the form
+// asks for it here rather than sending the user to a second screen afterwards.
+const taxiFareSchema = z.object({
+  amount: z.coerce.number(),
+  paidById: z.string(),
 })
+
+const legFields = [
+  { leg: 'morning' as Leg, mode: 'morningMode' as const, fare: 'morningTaxi' as const },
+  { leg: 'afternoon' as Leg, mode: 'afternoonMode' as const, fare: 'afternoonTaxi' as const },
+]
+
+const dayFormSchema = z
+  .object({
+    crewId: z.string().min(1, 'Select a crew.'),
+    date: z.string().min(1, 'Select a date.'),
+    morningMode: z.enum(transportModes),
+    afternoonMode: z.enum(transportModes),
+    extraBusinessKm: z.coerce.number().nonnegative('Extra km cannot be negative.'),
+    notes: z.string(),
+    morningTaxi: taxiFareSchema,
+    afternoonTaxi: taxiFareSchema,
+  })
+  .superRefine((values, context) => {
+    for (const leg of legFields) {
+      if (values[leg.mode] !== 'taxi') {
+        continue
+      }
+
+      if (!(values[leg.fare].amount > 0)) {
+        context.addIssue({
+          code: 'custom',
+          path: [leg.fare, 'amount'],
+          message: 'Enter the fare for this taxi ride.',
+        })
+      }
+
+      if (!values[leg.fare].paidById) {
+        context.addIssue({
+          code: 'custom',
+          path: [leg.fare, 'paidById'],
+          message: 'Select who paid for it.',
+        })
+      }
+    }
+  })
 
 type DayFormInput = z.input<typeof dayFormSchema>
 type DayFormValues = z.output<typeof dayFormSchema>
@@ -59,6 +100,26 @@ function defaultValues(): DayFormInput {
     afternoonMode: 'driven',
     extraBusinessKm: 0,
     notes: '',
+    morningTaxi: { amount: 0, paidById: '' },
+    afternoonTaxi: { amount: 0, paidById: '' },
+  }
+}
+
+function toDraft(values: DayFormValues): Omit<TransportDayDraft, 'crewId' | 'date'> {
+  const taxiFares: TaxiFare[] = legFields
+    .filter((leg) => values[leg.mode] === 'taxi')
+    .map((leg) => ({
+      leg: leg.leg,
+      amount: values[leg.fare].amount,
+      paidById: values[leg.fare].paidById,
+    }))
+
+  return {
+    morningMode: values.morningMode,
+    afternoonMode: values.afternoonMode,
+    extraBusinessKm: values.extraBusinessKm,
+    notes: values.notes,
+    taxiFares,
   }
 }
 
@@ -69,8 +130,9 @@ const modeBadgeVariant: Record<TransportMode, 'success' | 'warning' | 'secondary
 }
 
 function TransportDaysPage() {
-  const { crews } = useCrews()
-  const { getEmployeeById } = useEmployees()
+  const { crews, getCrewName } = useCrews()
+  const { getActiveMembersForCrew } = useCrewMemberships()
+  const { getEmployeeDisplayName } = useEmployees()
   const {
     transportDays,
     isLoading,
@@ -91,6 +153,7 @@ function TransportDaysPage() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<DayFormInput, any, DayFormValues>({
     resolver: zodResolver(dayFormSchema),
@@ -99,15 +162,42 @@ function TransportDaysPage() {
 
   const editingDay = editingDayId ? transportDays.find((day) => day.id === editingDayId) ?? null : null
 
+  const formCrewId = watch('crewId')
+  const morningMode = watch('morningMode')
+  const afternoonMode = watch('afternoonMode')
+
+  // Only members of the selected crew can front a taxi fare — the backend enforces it,
+  // so the form offers exactly that list instead of every employee in the company.
+  const crewMembers = useMemo(() => {
+    const crew = crews.find((candidate) => isSameId(candidate.id, formCrewId))
+
+    if (!crew) {
+      return []
+    }
+
+    return getActiveMembersForCrew(crew.id).map((membership) => ({
+      id: String(membership.employeeId),
+      name: getEmployeeDisplayName(membership.employeeId),
+    }))
+  }, [crews, formCrewId, getActiveMembersForCrew, getEmployeeDisplayName])
+
   const visibleDays = useMemo(() => {
     return transportDays
       .filter((day) => {
         const inPeriod = getMonthYear(day.date).year === period.year && getMonthYear(day.date).month === period.month
-        const inCrew = !crewFilter || day.crewId === crewFilter
+        const inCrew = !crewFilter || isSameId(day.crewId, crewFilter)
         return inPeriod && inCrew
       })
       .sort((first, second) => second.date.localeCompare(first.date))
   }, [transportDays, period, crewFilter])
+
+  // Confirming a day approves its taxi expenses, so the backend locks it. Drop out of
+  // edit mode rather than leaving the form pointed at a record that can't be saved.
+  useEffect(() => {
+    if (editingDay?.confirmed) {
+      resetForm()
+    }
+  }, [editingDay?.confirmed])
 
   function resetForm() {
     setEditingDayId(null)
@@ -122,6 +212,12 @@ function TransportDaysPage() {
       return
     }
 
+    const fareFor = (leg: Leg) => {
+      const fare = day.taxiFares.find((candidate) => candidate.leg === leg)
+
+      return { amount: fare?.amount ?? 0, paidById: fare?.paidById ?? '' }
+    }
+
     setEditingDayId(dayId)
     setFormError('')
     reset({
@@ -131,22 +227,19 @@ function TransportDaysPage() {
       afternoonMode: day.afternoonMode,
       extraBusinessKm: day.extraBusinessKm,
       notes: day.notes,
+      morningTaxi: fareFor('morning'),
+      afternoonTaxi: fareFor('afternoon'),
     })
   }
 
-  const onSubmit = handleSubmit(async (values: TransportDayDraft) => {
+  const onSubmit = handleSubmit(async (values: DayFormValues) => {
     setFormError('')
 
     try {
       if (editingDayId) {
-        await updateTransportDay(editingDayId, {
-          morningMode: values.morningMode,
-          afternoonMode: values.afternoonMode,
-          extraBusinessKm: values.extraBusinessKm,
-          notes: values.notes,
-        })
+        await updateTransportDay(editingDayId, toDraft(values))
       } else {
-        await addTransportDay(values)
+        await addTransportDay({ crewId: values.crewId, date: values.date, ...toDraft(values) })
       }
 
       resetForm()
@@ -179,17 +272,12 @@ function TransportDaysPage() {
     }
   }
 
-  function crewName(crewId: string) {
-    return crews.find((crew) => crew.id === crewId)?.name ?? 'Unknown crew'
+  function driverName(driverId: string | null) {
+    return driverId ? getEmployeeDisplayName(driverId) : '—'
   }
 
-  function driverName(driverId: string | null) {
-    if (!driverId) {
-      return '—'
-    }
-
-    const employee = getEmployeeById(driverId)
-    return employee ? getEmployeeName(employee) : '—'
+  function taxiTotal(fares: TaxiFare[]) {
+    return fares.reduce((total, fare) => total + fare.amount, 0)
   }
 
   return (
@@ -200,8 +288,8 @@ function TransportDaysPage() {
             <CardEyebrow>Daily Log</CardEyebrow>
             <CardTitle className="mt-2">{editingDay ? 'Edit Transport Day' : 'Log Transport Day'}</CardTitle>
             <CardDescription className="mt-2">
-              One record per crew per working day. The driver and base commute km are derived
-              automatically from the crew.
+              One record per crew per working day. The driver and the route distance come
+              from the crew; a leg taken by taxi needs its fare instead.
             </CardDescription>
           </div>
 
@@ -247,6 +335,28 @@ function TransportDaysPage() {
               </Select>
             </Field>
           </div>
+
+          {morningMode === 'taxi' && (
+            <TaxiFareFields
+              leg="morning"
+              members={crewMembers}
+              amountField={register('morningTaxi.amount')}
+              payerField={register('morningTaxi.paidById')}
+              amountError={errors.morningTaxi?.amount?.message}
+              payerError={errors.morningTaxi?.paidById?.message}
+            />
+          )}
+
+          {afternoonMode === 'taxi' && (
+            <TaxiFareFields
+              leg="afternoon"
+              members={crewMembers}
+              amountField={register('afternoonTaxi.amount')}
+              payerField={register('afternoonTaxi.paidById')}
+              amountError={errors.afternoonTaxi?.amount?.message}
+              payerError={errors.afternoonTaxi?.paidById?.message}
+            />
+          )}
 
           <Field
             label="Extra Business Km"
@@ -316,8 +426,9 @@ function TransportDaysPage() {
                 <TableHead>Morning</TableHead>
                 <TableHead>Afternoon</TableHead>
                 <TableHead>Driver</TableHead>
-                <TableHead className="text-right">Commute</TableHead>
+                <TableHead className="text-right">Driven km</TableHead>
                 <TableHead className="text-right">Extra km</TableHead>
+                <TableHead className="text-right">Taxi fare</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -326,7 +437,7 @@ function TransportDaysPage() {
               {visibleDays.map((day) => (
                 <TableRow key={day.id}>
                   <TableCell className="font-medium text-slate-900">{formatDayLabel(day.date)}</TableCell>
-                  <TableCell>{crewName(day.crewId)}</TableCell>
+                  <TableCell>{getCrewName(day.crewId)}</TableCell>
                   <TableCell>
                     <Badge variant={modeBadgeVariant[day.morningMode]}>
                       {transportModeLabels[day.morningMode]}
@@ -338,9 +449,18 @@ function TransportDaysPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>{driverName(day.driverId)}</TableCell>
-                  <TableCell className="text-right">{formatKm(day.commuteKm)}</TableCell>
+                  <TableCell className="text-right">
+                    {day.drivenKm > 0 ? formatKm(day.drivenKm) : <span className="text-slate-300">—</span>}
+                  </TableCell>
                   <TableCell className="text-right">
                     {day.extraBusinessKm > 0 ? formatKm(day.extraBusinessKm) : '—'}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {day.taxiFares.length > 0 ? (
+                      formatCurrency(taxiTotal(day.taxiFares))
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
                   </TableCell>
                   <TableCell>
                     {day.confirmed ? <Badge variant="success">Confirmed</Badge> : <Badge variant="warning">Draft</Badge>}
@@ -362,6 +482,8 @@ function TransportDaysPage() {
                         variant="outline"
                         size="icon-sm"
                         className="rounded-full border-sky-100 text-sky-700"
+                        disabled={day.confirmed}
+                        title={day.confirmed ? 'Unconfirm the day to edit it' : 'Edit'}
                         onClick={() => startEdit(day.id)}
                       >
                         <PencilLine className="size-3.5" />
@@ -382,7 +504,7 @@ function TransportDaysPage() {
 
               {!isLoading && visibleDays.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="py-10 text-center text-slate-400">
+                  <TableCell colSpan={10} className="py-10 text-center text-slate-400">
                     No transport days logged for this period.
                   </TableCell>
                 </TableRow>
@@ -396,7 +518,7 @@ function TransportDaysPage() {
         open={deletingDayId !== null}
         onOpenChange={(open) => !open && setDeletingDayId(null)}
         title="Delete this transport day?"
-        description="This action cannot be undone."
+        description="Its taxi expenses go with it. This action cannot be undone."
         onConfirm={() => {
           if (deletingDayId !== null) {
             removeDay(deletingDayId)
@@ -404,6 +526,50 @@ function TransportDaysPage() {
         }}
       />
     </section>
+  )
+}
+
+interface TaxiFareFieldsProps {
+  leg: Leg
+  members: { id: string; name: string }[]
+  amountField: UseFormRegisterReturn
+  payerField: UseFormRegisterReturn
+  amountError?: string
+  payerError?: string
+}
+
+function TaxiFareFields({
+  leg,
+  members,
+  amountField,
+  payerField,
+  amountError,
+  payerError,
+}: TaxiFareFieldsProps) {
+  return (
+    <div className="space-y-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+        {legLabels[leg]} taxi fare
+      </p>
+
+      <Field label="Fare (TJS)" htmlFor={`${leg}-taxi-amount`} error={amountError}>
+        <Input id={`${leg}-taxi-amount`} type="number" min="0" step="1" {...amountField} />
+      </Field>
+
+      <Field label="Paid by" htmlFor={`${leg}-taxi-payer`} error={payerError}>
+        <Select id={`${leg}-taxi-payer`} {...payerField}>
+          <option value="">Select crew member…</option>
+          {members.map((member) => (
+            <option key={member.id} value={member.id}>
+              {member.name}
+            </option>
+          ))}
+        </Select>
+        {members.length === 0 && (
+          <p className="text-xs text-amber-700">This crew has no active members to charge the fare to.</p>
+        )}
+      </Field>
+    </div>
   )
 }
 

@@ -5,7 +5,8 @@ import type { ReactNode } from 'react'
 import { apiClient } from '@/lib/api-client'
 import type { ApiResponse } from '@/lib/api-client'
 // import { appRoleToBackendRole, resolveAppRole } from '@/lib/app-types'
-import type { Employee } from '@/lib/domain-types'
+import { getEmployeeName, isSameId } from '@/lib/domain-types'
+import type { Employee, EntityId } from '@/lib/domain-types'
 import type { AppRole } from '@/lib/app-types'
 
 // Raw shape of Transportation.Application.User.Models.UserDto — note the backend's
@@ -90,8 +91,9 @@ interface EmployeesContextValue {
   updateEmployee: (employeeId: number, draft: EmployeeDraft) => Promise<void>
   deleteEmployee: (employeeId: number) => Promise<void>
   getEmployeeById: (
-    employeeId: number | null | undefined,
+    employeeId: EntityId | null | undefined,
   ) => Employee | undefined
+  getEmployeeDisplayName: (employeeId: EntityId | null | undefined) => string
 }
 
 const EmployeesContext = createContext<EmployeesContextValue | null>(null)
@@ -201,7 +203,14 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
         await deleteMutation.mutateAsync(employeeId)
       },
       getEmployeeById: (employeeId) =>
-        employees.find((employee) => employee.id === employeeId),
+        employees.find((employee) => isSameId(employee.id, employeeId)),
+      getEmployeeDisplayName: (employeeId) => {
+        const employee = employees.find((candidate) =>
+          isSameId(candidate.id, employeeId),
+        )
+
+        return employee ? getEmployeeName(employee) : 'Unknown'
+      },
     }),
     [employees, isLoading, addMutation, updateMutation, deleteMutation],
   )

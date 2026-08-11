@@ -42,8 +42,8 @@ internal sealed class MonthlyTransportSheetFactory : IMonthlyTransportSheetFacto
             var payoutLine = new Domain.Entities.PayoutLine
             {
                 UserId = payout.UserId,
-                DriverPayment = payout.DriverPayment,
-                ExtraKmPayment = payout.ExtraKmPayment,
+                DriverKm = payout.DriverKm,
+                ExtraBusinessKm = payout.ExtraBusinessKm,
                 TaxiCompensation = payout.TaxiCompensation,
                 CreatedAt = now
             };

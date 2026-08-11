@@ -6,15 +6,15 @@ public sealed class TransportDaysByPeriodSpec : Specification<Domain.Entities.Tr
 {
     public long CrewId { get; }
 
-    public DateTime From { get; }
+    public DateOnly From { get; }
 
-    public DateTime To { get; }
+    public DateOnly To { get; }
 
     public TransportDaysByPeriodSpec(long crewId, int year, int month, bool asNoTracking = false)
     {
         CrewId = crewId;
 
-        From = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
+        From = new DateOnly(year, month, 1);
         To = From.AddMonths(1);
 
         if (asNoTracking)

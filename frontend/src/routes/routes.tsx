@@ -55,9 +55,9 @@ const defaultValues: RouteFormInput = {
 function RoutesPage() {
   const { routes, isLoading, addRoute, updateRoute, deleteRoute } =
     useTransportRoutes()
-  const [editingRouteId, setEditingRouteId] = useState<string | null>(null)
+  const [editingRouteId, setEditingRouteId] = useState<number | null>(null)
   const [formError, setFormError] = useState('')
-  const [deletingRouteId, setDeletingRouteId] = useState<string | null>(null)
+  const [deletingRouteId, setDeletingRouteId] = useState<number | null>(null)
 
   const sortedRoutes = useMemo(
     () =>
@@ -99,8 +99,7 @@ function RoutesPage() {
     setFormError('')
 
     try {
-      if (editingRouteId) {
-        console.log(editingRouteId)
+      if (editingRouteId !== null) {
         await updateRoute(editingRouteId, values)
       } else {
         await addRoute(values)
@@ -112,7 +111,7 @@ function RoutesPage() {
     }
   })
 
-  async function removeRoute(routeId: string) {
+  async function removeRoute(routeId: number) {
     if (editingRouteId === routeId) {
       resetForm()
     }

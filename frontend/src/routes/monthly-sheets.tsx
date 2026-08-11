@@ -3,7 +3,9 @@ import {
   CheckCircle2,
   ChevronDown,
   Eye,
+  FileText,
   Loader2,
+  RefreshCw,
   Sparkles,
   Trash2,
 } from 'lucide-react'
@@ -34,10 +36,20 @@ import {
 import { usePermissions } from '@/features/auth/use-permissions'
 import { useCrews } from '@/features/crews/crews-context'
 import { useMonthlySheets } from '@/features/monthly-sheets/monthly-sheets-context'
+import { usePayoutReportPrinter } from '@/features/monthly-sheets/use-payout-report-printer'
 import { getErrorMessage } from '@/lib/api-error'
-import { legLabels, taxiExpenseStatusLabels } from '@/lib/domain-types'
-import type { MonthlySheet } from '@/lib/domain-types'
-import { formatCurrency, formatMonthLabel, getMonthYear } from '@/lib/format'
+import {
+  isSameId,
+  legLabels,
+  taxiExpenseStatusLabels,
+} from '@/lib/domain-types'
+import type { MonthlySheet, PayoutLine } from '@/lib/domain-types'
+import {
+  formatCurrency,
+  formatKm,
+  formatMonthLabel,
+  getMonthYear,
+} from '@/lib/format'
 
 export const Route = createFileRoute('/monthly-sheets')({
   component: MonthlySheetsPage,
@@ -58,6 +70,7 @@ function MonthlySheetsPage() {
     confirmSheet,
     deleteSheet,
   } = useMonthlySheets()
+  const printPayoutReport = usePayoutReportPrinter()
 
   const [period, setPeriod] = useState<Period>(() =>
     getMonthYear(todayIsoDate()),
@@ -71,12 +84,19 @@ function MonthlySheetsPage() {
     null,
   )
 
-  const activeCrewId = crews.some((crew) => crew.id === crewId)
+  // Crew ids arrive as numbers but every sheet-side id is a string, so the two are
+  // normalised here — comparing them raw is what used to make an existing sheet
+  // invisible and leave the page stuck on "No sheet yet".
+  const activeCrewId = crews.some((crew) => isSameId(crew.id, crewId))
     ? crewId
-    : (crews[0]?.id ?? '')
-  const crew = crews.find((candidate) => candidate.id === activeCrewId)
+    : String(crews[0]?.id ?? '')
+  const crew = crews.find((candidate) => isSameId(candidate.id, activeCrewId))
   const sheet = crew
-    ? getSheet({ crewId: crew.id, year: period.year, month: period.month })
+    ? getSheet({
+        crewId: String(crew.id),
+        year: period.year,
+        month: period.month,
+      })
     : undefined
 
   function resetTransientState() {
@@ -103,7 +123,7 @@ function MonthlySheetsPage() {
 
     try {
       const result = await previewSheet({
-        crewId: crew.id,
+        crewId: String(crew.id),
         year: period.year,
         month: period.month,
       })
@@ -125,7 +145,7 @@ function MonthlySheetsPage() {
 
     try {
       await generateSheet({
-        crewId: crew.id,
+        crewId: String(crew.id),
         year: period.year,
         month: period.month,
       })
@@ -149,6 +169,16 @@ function MonthlySheetsPage() {
       setActionError(getErrorMessage(error, 'Could not confirm the sheet.'))
     } finally {
       setIsBusy(false)
+    }
+  }
+
+  async function handlePrint(sheetToPrint: MonthlySheet, line: PayoutLine) {
+    setActionError('')
+
+    try {
+      await printPayoutReport(sheetToPrint, line)
+    } catch (error) {
+      setActionError(getErrorMessage(error, 'Could not build the PDF report.'))
     }
   }
 
@@ -179,9 +209,10 @@ function MonthlySheetsPage() {
               {formatMonthLabel(period.year, period.month)}
             </CardTitle>
             <CardDescription className="mt-2">
-              Driver km, extra km, and taxi compensation are computed by the
-              backend from logged transport days and approved taxi expenses —
-              nothing here is entered by hand.
+              Computed by the backend from confirmed transport days and approved
+              taxi expenses. Kilometres driven in a member's own car are reported
+              as distance and priced by hand later; only taxi fares are settled
+              here.
             </CardDescription>
           </div>
 
@@ -240,31 +271,32 @@ function MonthlySheetsPage() {
 
             <div className="flex flex-wrap gap-2">
               {!sheet && (
-                <>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="rounded-full border-sky-100 text-sky-700"
-                    disabled={isBusy}
-                    onClick={handlePreview}
-                  >
-                    <Eye className="size-3.5" />
-                    Preview
-                  </Button>
-                  {can('generateSheet') && (
-                    <Button
-                      type="button"
-                      size="sm"
-                      className="rounded-full bg-sky-600 text-white hover:bg-sky-700"
-                      disabled={isBusy}
-                      onClick={handleGenerate}
-                    >
-                      <Sparkles className="size-3.5" />
-                      Generate &amp; Save
-                    </Button>
-                  )}
-                </>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full border-sky-100 text-sky-700"
+                  disabled={isBusy}
+                  onClick={handlePreview}
+                >
+                  <Eye className="size-3.5" />
+                  Preview
+                </Button>
+              )}
+
+              {/* Days keep being logged and confirmed after a sheet is first produced,
+                  so a draft can be recomputed in place to pick them up. */}
+              {(!sheet || !sheet.isConfirmed) && can('generateSheet') && (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="rounded-full bg-sky-600 text-white hover:bg-sky-700"
+                  disabled={isBusy}
+                  onClick={handleGenerate}
+                >
+                  {sheet ? <RefreshCw className="size-3.5" /> : <Sparkles className="size-3.5" />}
+                  {sheet ? 'Recalculate' : 'Generate & Save'}
+                </Button>
               )}
 
               {sheet && !sheet.isConfirmed && can('confirmSheet') && (
@@ -317,14 +349,14 @@ function MonthlySheetsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Employee</TableHead>
-                    <TableHead className="text-right">Driver payment</TableHead>
+                    <TableHead className="text-right">Driven km</TableHead>
                     <TableHead className="text-right">
-                      Extra km payment
+                      Extra business km
                     </TableHead>
                     <TableHead className="text-right">
                       Taxi compensation
                     </TableHead>
-                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="text-right">Total payout</TableHead>
                     <TableHead />
                   </TableRow>
                 </TableHeader>
@@ -333,13 +365,24 @@ function MonthlySheetsPage() {
                     <Fragment key={line.id}>
                       <TableRow>
                         <TableCell className="font-medium text-slate-900">
-                          {line.employeeName}
+                          <span className="flex items-center gap-2">
+                            {line.employeeName}
+                            {line.isPaid && <Badge variant="success">Paid</Badge>}
+                          </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          {formatCurrency(line.driverPayment)}
+                          {line.driverKm > 0 ? (
+                            formatKm(line.driverKm)
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
-                          {formatCurrency(line.extraKmPayment)}
+                          {line.extraBusinessKm > 0 ? (
+                            formatKm(line.extraBusinessKm)
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-right">
                           {formatCurrency(line.taxiCompensation)}
@@ -348,29 +391,42 @@ function MonthlySheetsPage() {
                           {formatCurrency(line.totalAmount)}
                         </TableCell>
                         <TableCell className="text-right">
-                          {line.taxiExpenses.length > 0 && (
+                          <div className="flex justify-end gap-1">
                             <Button
                               type="button"
-                              variant="ghost"
+                              variant="outline"
                               size="icon-sm"
-                              className="rounded-full text-slate-400"
-                              onClick={() =>
-                                setExpandedEmployeeId((current) =>
-                                  current === line.employeeId
-                                    ? null
-                                    : line.employeeId,
-                                )
-                              }
+                              className="rounded-full border-sky-100 text-sky-700"
+                              title={`Print ${line.employeeName}'s report as PDF`}
+                              onClick={() => handlePrint(displayedSheet, line)}
                             >
-                              <ChevronDown
-                                className={
-                                  expandedEmployeeId === line.employeeId
-                                    ? 'rotate-180 transition-transform'
-                                    : 'transition-transform'
-                                }
-                              />
+                              <FileText className="size-3.5" />
                             </Button>
-                          )}
+
+                            {line.taxiExpenses.length > 0 && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="rounded-full text-slate-400"
+                                onClick={() =>
+                                  setExpandedEmployeeId((current) =>
+                                    current === line.employeeId
+                                      ? null
+                                      : line.employeeId,
+                                  )
+                                }
+                              >
+                                <ChevronDown
+                                  className={
+                                    expandedEmployeeId === line.employeeId
+                                      ? 'rotate-180 transition-transform'
+                                      : 'transition-transform'
+                                  }
+                                />
+                              </Button>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
 
@@ -415,8 +471,28 @@ function MonthlySheetsPage() {
                       colSpan={4}
                     >
                       Total payout — {crew.name}
+                      <span className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-xs font-normal text-slate-500">
+                        <span>
+                          Driven km:{' '}
+                          <span className="font-medium text-slate-700">
+                            {formatKm(displayedSheet.totalDriverKm)}
+                          </span>
+                        </span>
+                        <span>
+                          Extra business km:{' '}
+                          <span className="font-medium text-slate-700">
+                            {formatKm(displayedSheet.totalExtraBusinessKm)}
+                          </span>
+                        </span>
+                        <span>
+                          Taxi cost:{' '}
+                          <span className="font-medium text-slate-700">
+                            {formatCurrency(displayedSheet.totalTaxiAmount)}
+                          </span>
+                        </span>
+                      </span>
                     </TableCell>
-                    <TableCell className="text-right text-base font-semibold text-sky-700">
+                    <TableCell className="text-right align-top text-base font-semibold text-sky-700">
                       {formatCurrency(displayedSheet.totalAmount)}
                     </TableCell>
                     <TableCell />

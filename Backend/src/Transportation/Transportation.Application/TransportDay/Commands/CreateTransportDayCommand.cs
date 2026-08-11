@@ -1,9 +1,10 @@
-﻿using FluentValidation;
+using FluentValidation;
 using Transportation.Application.Crew;
 using Transportation.Application.Crew.Repositories;
 using Transportation.Application.Crew.Specification;
 using Transportation.Application.TransportDay.Models;
 using Transportation.Application.TransportDay.Repositories;
+using Transportation.Application.TransportDay.Services;
 using Transportation.Application.TransportDay.Specifications;
 using Transportation.Mediator.Helper.Commands;
 using Transportation.Mediator.Helper.Common.Extensions;
@@ -17,12 +18,13 @@ namespace Transportation.Application.TransportDay.Commands;
 
 public sealed record CreateTransportDayCommand(
     long CrewId,
-    DateTime Date,
+    DateOnly Date,
     Domain.Entities.TransportMode MorningMode,
     Domain.Entities.TransportMode? AfternoonMode,
     double? ExtraCommuteKm,
-    double? ExtraBusinessCm,
-    string? Notes
+    double? ExtraBusinessKm,
+    string? Notes,
+    IReadOnlyList<TransportDayTaxiFare>? TaxiFares
 ) : ICommand<TransportDayDto>;
 
 
@@ -33,15 +35,24 @@ public sealed class CreateTransportDayCommandValidator : AbstractValidator<Creat
         RuleFor(x => x.CrewId)
             .GreaterThan(0);
         RuleFor(x => x.Date)
-            .NotEmpty();
+            .NotEqual(default(DateOnly))
+            .WithMessage("Date is required.");
         RuleFor(x => x.MorningMode)
             .IsInEnum();
 
         RuleFor(x => x.ExtraCommuteKm)
             .GreaterThanOrEqualTo(0);
 
-        RuleFor(x => x.ExtraBusinessCm)
+        RuleFor(x => x.ExtraBusinessKm)
             .GreaterThanOrEqualTo(0);
+
+        RuleForEach(x => x.TaxiFares)
+            .ChildRules(fare =>
+            {
+                fare.RuleFor(x => x.Leg).IsInEnum();
+                fare.RuleFor(x => x.Amount).GreaterThan(0);
+                fare.RuleFor(x => x.PaidById).GreaterThan(0);
+            });
     }
 }
 
@@ -50,6 +61,7 @@ internal sealed class CreateTransportDayCommandHandler :
 {
     private readonly ITransportDayRepository _transportDayRepository;
     private readonly ICurrentUserAccessor _currentUserAccessor;
+    private readonly ITransportDayTaxiFareService _taxiFareService;
     private readonly ICrewRepository _crewRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly TransportDayMapper _mapper;
@@ -61,6 +73,7 @@ internal sealed class CreateTransportDayCommandHandler :
         TransportDayMapper mapper,
         TimeProvider timeProvider,
         ICrewRepository crewRepository,
+        ITransportDayTaxiFareService taxiFareService,
         ICurrentUserAccessor currentUserAccessor)
     {
         _transportDayRepository = transportDayRepository;
@@ -68,6 +81,7 @@ internal sealed class CreateTransportDayCommandHandler :
         _mapper = mapper;
         _timeProvider = timeProvider;
         _crewRepository = crewRepository;
+        _taxiFareService = taxiFareService;
         _currentUserAccessor = currentUserAccessor;
     }
 
@@ -91,29 +105,27 @@ internal sealed class CreateTransportDayCommandHandler :
 
         var now = _timeProvider.GetLocalDateTimeNowKindUtc();
 
+        // The route length and the driver-lead are copied onto the day rather than read
+        // through the crew later: both can change, and a logged day has to keep saying
+        // what it was worth on the date it happened.
         var entity = new Domain.Entities.TransportDay
         {
             CrewId = crew.Id,
-            Date = request.Date.ToUniversalTime(),
+            Date = request.Date,
             MorningMode = request.MorningMode,
-            Notes = request.Notes!,
+            AfternoonMode = request.AfternoonMode,
+            BaseRouteKm = crew.Route.DistanceKm,
+            ExtraCommuteKm = request.ExtraCommuteKm ?? 0,
+            ExtraBusinessKm = request.ExtraBusinessKm ?? 0,
+            DriverId = crew.DriverLeadId,
+            Notes = request.Notes ?? string.Empty,
             LoggedBy = currentUserId,
             LoggedAt = now,
             Confirmed = false,
             CreatedAt = now
         };
 
-        if (request.AfternoonMode.HasValue)
-            entity.AfternoonMode = request.AfternoonMode;
-
-        if (request.ExtraCommuteKm.HasValue)
-            entity.ExtraCommuteKm = (double)request.ExtraCommuteKm;
-
-        if (request.ExtraBusinessCm.HasValue)
-            entity.ExtraBusinessKm = (double)request.ExtraBusinessCm;
-
-        if (request.Notes is not null)
-            entity.Notes = request.Notes;
+        await _taxiFareService.SyncAsync(entity, request.TaxiFares ?? [], now, cancellationToken);
 
         await _transportDayRepository.AddAsync(entity, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

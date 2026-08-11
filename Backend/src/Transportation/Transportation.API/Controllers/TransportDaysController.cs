@@ -55,9 +55,10 @@ public class TransportDaysController : BaseController
                 id,
                 request.MorningMode,
                 request.AfternoonMode,
-                request.CommuteKm,
+                request.ExtraCommuteKm,
                 request.ExtraBusinessKm,
-                request.Notes
+                request.Notes,
+                request.TaxiFares
             ), cancellationToken);
 
         return new NoContentResult();

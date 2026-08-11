@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Transportation.API.Models;
 using Transportation.Application.PayoutLine.Commands;
 using Transportation.Application.PayoutLine.Models;
 using Transportation.Application.PayoutLine.Queries;
@@ -48,12 +49,22 @@ public class PayoutLineController : BaseController
     {
         var command = new UpdatePayoutLineCommand(
             id,
-            request.DriverPayment,
-            request.ExtraKmPayment,
+            request.DriverKm,
+            request.ExtraBusinessKm,
             request.TaxiCompensation
         );
 
         return await _mediator.Send(command, cancellationToken);
+    }
+
+    [HttpPut("{id:long}")]
+    public async Task<NoContentResult> MarkPaid(
+        long id,
+        CancellationToken cancellationToken = default)
+    {
+        await _mediator.Send(new MarkPayoutLinePaidCommand(id), cancellationToken);
+
+        return new NoContentResult();
     }
 
     [HttpDelete("{id:long}")]

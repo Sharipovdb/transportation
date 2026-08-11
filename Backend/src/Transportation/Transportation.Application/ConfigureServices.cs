@@ -9,6 +9,7 @@ using Transportation.Application.MonthlyTransportSheet.Mappers;
 using Transportation.Application.MonthlyTransportSheet.Services;
 using Transportation.Application.PayoutLine;
 using Transportation.Application.TransportDay;
+using Transportation.Application.TransportDay.Services;
 using Transportation.Mediator.Helper.Behaviors;
 using Transportation.Shared;
 
@@ -39,6 +40,7 @@ public static class ConfigureServices
         services.AddScoped<IMonthlyTransportSheetFactory, MonthlyTransportSheetFactory>();
 
         services.AddScoped<IMonthlyTransportPreviewMapper, MonthlyTransportPreviewMapper>();
+        services.AddScoped<ITransportDayTaxiFareService, TransportDayTaxiFareService>();
         services.AddScoped<TransportDayMapper>();
 
         return services;

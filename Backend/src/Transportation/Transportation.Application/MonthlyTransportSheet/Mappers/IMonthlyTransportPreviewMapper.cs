@@ -26,8 +26,8 @@ internal sealed class MonthlyTransportPreviewMapper
                         UserId = x.UserId,
                         FirstName = x.FirstName,
                         LastName = x.LastName,
-                        DriverPayment = x.DriverPayment,
-                        ExtraKmPayment = x.ExtraKmPayment,
+                        DriverKm = x.DriverKm,
+                        ExtraBusinessKm = x.ExtraBusinessKm,
                         TaxiCompensation = x.TaxiCompensation,
                         TaxiExpenses = x.TaxiExpenses
                     }

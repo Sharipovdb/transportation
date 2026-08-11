@@ -73,9 +73,11 @@ function matchesPath(allowedPath: string, pathname: string) {
   return pathname === allowedPath || pathname.startsWith(`${allowedPath}/`)
 }
 
+// `roles` comes from a persisted session, so an unknown role name is possible in
+// practice even though the type says otherwise — an unknown role simply grants nothing.
 export function canAccessPath(roles: AppRole[], pathname: string) {
   return roles.some((role) =>
-    rolePagePaths[role].some((allowedPath) =>
+    (rolePagePaths[role] ?? []).some((allowedPath) =>
       matchesPath(allowedPath, pathname),
     ),
   )
@@ -88,6 +90,9 @@ export type Capability =
   | 'confirmSheet' // the crew lead confirms their own sheet (FR-20)
   | 'deleteSheet' // the backend has no "reopen" — the correction path is delete + regenerate
   | 'approveTaxiExpense' // Approve/Reject a taxi expense before it counts toward a payout
+  // Release one member's money for a month. Mirrors the backend's RoleAuthorize on
+  // PayoutLineController — a crew lead confirms the sheet but never settles cash.
+  | 'payMember'
 
 const roleCapabilities: Record<AppRole, ReadonlyArray<Capability>> = {
   Admin: [
@@ -96,12 +101,14 @@ const roleCapabilities: Record<AppRole, ReadonlyArray<Capability>> = {
     'confirmSheet',
     'deleteSheet',
     'approveTaxiExpense',
+    'payMember',
   ],
   Accountant: [
     'viewFinance',
     'generateSheet',
     'deleteSheet',
     'approveTaxiExpense',
+    'payMember',
   ],
   RouteManager: [],
   CrewLead: ['confirmSheet'],
@@ -110,5 +117,7 @@ const roleCapabilities: Record<AppRole, ReadonlyArray<Capability>> = {
 }
 
 export function hasCapability(roles: AppRole[], capability: Capability) {
-  return roles.some((role) => roleCapabilities[role].includes(capability))
+  return roles.some((role) =>
+    (roleCapabilities[role] ?? []).includes(capability),
+  )
 }

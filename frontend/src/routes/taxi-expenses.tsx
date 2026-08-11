@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createFileRoute } from '@tanstack/react-router'
-import { Check, PencilLine, Plus, Receipt, Trash2, X } from 'lucide-react'
+import { Check, PencilLine, Receipt, Trash2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -22,13 +22,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { usePermissions } from '@/features/auth/use-permissions'
+import { useCrewMemberships } from '@/features/crews/crew-memberships-context'
 import { useCrews } from '@/features/crews/crews-context'
 import { useEmployees } from '@/features/employees/employees-context'
-import type { TaxiExpenseDraft } from '@/features/taxi-expenses/taxi-expenses-context'
 import { useTaxiExpenses } from '@/features/taxi-expenses/taxi-expenses-context'
 import { useTransportDays } from '@/features/transport-days/transport-days-context'
 import { getErrorMessage } from '@/lib/api-error'
-import { getEmployeeName, legLabels, legs, taxiExpenseStatusLabels } from '@/lib/domain-types'
+import { isSameId, legLabels, taxiExpenseStatusLabels } from '@/lib/domain-types'
 import type { TaxiExpenseStatus } from '@/lib/domain-types'
 import { formatCurrency, formatDayLabel, formatMonthLabel, getMonthYear } from '@/lib/format'
 
@@ -36,10 +36,9 @@ export const Route = createFileRoute('/taxi-expenses')({
   component: TaxiExpensesPage,
 })
 
+// Expenses are created with the transport day that produced them, so this screen only
+// amends what a ride cost and who paid — the ride itself is not re-entered here.
 const expenseFormSchema = z.object({
-  crewId: z.string().min(1, 'Select a crew.'),
-  transportDayId: z.string().min(1, 'Select a transport day.'),
-  leg: z.enum(legs),
   amount: z.coerce.number().positive('Amount must be greater than 0.'),
   paidById: z.string().min(1, 'Select who paid.'),
 })
@@ -51,10 +50,6 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10)
 }
 
-function defaultValues(): ExpenseFormInput {
-  return { crewId: '', transportDayId: '', leg: 'morning', amount: 0, paidById: '' }
-}
-
 const statusBadgeVariant: Record<TaxiExpenseStatus, 'warning' | 'success' | 'destructive' | 'secondary'> = {
   pending: 'warning',
   approved: 'success',
@@ -64,13 +59,13 @@ const statusBadgeVariant: Record<TaxiExpenseStatus, 'warning' | 'success' | 'des
 
 function TaxiExpensesPage() {
   const { can } = usePermissions()
-  const { crews } = useCrews()
-  const { employees, getEmployeeById } = useEmployees()
-  const { transportDays, getDayById } = useTransportDays()
+  const { crews, getCrewName } = useCrews()
+  const { getActiveMembersForCrew } = useCrewMemberships()
+  const { getEmployeeDisplayName } = useEmployees()
+  const { getDayById } = useTransportDays()
   const {
     taxiExpenses,
     isLoading,
-    addTaxiExpense,
     updateTaxiExpense,
     deleteTaxiExpense,
     approveTaxiExpense,
@@ -81,30 +76,37 @@ function TaxiExpensesPage() {
   const [crewFilter, setCrewFilter] = useState('')
   const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null)
   const [formError, setFormError] = useState('')
-  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(
-    null,
-  )
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null)
 
   const {
     register,
     handleSubmit,
     reset,
-    watch,
     formState: { errors, isSubmitting },
   } = useForm<ExpenseFormInput, any, ExpenseFormValues>({
     resolver: zodResolver(expenseFormSchema),
-    defaultValues: defaultValues(),
+    defaultValues: { amount: 0, paidById: '' },
   })
 
-  const formCrewId = watch('crewId')
+  const editingExpense = editingExpenseId
+    ? taxiExpenses.find((candidate) => candidate.id === editingExpenseId) ?? null
+    : null
+  const editingDay = editingExpense ? getDayById(editingExpense.transportDayId) : undefined
 
-  const dayOptions = useMemo(
-    () =>
-      transportDays
-        .filter((day) => day.crewId === formCrewId)
-        .sort((first, second) => second.date.localeCompare(first.date)),
-    [transportDays, formCrewId],
-  )
+  // Only members of the crew that took the ride can be charged for it — the backend
+  // enforces the same rule when the change is saved.
+  const editingCrewMembers = useMemo(() => {
+    const crew = crews.find((candidate) => isSameId(candidate.id, editingDay?.crewId))
+
+    if (!crew) {
+      return []
+    }
+
+    return getActiveMembersForCrew(crew.id).map((membership) => ({
+      id: String(membership.employeeId),
+      name: getEmployeeDisplayName(membership.employeeId),
+    }))
+  }, [crews, editingDay?.crewId, getActiveMembersForCrew, getEmployeeDisplayName])
 
   const visibleExpenses = useMemo(() => {
     return taxiExpenses
@@ -116,7 +118,7 @@ function TaxiExpensesPage() {
         }
 
         const inPeriod = getMonthYear(day.date).year === period.year && getMonthYear(day.date).month === period.month
-        const inCrew = !crewFilter || day.crewId === crewFilter
+        const inCrew = !crewFilter || isSameId(day.crewId, crewFilter)
 
         return inPeriod && inCrew
       })
@@ -128,45 +130,36 @@ function TaxiExpensesPage() {
   function resetForm() {
     setEditingExpenseId(null)
     setFormError('')
-    reset(defaultValues())
+    reset({ amount: 0, paidById: '' })
   }
 
   function startEdit(expenseId: string) {
     const expense = taxiExpenses.find((candidate) => candidate.id === expenseId)
-    const day = expense ? getDayById(expense.transportDayId) : null
 
-    if (!expense || !day) {
+    if (!expense) {
       return
     }
 
     setEditingExpenseId(expenseId)
     setFormError('')
-    reset({
-      crewId: day.crewId,
-      transportDayId: expense.transportDayId,
-      leg: expense.leg,
-      amount: expense.amount,
-      paidById: expense.paidById,
-    })
+    reset({ amount: expense.amount, paidById: expense.paidById })
   }
 
   const onSubmit = handleSubmit(async (values: ExpenseFormValues) => {
-    setFormError('')
-
-    const draft: TaxiExpenseDraft = {
-      transportDayId: values.transportDayId,
-      leg: values.leg,
-      amount: values.amount,
-      paidById: values.paidById,
-      status: 'pending',
+    if (!editingExpense) {
+      return
     }
 
+    setFormError('')
+
     try {
-      if (editingExpenseId) {
-        await updateTaxiExpense(editingExpenseId, draft)
-      } else {
-        await addTaxiExpense(draft)
-      }
+      await updateTaxiExpense(editingExpense.id, {
+        transportDayId: editingExpense.transportDayId,
+        leg: editingExpense.leg,
+        amount: values.amount,
+        paidById: values.paidById,
+        status: editingExpense.status,
+      })
 
       resetForm()
     } catch (error) {
@@ -202,25 +195,16 @@ function TaxiExpensesPage() {
     }
   }
 
-  function crewName(crewId: string) {
-    return crews.find((crew) => crew.id === crewId)?.name ?? 'Unknown crew'
-  }
-
-  function payerName(employeeId: string) {
-    const employee = getEmployeeById(employeeId)
-    return employee ? getEmployeeName(employee) : 'Unknown'
-  }
-
   return (
     <section className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
       <Card>
         <CardHeader className="flex-row items-start justify-between gap-4">
           <div>
             <CardEyebrow>Reimbursements</CardEyebrow>
-            <CardTitle className="mt-2">{editingExpenseId ? 'Edit Taxi Expense' : 'Record Taxi Expense'}</CardTitle>
+            <CardTitle className="mt-2">Amend Taxi Expense</CardTitle>
             <CardDescription className="mt-2">
-              Every taxi ride is recorded against a specific day and leg. New expenses start Pending
-              until approved.
+              Taxi rides are recorded on the transport day they belong to. Here a pending
+              expense can be corrected, approved, or rejected before it reaches a payout.
             </CardDescription>
           </div>
 
@@ -229,79 +213,57 @@ function TaxiExpensesPage() {
           </div>
         </CardHeader>
 
-        <form className="mt-2 space-y-5" onSubmit={onSubmit}>
-          <Field label="Crew" htmlFor="crewId" error={errors.crewId?.message}>
-            <Select id="crewId" disabled={!!editingExpenseId} {...register('crewId')}>
-              <option value="">Select crew…</option>
-              {crews.map((crew) => (
-                <option key={crew.id} value={crew.id}>
-                  {crew.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
+        {!editingExpense ? (
+          <p className="mt-6 rounded-2xl bg-sky-50/60 px-4 py-8 text-center text-sm text-slate-500">
+            Pick a pending expense from the list to correct its fare or payer. New rides are
+            logged on the <span className="font-medium text-slate-700">Transport Days</span> page.
+          </p>
+        ) : (
+          <form className="mt-2 space-y-5" onSubmit={onSubmit}>
+            <dl className="space-y-2 rounded-2xl bg-sky-50/60 p-4 text-sm">
+              <Summary label="Day" value={editingDay ? formatDayLabel(editingDay.date) : '—'} />
+              <Summary label="Crew" value={editingDay ? getCrewName(editingDay.crewId) : '—'} />
+              <Summary label="Leg" value={legLabels[editingExpense.leg]} />
+            </dl>
 
-          <Field label="Transport Day" htmlFor="transportDayId" error={errors.transportDayId?.message}>
-            <Select id="transportDayId" disabled={!!editingExpenseId || !formCrewId} {...register('transportDayId')}>
-              <option value="">Select day…</option>
-              {dayOptions.map((day) => (
-                <option key={day.id} value={day.id}>
-                  {formatDayLabel(day.date)}
-                </option>
-              ))}
-            </Select>
-            {formCrewId && dayOptions.length === 0 && (
-              <p className="text-xs text-amber-600">No transport days logged for this crew yet.</p>
-            )}
-          </Field>
+            <Field label="Amount (TJS)" htmlFor="amount" error={errors.amount?.message}>
+              <Input id="amount" type="number" min="0" step="1" {...register('amount')} />
+            </Field>
 
-          <Field label="Leg" htmlFor="leg" error={errors.leg?.message}>
-            <Select id="leg" {...register('leg')}>
-              {legs.map((leg) => (
-                <option key={leg} value={leg}>
-                  {legLabels[leg]}
-                </option>
-              ))}
-            </Select>
-          </Field>
+            <Field label="Paid By" htmlFor="paidById" error={errors.paidById?.message}>
+              <Select id="paidById" {...register('paidById')}>
+                <option value="">Select crew member…</option>
+                {editingCrewMembers.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
 
-          <Field label="Amount (TJS)" htmlFor="amount" error={errors.amount?.message}>
-            <Input id="amount" type="number" min="0" step="1" {...register('amount')} />
-          </Field>
+            {formError && <p className="text-xs font-medium text-red-500">{formError}</p>}
 
-          <Field label="Paid By" htmlFor="paidById" error={errors.paidById?.message}>
-            <Select id="paidById" {...register('paidById')}>
-              <option value="">Select employee…</option>
-              {employees.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {getEmployeeName(employee)}
-                </option>
-              ))}
-            </Select>
-          </Field>
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button
+                type="submit"
+                className="h-11 rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
+                disabled={isSubmitting}
+              >
+                <PencilLine className="size-4" />
+                Save Changes
+              </Button>
 
-          {formError && <p className="text-xs font-medium text-red-500">{formError}</p>}
-
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Button
-              type="submit"
-              className="h-11 rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
-              disabled={isSubmitting}
-            >
-              {editingExpenseId ? <PencilLine className="size-4" /> : <Plus className="size-4" />}
-              {editingExpenseId ? 'Save Changes' : 'Record Expense'}
-            </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-2xl border-sky-100 px-5 text-slate-700"
-              onClick={resetForm}
-            >
-              Clear Form
-            </Button>
-          </div>
-        </form>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-2xl border-sky-100 px-5 text-slate-700"
+                onClick={resetForm}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        )}
       </Card>
 
       <Card>
@@ -350,10 +312,10 @@ function TaxiExpensesPage() {
                     <TableCell className="font-medium text-slate-900">
                       {day ? formatDayLabel(day.date) : '—'}
                     </TableCell>
-                    <TableCell>{day ? crewName(day.crewId) : '—'}</TableCell>
+                    <TableCell>{day ? getCrewName(day.crewId) : '—'}</TableCell>
                     <TableCell>{legLabels[expense.leg]}</TableCell>
                     <TableCell className="text-right">{formatCurrency(expense.amount)}</TableCell>
-                    <TableCell>{payerName(expense.paidById)}</TableCell>
+                    <TableCell>{getEmployeeDisplayName(expense.paidById)}</TableCell>
                     <TableCell>
                       <Badge variant={statusBadgeVariant[expense.status]}>
                         {taxiExpenseStatusLabels[expense.status]}
@@ -392,6 +354,7 @@ function TaxiExpensesPage() {
                             size="icon-sm"
                             className="rounded-full border-sky-100 text-sky-700"
                             onClick={() => startEdit(expense.id)}
+                            title="Amend"
                           >
                             <PencilLine className="size-3.5" />
                           </Button>
@@ -427,7 +390,7 @@ function TaxiExpensesPage() {
         open={deletingExpenseId !== null}
         onOpenChange={(open) => !open && setDeletingExpenseId(null)}
         title="Delete this taxi expense?"
-        description="This action cannot be undone."
+        description="The transport day keeps its taxi leg but stops claiming the fare. This action cannot be undone."
         onConfirm={() => {
           if (deletingExpenseId !== null) {
             removeExpense(deletingExpenseId)
@@ -435,6 +398,15 @@ function TaxiExpensesPage() {
         }}
       />
     </section>
+  )
+}
+
+function Summary({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <dt className="text-slate-500">{label}</dt>
+      <dd className="font-medium text-slate-700">{value}</dd>
+    </div>
   )
 }
 

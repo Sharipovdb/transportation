@@ -13,6 +13,12 @@ public sealed class PreviewMonthlyTransportSheetResponse
     public bool IsConfirmed { get; set; }
     
     public List<PayoutLineDto> PayoutLines { get; set; } = [];
-    
+
+    public double TotalDriverKm => PayoutLines.Sum(line => line.DriverKm);
+
+    public double TotalExtraBusinessKm => PayoutLines.Sum(line => line.ExtraBusinessKm);
+
+    public decimal TotalTaxiAmount => PayoutLines.Sum(line => line.TaxiCompensation);
+
     public decimal TotalAmount => PayoutLines.Sum(line => line.TotalAmount);
 }

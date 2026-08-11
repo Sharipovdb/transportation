@@ -79,6 +79,15 @@ internal sealed class CreateTaxiExpenseCommandHandler : ICommandHandler<CreateTa
         if (transportDay.Confirmed)
             throw new BusinessLogicException(TransportDayErrors.AlreadyConfirmed);
 
+        // The day says how the crew travelled; a fare may only be claimed for a leg it
+        // says was taken by taxi.
+        var legMode = request.Leg is Leg.Morning
+            ? transportDay.MorningMode
+            : transportDay.AfternoonMode;
+
+        if (legMode is not TransportMode.Taxi)
+            throw new BusinessLogicException(TransportDayErrors.TaxiFareOnNonTaxiLeg);
+
         var taxiExpenseExists = await _taxiExpenseRepository
             .AnyAsync(new TaxiExpenseByTransportDayIdSpec(request.TransportDayId, request.Leg), cancellationToken);
 

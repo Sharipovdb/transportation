@@ -31,6 +31,11 @@ internal sealed class DeleteTransportDayCommandHandler : ICommandHandler<DeleteT
 
         entity.IsDeleted = true;
 
+        // Taxi expenses only exist as part of the day that produced them — leaving them
+        // behind would keep claiming money for a ride that is no longer on record.
+        foreach (var taxiExpense in entity.TaxiExpenses.Where(x => !x.IsDeleted))
+            taxiExpense.IsDeleted = true;
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return true;

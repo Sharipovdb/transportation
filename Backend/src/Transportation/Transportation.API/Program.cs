@@ -14,7 +14,10 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowFrontend", policy =>
     {
-        policy.WithOrigins("http://localhost:3000")
+        // The LAN entry lets colleagues on the office Wi-Fi reach the dev frontend.
+        // It is this machine's DHCP address — re-check `ipconfig` if requests start
+        // failing CORS after a reconnect.
+        policy.WithOrigins("http://localhost:3000", "http://192.168.1.214:3000")
               .AllowAnyHeader()
               .AllowAnyMethod();
     });
@@ -46,11 +49,11 @@ var app = builder.Build();
 
 app.UseCors("AllowFrontend"); 
 
-await using (var scope = app.Services.CreateAsyncScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<TransportationDbContext>();
-    await dbContext.Database.MigrateAsync();
-}
+// await using (var scope = app.Services.CreateAsyncScope())
+// {
+//     var dbContext = scope.ServiceProvider.GetRequiredService<TransportationDbContext>();
+//     await dbContext.Database.MigrateAsync();
+// }
 
 if (app.Environment.IsDevelopment())
 {

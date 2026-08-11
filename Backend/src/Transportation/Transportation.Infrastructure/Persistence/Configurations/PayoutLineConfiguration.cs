@@ -12,12 +12,6 @@ public sealed class PayoutLineConfiguration : IEntityTypeConfiguration<PayoutLin
 
         builder.HasKey(x => x.Id);
 
-        builder.Property(x => x.DriverPayment)
-            .HasPrecision(18, 2);
-
-        builder.Property(x => x.ExtraKmPayment)
-            .HasPrecision(18, 2);
-
         builder.Property(x => x.TaxiCompensation)
             .HasPrecision(18, 2);
 
@@ -29,6 +23,11 @@ public sealed class PayoutLineConfiguration : IEntityTypeConfiguration<PayoutLin
         builder.HasOne(x => x.User)
             .WithMany()
             .HasForeignKey(x => x.UserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.PaidBy)
+            .WithMany()
+            .HasForeignKey(x => x.PaidById)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -13,9 +13,11 @@ public class PayoutLineMapperMinually
             UserId = entity.UserId,
             FirstName = entity.User?.FirstName ?? string.Empty,
             LastName = entity.User?.LastName ?? string.Empty,
-            DriverPayment = entity.DriverPayment ?? 0,
-            ExtraKmPayment = entity.ExtraKmPayment ?? 0,
+            DriverKm = entity.DriverKm,
+            ExtraBusinessKm = entity.ExtraBusinessKm,
             TaxiCompensation = entity.TaxiCompensation ?? 0,
+            IsPaid = entity.IsPaid,
+            PaidAt = entity.PaidAt,
             TaxiExpenses = entity.TaxiExpenses.Select(x =>
                 new TaxiExpenseSummaryDto
                 {

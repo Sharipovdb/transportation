@@ -8,7 +8,7 @@ public sealed class TransportDayDto
 
     public long CrewId { get; set; }
 
-    public DateTime Date { get; set; }
+    public DateOnly Date { get; set; }
 
     public string MorningMode { get; set; } = string.Empty;
 
@@ -16,7 +16,11 @@ public sealed class TransportDayDto
 
     public long? DriverId { get; set; }
 
-    public double TotalCommuteKm { get; set; }
+    /// <summary>Length of one commute leg — the crew's route plus any detour.</summary>
+    public double CommuteKmPerLeg { get; set; }
+
+    /// <summary>Kilometres actually driven in a member's car; taxi legs add none.</summary>
+    public double DrivenCommuteKm { get; set; }
 
     public double ExtraBusinessKm { get; set; }
 

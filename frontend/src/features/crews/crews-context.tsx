@@ -4,7 +4,8 @@ import type { ReactNode } from 'react'
 
 import { apiClient } from '@/lib/api-client'
 import { nestedLargePage } from '@/lib/pagination'
-import type { Crew } from '@/lib/domain-types'
+import { isSameId } from '@/lib/domain-types'
+import type { Crew, EntityId } from '@/lib/domain-types'
 
 // The backend models "driver-lead XOR manager-lead" as two separate nullable FKs on
 // Crew, rather than the frontend's single leadType+leadId pair — translated here.
@@ -60,7 +61,8 @@ interface CrewsContextValue {
   addCrew: (draft: CrewDraft) => Promise<void>
   updateCrew: (crewId: number, draft: CrewDraft) => Promise<void>
   deleteCrew: (crewId: number) => Promise<void>
-  getCrewById: (crewId: number | null | undefined) => Crew | undefined
+  getCrewById: (crewId: EntityId | null | undefined) => Crew | undefined
+  getCrewName: (crewId: EntityId | null | undefined) => string
 }
 
 const CrewsContext = createContext<CrewsContextValue | null>(null)
@@ -122,7 +124,9 @@ export function CrewsProvider({ children }: { children: ReactNode }) {
       deleteCrew: async (crewId) => {
         await deleteMutation.mutateAsync(crewId)
       },
-      getCrewById: (crewId) => crews.find((crew) => crew.id === crewId),
+      getCrewById: (crewId) => crews.find((crew) => isSameId(crew.id, crewId)),
+      getCrewName: (crewId) =>
+        crews.find((crew) => isSameId(crew.id, crewId))?.name ?? 'Unknown crew',
     }),
     [crews, isLoading, addMutation, updateMutation, deleteMutation],
   )

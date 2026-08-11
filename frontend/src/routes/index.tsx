@@ -34,6 +34,7 @@ import { useEmployees } from '@/features/employees/employees-context'
 import { useMonthlySheets } from '@/features/monthly-sheets/monthly-sheets-context'
 import { useTaxiExpenses } from '@/features/taxi-expenses/taxi-expenses-context'
 import { useTransportDays } from '@/features/transport-days/transport-days-context'
+import { isSameId } from '@/lib/domain-types'
 import { formatCurrency, formatMonthLabel, getMonthYear } from '@/lib/format'
 import { appPagePaths } from '@/lib/permissions'
 
@@ -106,7 +107,11 @@ function DashboardPage() {
   const crewData = useMemo(
     () =>
       crews.map((crew) => {
-        const days = getDaysForCrewMonth(crew.id, period.year, period.month)
+        const days = getDaysForCrewMonth(
+          String(crew.id),
+          period.year,
+          period.month,
+        )
         const drivenLegs = days.reduce(
           (count, day) =>
             count +
@@ -130,7 +135,7 @@ function DashboardPage() {
           members: getActiveMembersForCrew(crew.id),
           sheet: sheets.find(
             (candidate) =>
-              candidate.crewId === crew.id &&
+              isSameId(candidate.crewId, crew.id) &&
               candidate.year === period.year &&
               candidate.month === period.month,
           ),
@@ -152,8 +157,8 @@ function DashboardPage() {
   const overflowCrews = crewData.filter(
     (row) => row.members.length > row.crew.seatCapacity,
   )
-  const driverCount = employees.filter(
-    (employee) => employee.role === 'driverLead',
+  const driverCount = employees.filter((employee) =>
+    employee.roles.includes('DriverLead'),
   ).length
 
   const stats = [

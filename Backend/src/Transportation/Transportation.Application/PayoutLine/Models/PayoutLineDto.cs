@@ -12,13 +12,18 @@ public sealed class PayoutLineDto
 
     public string LastName { get; set; } = string.Empty;
 
-    public decimal DriverPayment { get; set; }
+    // Distance is reported, not priced — see PayoutLine for why there is no km rate.
+    public double DriverKm { get; set; }
 
-    public decimal ExtraKmPayment { get; set; }
+    public double ExtraBusinessKm { get; set; }
 
     public decimal TaxiCompensation { get; set; }
 
-    public decimal TotalAmount => DriverPayment + ExtraKmPayment + TaxiCompensation;
+    public bool IsPaid { get; set; }
+
+    public DateTime? PaidAt { get; set; }
+
+    public decimal TotalAmount => TaxiCompensation;
 
     public IEnumerable<TaxiExpenseSummaryDto> TaxiExpenses { get; set; } = [];
 }

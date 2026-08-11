@@ -7,13 +7,15 @@ public sealed class PayoutAccumulator
     public string FirstName { get; init; } = string.Empty;
     public string LastName { get; init; } = string.Empty;
 
-    public decimal DriverPayment { get; set; }
+    // Kilometres driven in a member's own car are reported as distance and priced
+    // manually outside this system — they never turn into an amount here.
+    public double DriverKm { get; set; }
 
-    public decimal ExtraKmPayment { get; set; }
+    public double ExtraBusinessKm { get; set; }
 
     public decimal TaxiCompensation { get; set; }
 
     public List<TaxiExpenseSummaryDto> TaxiExpenses { get; } = [];
 
-    public decimal TotalAmount => DriverPayment + ExtraKmPayment + TaxiCompensation;
+    public decimal TotalAmount => TaxiCompensation;
 }

@@ -1,6 +1,8 @@
-public sealed class UpdatePayoutLineRequest 
+namespace Transportation.API.Models;
+
+public sealed class UpdatePayoutLineRequest
 {
-    public decimal DriverPayment { get; set; }
-    public decimal ExtraKmPayment { get; set; }
+    public double DriverKm { get; set; }
+    public double ExtraBusinessKm { get; set; }
     public decimal TaxiCompensation { get; set; }
 }

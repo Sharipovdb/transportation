@@ -1,10 +1,9 @@
-﻿using Transportation.Application.MonthlyTransportSheet.Models;
+using Transportation.Application.CrewMembership.Repositories;
+using Transportation.Application.CrewMembership.Specification;
+using Transportation.Application.MonthlyTransportSheet.Models;
 using Transportation.Application.TransportDay;
 using Transportation.Application.TransportDay.Repositories;
 using Transportation.Application.TransportDay.Specifications;
-using Transportation.Application.TransportSettings;
-using Transportation.Application.TransportSettings.Repositories;
-using Transportation.Application.TransportSettings.Specifications;
 using Transportation.Domain.Entities;
 using Transportation.Mediator.Helper.Exceptions;
 
@@ -18,38 +17,41 @@ public interface IMonthlyTransportCalculator
     );
 }
 
+/// <summary>
+/// Turns a crew's confirmed transport days into one payout line per person.
+///
+/// Two units of account are kept strictly apart. Kilometres driven in a member's own
+/// car are <em>reported</em> — commute legs and extra business km are summed as distance
+/// and priced manually outside this system. Taxi legs are <em>settled</em> — they produce
+/// no distance at all, only the fare the member fronted, which the company owes back.
+/// </summary>
 internal sealed class MonthlyTransportCalculator : IMonthlyTransportCalculator
 {
     private readonly ITransportDayRepository _transportDayRepository;
-    private readonly ITransportSettingsRepository _settingsRepository;
+    private readonly ICrewMembershipRepository _crewMembershipRepository;
 
     public MonthlyTransportCalculator(
         ITransportDayRepository transportDayRepository,
-        ITransportSettingsRepository settingsRepository)
+        ICrewMembershipRepository crewMembershipRepository)
     {
         _transportDayRepository = transportDayRepository;
-        _settingsRepository = settingsRepository;
+        _crewMembershipRepository = crewMembershipRepository;
     }
 
     public async Task<MonthlyTransportCalculationResult> CalculateAsync(
         long crewId, int year, int month,
         CancellationToken cancellationToken)
     {
-        var date = DateTime.SpecifyKind(new DateTime(year, month, 1), DateTimeKind.Utc);
-
-        var settings = await _settingsRepository
-            .FirstOrDefaultAsync(new TransportSettingsByDateSpec(date), cancellationToken);
-
-        if (settings is null)
-            throw new ResourceNotFoundException(TransportSettingsErrors.NotFound);
-
         var transportDays = await _transportDayRepository
             .ListAsync(new TransportDaysByPeriodSpec(crewId, year, month), cancellationToken);
 
         if (transportDays.Count == 0)
             throw new ResourceNotFoundException(TransportDayErrors.NotFound);
 
-        var payouts = CalculatePayouts(transportDays, settings);
+        var memberships = await _crewMembershipRepository
+            .ListAsync(new ActiveCrewMembershipsWithUserByCrewIdSpec(crewId), cancellationToken);
+
+        var payouts = CalculatePayouts(transportDays, memberships);
 
         return new MonthlyTransportCalculationResult
         {
@@ -62,15 +64,22 @@ internal sealed class MonthlyTransportCalculator : IMonthlyTransportCalculator
 
     private static Dictionary<long, PayoutAccumulator> CalculatePayouts(
         List<Domain.Entities.TransportDay> transportDays,
-        Domain.Entities.TransportSettings settings)
+        List<Domain.Entities.CrewMembership> memberships)
     {
         var payouts = new Dictionary<long, PayoutAccumulator>();
 
+        // Seed every active member first so the sheet lists the whole crew in a stable
+        // order, including members who neither drove nor fronted taxi cash this month.
+        // Anyone else who earned something (a driver who has since left the crew, an
+        // outside payer) is appended by the passes below.
+        foreach (var membership in memberships.OrderBy(x => x.User.FirstName).ThenBy(x => x.User.LastName))
+            GetAccumulator(payouts, membership.User);
+
         foreach (var transportDay in transportDays)
         {
-            ProcessDriver(transportDay, settings, payouts);
+            ProcessDrivenKm(transportDay, payouts);
 
-            ProcessExtraBusinessKm(transportDay, settings, payouts);
+            ProcessExtraBusinessKm(transportDay, payouts);
 
             ProcessTaxiExpenses(transportDay, payouts);
         }
@@ -78,32 +87,23 @@ internal sealed class MonthlyTransportCalculator : IMonthlyTransportCalculator
         return payouts;
     }
 
-    private static void ProcessDriver(
+    private static void ProcessDrivenKm(
         Domain.Entities.TransportDay transportDay,
-        Domain.Entities.TransportSettings settings,
         IDictionary<long, PayoutAccumulator> payouts)
     {
         if (transportDay.Driver is null)
             return;
 
-        var commuteCount = 0;
+        if (transportDay.DrivenCommuteKm <= 0)
+            return;
 
-        if (transportDay.MorningMode is TransportMode.Driven)
-            commuteCount++;
+        var accumulator = GetAccumulator(payouts, transportDay.Driver);
 
-        if (transportDay.AfternoonMode is TransportMode.Driven)
-            commuteCount++;
-
-        var commuteKm = transportDay.BaseRouteKm + transportDay.ExtraCommuteKm;
-
-        var payment = commuteCount * (decimal)commuteKm * settings.CommuteKmRate;
-
-        GetAccumulator(payouts, transportDay.Driver).DriverPayment += payment;
+        accumulator.DriverKm += transportDay.DrivenCommuteKm;
     }
 
     private static void ProcessExtraBusinessKm(
         Domain.Entities.TransportDay transportDay,
-        Domain.Entities.TransportSettings settings,
         IDictionary<long, PayoutAccumulator> payouts)
     {
         if (transportDay.Driver is null)
@@ -112,9 +112,9 @@ internal sealed class MonthlyTransportCalculator : IMonthlyTransportCalculator
         if (transportDay.ExtraBusinessKm <= 0)
             return;
 
-        var payment = (decimal)transportDay.ExtraBusinessKm * settings.ExtraBusinessKmRate;
+        var accumulator = GetAccumulator(payouts, transportDay.Driver);
 
-        GetAccumulator(payouts, transportDay.Driver).ExtraKmPayment += payment;
+        accumulator.ExtraBusinessKm += transportDay.ExtraBusinessKm;
     }
 
     private static void ProcessTaxiExpenses(
@@ -122,7 +122,7 @@ internal sealed class MonthlyTransportCalculator : IMonthlyTransportCalculator
         IDictionary<long, PayoutAccumulator> payouts)
     {
         foreach (var taxiExpense in transportDay.TaxiExpenses
-                     .Where(x => x.TaxiExpenseStatus == TaxiExpenseStatus.Approved))
+                     .Where(x => !x.IsDeleted && x.TaxiExpenseStatus == TaxiExpenseStatus.Approved))
         {
             var accumulator = GetAccumulator(payouts, taxiExpense.PaidBy);
 

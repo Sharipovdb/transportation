@@ -1,5 +1,7 @@
-﻿using Transportation.Application.TransportDay.Models;
+using FluentValidation;
+using Transportation.Application.TransportDay.Models;
 using Transportation.Application.TransportDay.Repositories;
+using Transportation.Application.TransportDay.Services;
 using Transportation.Application.TransportDay.Specifications;
 using Transportation.Domain.Entities;
 using Transportation.Mediator.Helper.Commands;
@@ -13,15 +15,38 @@ public sealed record UpdateTransportDayCommand(
     long TransportDayId,
     TransportMode? MorningMode,
     TransportMode? AfternoonMode,
-    double? CommuteKm,
+    double? ExtraCommuteKm,
     double? ExtraBusinessKm,
-    string? Notes
+    string? Notes,
+    IReadOnlyList<TransportDayTaxiFare>? TaxiFares
 ) : ICommand<TransportDayDto>;
+
+// ReSharper disable once UnusedType.Global
+public sealed class UpdateTransportDayCommandValidator : AbstractValidator<UpdateTransportDayCommand>
+{
+    public UpdateTransportDayCommandValidator()
+    {
+        RuleFor(x => x.TransportDayId).GreaterThan(0);
+
+        RuleFor(x => x.ExtraCommuteKm).GreaterThanOrEqualTo(0);
+
+        RuleFor(x => x.ExtraBusinessKm).GreaterThanOrEqualTo(0);
+
+        RuleForEach(x => x.TaxiFares)
+            .ChildRules(fare =>
+            {
+                fare.RuleFor(x => x.Leg).IsInEnum();
+                fare.RuleFor(x => x.Amount).GreaterThan(0);
+                fare.RuleFor(x => x.PaidById).GreaterThan(0);
+            });
+    }
+}
 
 internal sealed class UpdateTransportDayCommandHandler
     : ICommandHandler<UpdateTransportDayCommand, TransportDayDto>
 {
     private readonly ITransportDayRepository _transportDayRepository;
+    private readonly ITransportDayTaxiFareService _taxiFareService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly TransportDayMapper _mapper;
     private readonly TimeProvider _timeProvider;
@@ -30,11 +55,13 @@ internal sealed class UpdateTransportDayCommandHandler
         ITransportDayRepository transportDayRepository,
         IUnitOfWork unitOfWork,
         TransportDayMapper mapper,
+        ITransportDayTaxiFareService taxiFareService,
         TimeProvider timeProvider)
     {
         _transportDayRepository = transportDayRepository;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
+        _taxiFareService = taxiFareService;
         _timeProvider = timeProvider;
     }
 
@@ -47,23 +74,33 @@ internal sealed class UpdateTransportDayCommandHandler
 
         if (entity is null)
             throw new ResourceNotFoundException(TransportDayErrors.NotFound);
-        
+
+        // Confirming a day approves its taxi expenses and releases it to the monthly
+        // sheet. Editing it afterwards would silently move money that has already been
+        // signed off, so the day is locked until it is unconfirmed again.
+        if (entity.Confirmed)
+            throw new BusinessLogicException(TransportDayErrors.ConfirmedDayIsReadOnly);
+
         if (request.MorningMode.HasValue)
-            entity.MorningMode = (TransportMode)request.MorningMode;
+            entity.MorningMode = request.MorningMode.Value;
 
         if (request.AfternoonMode.HasValue)
-            entity.AfternoonMode = (TransportMode)request.AfternoonMode;
+            entity.AfternoonMode = request.AfternoonMode.Value;
 
-        if (request.CommuteKm.HasValue)
-            entity.ExtraCommuteKm = (double)request.CommuteKm;
+        if (request.ExtraCommuteKm.HasValue)
+            entity.ExtraCommuteKm = request.ExtraCommuteKm.Value;
 
         if (request.ExtraBusinessKm.HasValue)
-            entity.ExtraBusinessKm = (double)request.ExtraBusinessKm;
+            entity.ExtraBusinessKm = request.ExtraBusinessKm.Value;
 
         if (request.Notes is not null)
             entity.Notes = request.Notes;
 
-        entity.UpdatedAt = _timeProvider.GetLocalDateTimeNowKindUtc();
+        var now = _timeProvider.GetLocalDateTimeNowKindUtc();
+
+        await _taxiFareService.SyncAsync(entity, request.TaxiFares ?? [], now, cancellationToken);
+
+        entity.UpdatedAt = now;
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

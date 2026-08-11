@@ -19,7 +19,7 @@ public class TransportDayEndpointsTests : IntegrationTestBase
         var transportDay = new TransportDay
         {
             CrewId = 1,
-            Date = DateTime.Now,
+            Date = DateOnly.FromDateTime(DateTime.Today),
             MorningMode = TransportMode.Driven,
             AfternoonMode = TransportMode.Taxi,
             ExtraCommuteKm = 1026,
@@ -44,7 +44,7 @@ public class TransportDayEndpointsTests : IntegrationTestBase
         var transportDay = new TransportDay
         {
             CrewId = 1,
-            Date = DateTime.Now,
+            Date = DateOnly.FromDateTime(DateTime.Today),
             MorningMode = TransportMode.Driven,
             AfternoonMode = TransportMode.Taxi,
             ExtraCommuteKm = 1026,
@@ -83,7 +83,7 @@ public class TransportDayEndpointsTests : IntegrationTestBase
         var request = new CreateTransportDayCommand
         {
             CrewId = 1,
-            Date = DateTime.Now,
+            Date = DateOnly.FromDateTime(DateTime.Today),
             MorningMode = TransportMode.Driven,
             AfternoonMode = TransportMode.Taxi,
             DriverId = 1,
@@ -117,7 +117,7 @@ public class TransportDayEndpointsTests : IntegrationTestBase
         var createRequest = new TransportDay()
         {
             CrewId = 1,
-            Date = DateTime.Now,
+            Date = DateOnly.FromDateTime(DateTime.Today),
             MorningMode = TransportMode.Driven,
             AfternoonMode = TransportMode.Taxi,
             ExtraCommuteKm = 100,
@@ -135,14 +135,15 @@ public class TransportDayEndpointsTests : IntegrationTestBase
             .ReadFromJsonAsync<TransportDayDto>();
 
         // Update
+        // The driver is derived from the crew's driver-lead and is not settable here.
         var updateRequest = new UpdateTransportDayRequest
         {
             MorningMode = TransportMode.Taxi,
             AfternoonMode = TransportMode.Driven,
-            DriverId = 2,
-            CommuteKm = 150,
+            ExtraCommuteKm = 150,
             ExtraBusinessKm = 20,
-            Notes = "Updated Note"
+            Notes = "Updated Note",
+            TaxiFares = [new TransportDayTaxiFare(Leg.Morning, 40m, 1)]
         };
 
         // Act
@@ -165,7 +166,6 @@ public class TransportDayEndpointsTests : IntegrationTestBase
         updated.Should().NotBeNull();
         updated!.Notes.Should().Be("Updated Note");
         updated.ExtraBusinessKm.Should().Be(20);
-        updated.DriverId.Should().Be(2);
         updated.MorningMode.Should().Be(TransportMode.Taxi.ToString());
         updated.AfternoonMode.Should().Be(TransportMode.Driven.ToString());
     }

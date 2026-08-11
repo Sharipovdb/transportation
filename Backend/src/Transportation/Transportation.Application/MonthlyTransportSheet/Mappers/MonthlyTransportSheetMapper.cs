@@ -34,9 +34,13 @@ public class MonthlyTransportSheetMapper
             FirstName = entity.User.FirstName,
             LastName = entity.User.LastName,
 
-            DriverPayment = entity.DriverPayment ?? 0,
-            ExtraKmPayment = entity.ExtraKmPayment ?? 0,
+            DriverKm = entity.DriverKm,
+            ExtraBusinessKm = entity.ExtraBusinessKm,
+
             TaxiCompensation = entity.TaxiCompensation ?? 0,
+
+            IsPaid = entity.IsPaid,
+            PaidAt = entity.PaidAt,
 
             TaxiExpenses = entity.TaxiExpenses
                 .Select(x => new TaxiExpenseSummaryDto

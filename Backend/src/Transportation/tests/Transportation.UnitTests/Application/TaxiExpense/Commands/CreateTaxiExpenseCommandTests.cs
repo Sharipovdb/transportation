@@ -1,14 +1,17 @@
-﻿using AutoFixture;
+using AutoFixture;
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using NSubstitute.ReturnsExtensions;
 using Transportation.Application.CrewMembership.Repositories;
+using Transportation.Application.CrewMembership.Specification;
 using Transportation.Application.TaxiExpense;
 using Transportation.Application.TaxiExpense.Commands;
 using Transportation.Application.TaxiExpense.Repositories;
+using Transportation.Application.TaxiExpense.Specifications;
 using Transportation.Application.TransportDay;
 using Transportation.Application.TransportDay.Repositories;
+using Transportation.Application.TransportDay.Specifications;
 using Transportation.Domain.Entities;
 using Transportation.Mediator.Helper.Exceptions;
 using Transportation.Mediator.Helper.Persistence;
@@ -18,10 +21,13 @@ namespace Transportation.UnitTests.Application.TaxiExpense.Commands;
 
 public class CreateTaxiExpenseCommandTests
 {
+    private const long TransportDayId = 4;
+    private const long CrewId = 9;
+    private const long PayerId = 21;
+
     private readonly ITaxiExpenseRepository _taxiExpenseRepository;
-    private readonly ICrewMembershipRepository _crewMemborshipRepository;
+    private readonly ICrewMembershipRepository _crewMembershipRepository;
     private readonly ITransportDayRepository _transportDayRepository;
-    private readonly TaxiExpenseMapper _taxiExpenseMapper;
     private readonly IUnitOfWork _unitOfWork;
     private readonly FakeTimeProvider _fakeTimeProvider = new();
 
@@ -34,55 +40,51 @@ public class CreateTaxiExpenseCommandTests
         fixture.Register<TimeProvider>(() => _fakeTimeProvider);
 
         _taxiExpenseRepository = fixture.Freeze<ITaxiExpenseRepository>();
-        _crewMemborshipRepository = fixture.Freeze<ICrewMembershipRepository>();
+        _crewMembershipRepository = fixture.Freeze<ICrewMembershipRepository>();
         _transportDayRepository = fixture.Freeze<ITransportDayRepository>();
-        _taxiExpenseMapper = fixture.Freeze<TaxiExpenseMapper>();
+        fixture.Freeze<TaxiExpenseMapper>();
         _unitOfWork = fixture.Freeze<IUnitOfWork>();
 
+        _crewMembershipRepository
+            .ListAsync(Arg.Any<CrewMembershipByCrewIdSpec>())
+            .Returns([new Domain.Entities.CrewMembership { CrewId = CrewId, UserId = PayerId }]);
+
         _handler = fixture.Create<CreateTaxiExpenseCommandHandler>();
+    }
+
+    private static CreateTaxiExpenseCommand ACommand(Leg leg = Leg.Morning, long payerId = PayerId)
+        => new(TransportDayId, leg, 30m, payerId);
+
+    private void GivenTransportDay(
+        TransportMode morningMode = TransportMode.Taxi,
+        TransportMode afternoonMode = TransportMode.Driven,
+        bool confirmed = false)
+    {
+        _transportDayRepository
+            .FirstOrDefaultAsync(Arg.Any<TransportDayByIdSpec>())
+            .Returns(new Domain.Entities.TransportDay
+            {
+                Id = TransportDayId,
+                CrewId = CrewId,
+                MorningMode = morningMode,
+                AfternoonMode = afternoonMode,
+                Confirmed = confirmed
+            });
     }
 
     [Fact]
     public async Task TransportationDayIsNull_ShouldThrow()
     {
-        // Arrange
-        var fixture = new Fixture();
-        var command = fixture.Create<CreateTaxiExpenseCommand>();
-
+        // Arrange — the lookup spec also filters out deleted days, so both cases land here.
         _transportDayRepository
-            .GetByIdAsync(command.TransportDayId)
+            .FirstOrDefaultAsync(Arg.Any<TransportDayByIdSpec>())
             .ReturnsNull();
 
         // Act
-        var action = () => _handler.Handle(command, CancellationToken.None);
+        var action = () => _handler.Handle(ACommand(), CancellationToken.None);
 
         // Assert
-        var exception = await action.Should().ThrowAsync<BusinessLogicException>();
-        exception.Which.Error.Should().Be(TransportDayErrors.NotFound);
-    }
-
-    [Fact]
-    public async Task TransportationDay_IsDelete_true_ShouldThrow()
-    {
-        // Arrange
-        var fixture = new Fixture();
-        var command = fixture.Create<CreateTaxiExpenseCommand>();
-
-        var transportationDay = fixture.Build<Domain.Entities.TransportDay>()
-            .Without(x => x.Crew)
-            .Without(x => x.TaxiExpenses)
-            .With(x => x.IsDeleted, true)
-            .Create();
-
-        _transportDayRepository
-            .GetByIdAsync(command.TransportDayId)
-            .Returns(transportationDay);
-
-        // Acr
-        var action = () => _handler.Handle(command, CancellationToken.None);
-
-        // Assert
-        var exception = await action.Should().ThrowAsync<BusinessLogicException>();
+        var exception = await action.Should().ThrowAsync<ResourceNotFoundException>();
         exception.Which.Error.Should().Be(TransportDayErrors.NotFound);
     }
 
@@ -90,51 +92,83 @@ public class CreateTaxiExpenseCommandTests
     public async Task TransportationDay_Confirmed_IsTrue_ShouldThrow()
     {
         // Arrange
-        var fixture = new Fixture();
-        var command = fixture.Create<CreateTaxiExpenseCommand>();
-
-        var transportationDay = fixture.Build<Domain.Entities.TransportDay>()
-            .Without(x => x.Crew)
-            .Without(x => x.TaxiExpenses)
-            .With(x => x.IsDeleted, false)
-            .With(x => x.Confirmed, true)
-            .Create();
-
-        _transportDayRepository
-            .GetByIdAsync(command.TransportDayId)
-            .Returns(transportationDay);
+        GivenTransportDay(confirmed: true);
 
         // Act
-        var action = () => _handler.Handle(command, CancellationToken.None);
+        var action = () => _handler.Handle(ACommand(), CancellationToken.None);
 
         // Assert
         var exception = await action.Should().ThrowAsync<BusinessLogicException>();
-        exception.Which.Error.Should().Be(TaxiExpenseErrors.AlreadyExists);
+        exception.Which.Error.Should().Be(TransportDayErrors.AlreadyConfirmed);
     }
 
     [Fact]
-    public async Task Handle_LegIsMorning_ShouldReturnMorningMode()
+    public async Task LegNotTravelledByTaxi_ShouldThrow()
     {
-        // Arrange
-        var fixture = new Fixture();
-        var command = fixture.Create<CreateTaxiExpenseCommand>();
-
-        var transportationDay = fixture.Build<Domain.Entities.TransportDay>()
-            .Without(x => x.Crew)
-            .Without(x => x.TaxiExpenses)
-            .With(x => x.MorningMode, TransportMode.Taxi)
-            .With(x => x.AfternoonMode, TransportMode.Driven)
-            .Create();
-
-        _transportDayRepository
-            .GetByIdAsync(command.TransportDayId)
-            .Returns(transportationDay);
+        // Arrange — the afternoon was driven, so no fare can be claimed for it.
+        GivenTransportDay(morningMode: TransportMode.Taxi, afternoonMode: TransportMode.Driven);
 
         // Act
-        var action = () => _handler.Handle(command, CancellationToken.None);
+        var action = () => _handler.Handle(ACommand(Leg.Afternoon), CancellationToken.None);
 
         // Assert
         var exception = await action.Should().ThrowAsync<BusinessLogicException>();
-        exception.Which.Error.Should().Be(TaxiExpenseErrors.InvalidEnumValue);
+        exception.Which.Error.Should().Be(TransportDayErrors.TaxiFareOnNonTaxiLeg);
+    }
+
+    [Fact]
+    public async Task LegAlreadyHasAnExpense_ShouldThrow()
+    {
+        // Arrange
+        GivenTransportDay();
+
+        _taxiExpenseRepository
+            .AnyAsync(Arg.Any<TaxiExpenseByTransportDayIdSpec>())
+            .Returns(true);
+
+        // Act
+        var action = () => _handler.Handle(ACommand(), CancellationToken.None);
+
+        // Assert
+        var exception = await action.Should().ThrowAsync<BusinessLogicException>();
+        exception.Which.Error.Should().Be(TaxiExpenseErrors.ExpenseThisLegAlreadyExist);
+    }
+
+    [Fact]
+    public async Task PayerOutsideTheCrew_ShouldThrow()
+    {
+        // Arrange
+        GivenTransportDay();
+
+        // Act
+        var action = () => _handler.Handle(ACommand(payerId: 999), CancellationToken.None);
+
+        // Assert
+        var exception = await action.Should().ThrowAsync<BusinessLogicException>();
+        exception.Which.Error.Should().Be(TaxiExpenseErrors.ExpensePaidByNonExistentCrewMember);
+    }
+
+    [Fact]
+    public async Task TaxiLeg_ShouldAddAPendingExpense()
+    {
+        // Arrange
+        GivenTransportDay();
+
+        Domain.Entities.TaxiExpense entity = null!;
+        _taxiExpenseRepository
+            .When(x => x.AddAsync(Arg.Any<Domain.Entities.TaxiExpense>()))
+            .Do(x => entity = x.Arg<Domain.Entities.TaxiExpense>());
+
+        // Act
+        await _handler.Handle(ACommand(), CancellationToken.None);
+
+        // Assert
+        _ = _unitOfWork.Received().SaveChangesAsync();
+
+        entity.TransportDayId.Should().Be(TransportDayId);
+        entity.Leg.Should().Be(Leg.Morning);
+        entity.Amount.Should().Be(30m);
+        entity.PaidById.Should().Be(PayerId);
+        entity.TaxiExpenseStatus.Should().Be(TaxiExpenseStatus.Pending);
     }
 }

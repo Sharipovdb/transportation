@@ -29,7 +29,7 @@ internal sealed class TaxiExpenseDatabaseSeeder : IDemoDataSeeder
         var users = await _context.Users
             .ToDictionaryAsync(x => x.UserName!, x => x.Id);
 
-        var today = DateTime.UtcNow.Date;
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
 
         var expenses = new[]
         {
@@ -127,7 +127,7 @@ internal sealed class TaxiExpenseDatabaseSeeder : IDemoDataSeeder
 
     private async Task CreateTaxiExpenseIfNotExistsAsync(
         string crewName,
-        DateTime date,
+        DateOnly date,
         Leg leg,
         decimal amount,
         string paidByUsername,
@@ -137,7 +137,7 @@ internal sealed class TaxiExpenseDatabaseSeeder : IDemoDataSeeder
         DateTime now)
     {
         var transportDay = transportDays
-            .FirstOrDefault(x => x.Crew.Name == crewName && x.Date.Date == date.Date);
+            .FirstOrDefault(x => x.Crew.Name == crewName && x.Date == date);
 
         if (transportDay is null)
             throw new InvalidOperationException($"TransportDay not found: {crewName} {date:d}");

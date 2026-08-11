@@ -78,12 +78,14 @@ function toApiPayload(draft: TaxiExpenseDraft) {
   }
 }
 
+// Creating an expense is not part of this contract on purpose: a taxi ride is recorded
+// on the transport day it belongs to (see features/transport-days), which is what keeps
+// a taxi leg from ever existing without a reimbursable expense behind it.
 interface TaxiExpensesContextValue {
   taxiExpenses: TaxiExpense[]
   isLoading: boolean
   getExpensesForDay: (transportDayId: string) => TaxiExpense[]
   getExpensesForDays: (transportDayIds: string[]) => TaxiExpense[]
-  addTaxiExpense: (draft: TaxiExpenseDraft) => Promise<void>
   updateTaxiExpense: (expenseId: string, draft: TaxiExpenseDraft) => Promise<void>
   deleteTaxiExpense: (expenseId: string) => Promise<void>
   approveTaxiExpense: (expenseId: string) => Promise<void>
@@ -100,14 +102,15 @@ export function TaxiExpensesProvider({ children }: { children: ReactNode }) {
     queryFn: fetchTaxiExpenses,
   })
 
+  // An expense belongs to a transport day and feeds a monthly sheet, so changing one
+  // invalidates all three views rather than leaving the other two showing stale money.
   function invalidate() {
-    return queryClient.invalidateQueries({ queryKey: TAXI_EXPENSES_QUERY_KEY })
+    return Promise.all([
+      queryClient.invalidateQueries({ queryKey: TAXI_EXPENSES_QUERY_KEY }),
+      queryClient.invalidateQueries({ queryKey: ['transport-days'] }),
+      queryClient.invalidateQueries({ queryKey: ['monthly-sheets'] }),
+    ])
   }
-
-  const addMutation = useMutation({
-    mutationFn: (draft: TaxiExpenseDraft) => apiClient.post('/api/TaxiExpense/Create', toApiPayload(draft)),
-    onSuccess: invalidate,
-  })
 
   const updateMutation = useMutation({
     // UpdateTaxiExpenseRequest is bound [FromQuery] on the backend despite being a
@@ -142,13 +145,12 @@ export function TaxiExpensesProvider({ children }: { children: ReactNode }) {
         const dayIdSet = new Set(transportDayIds)
         return taxiExpenses.filter((expense) => dayIdSet.has(expense.transportDayId))
       },
-      addTaxiExpense: async (draft) => { await addMutation.mutateAsync(draft) },
       updateTaxiExpense: async (expenseId, draft) => { await updateMutation.mutateAsync({ expenseId, draft }) },
       deleteTaxiExpense: async (expenseId) => { await deleteMutation.mutateAsync(expenseId) },
       approveTaxiExpense: async (expenseId) => { await approveMutation.mutateAsync(expenseId) },
       rejectTaxiExpense: async (expenseId) => { await rejectMutation.mutateAsync(expenseId) },
     }),
-    [taxiExpenses, isLoading, addMutation, updateMutation, deleteMutation, approveMutation, rejectMutation],
+    [taxiExpenses, isLoading, updateMutation, deleteMutation, approveMutation, rejectMutation],
   )
 
   return <TaxiExpensesContext.Provider value={value}>{children}</TaxiExpensesContext.Provider>
