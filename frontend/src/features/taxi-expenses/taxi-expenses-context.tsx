@@ -7,31 +7,25 @@ import type { Leg, TaxiExpense, TaxiExpenseStatus } from '@/lib/domain-types'
 import { nestedLargePage } from '@/lib/pagination'
 
 // Leg/TaxiExpenseStatus have explicit backend int values (Leg: Morning=1, Afternoon=2;
-// TaxiExpenseStatus: Pending=1, Approved=2, Rejected=3, Paid=4). Requests want the
-// number, the list/detail DTO gives back the string name.
-const legToApiValue: Record<Leg, number> = { morning: 1, afternoon: 2 }
-const legFromApiValue: Record<string, Leg> = { Morning: 'morning', Afternoon: 'afternoon' }
+// TaxiExpenseStatus: Pending=1, Approved=2, Rejected=3, Paid=4) — requests want the
+// number. The list/detail DTO gives back the enum's own PascalCase name, which already
+// matches these unions, so no reverse map is needed on the read side.
+const legToApiValue: Record<Leg, number> = { Morning: 1, Afternoon: 2 }
 
 const statusToApiValue: Record<TaxiExpenseStatus, number> = {
-  pending: 1,
-  approved: 2,
-  rejected: 3,
-  paid: 4,
-}
-const statusFromApiValue: Record<string, TaxiExpenseStatus> = {
-  Pending: 'pending',
-  Approved: 'approved',
-  Rejected: 'rejected',
-  Paid: 'paid',
+  Pending: 1,
+  Approved: 2,
+  Rejected: 3,
+  Paid: 4,
 }
 
 interface TaxiExpenseApiDto {
   id: number
   transportDayId: number
   paidById: number
-  leg: string
+  leg: Leg
   amount: number
-  taxiExpenseStatus: string
+  taxiExpenseStatus: TaxiExpenseStatus
 }
 
 interface PaginatedResult<T> {
@@ -39,24 +33,26 @@ interface PaginatedResult<T> {
   totalCount: number
 }
 
+// paidById stays a string here: it comes straight from a <select> element's raw form
+// value and is only turned into a number at the API boundary, in toApiPayload.
 export interface TaxiExpenseDraft {
-  transportDayId: string
+  transportDayId: number
   leg: Leg
   amount: number
   paidById: string
-  status: TaxiExpenseStatus
+  taxiExpenseStatus: TaxiExpenseStatus
 }
 
 const TAXI_EXPENSES_QUERY_KEY = ['taxi-expenses']
 
 function toTaxiExpense(dto: TaxiExpenseApiDto): TaxiExpense {
   return {
-    id: String(dto.id),
-    transportDayId: String(dto.transportDayId),
-    leg: legFromApiValue[dto.leg] ?? 'morning',
+    id: dto.id,
+    transportDayId: dto.transportDayId,
+    leg: dto.leg,
     amount: dto.amount,
-    paidById: String(dto.paidById),
-    status: statusFromApiValue[dto.taxiExpenseStatus] ?? 'pending',
+    paidById: dto.paidById,
+    taxiExpenseStatus: dto.taxiExpenseStatus,
   }
 }
 
@@ -70,11 +66,11 @@ async function fetchTaxiExpenses() {
 
 function toApiPayload(draft: TaxiExpenseDraft) {
   return {
-    transportDayId: Number(draft.transportDayId),
+    transportDayId: draft.transportDayId,
     leg: legToApiValue[draft.leg],
     amount: draft.amount,
     paidById: Number(draft.paidById),
-    taxiExpenseStatus: statusToApiValue[draft.status],
+    taxiExpenseStatus: statusToApiValue[draft.taxiExpenseStatus],
   }
 }
 
@@ -84,12 +80,12 @@ function toApiPayload(draft: TaxiExpenseDraft) {
 interface TaxiExpensesContextValue {
   taxiExpenses: TaxiExpense[]
   isLoading: boolean
-  getExpensesForDay: (transportDayId: string) => TaxiExpense[]
-  getExpensesForDays: (transportDayIds: string[]) => TaxiExpense[]
-  updateTaxiExpense: (expenseId: string, draft: TaxiExpenseDraft) => Promise<void>
-  deleteTaxiExpense: (expenseId: string) => Promise<void>
-  approveTaxiExpense: (expenseId: string) => Promise<void>
-  rejectTaxiExpense: (expenseId: string) => Promise<void>
+  getExpensesForDay: (transportDayId: number) => TaxiExpense[]
+  getExpensesForDays: (transportDayIds: number[]) => TaxiExpense[]
+  updateTaxiExpense: (expenseId: number, draft: TaxiExpenseDraft) => Promise<void>
+  deleteTaxiExpense: (expenseId: number) => Promise<void>
+  approveTaxiExpense: (expenseId: number) => Promise<void>
+  rejectTaxiExpense: (expenseId: number) => Promise<void>
 }
 
 const TaxiExpensesContext = createContext<TaxiExpensesContextValue | null>(null)
@@ -115,23 +111,23 @@ export function TaxiExpensesProvider({ children }: { children: ReactNode }) {
   const updateMutation = useMutation({
     // UpdateTaxiExpenseRequest is bound [FromQuery] on the backend despite being a
     // PUT — send the full payload as query params, not a JSON body.
-    mutationFn: ({ expenseId, draft }: { expenseId: string; draft: TaxiExpenseDraft }) =>
+    mutationFn: ({ expenseId, draft }: { expenseId: number; draft: TaxiExpenseDraft }) =>
       apiClient.put(`/api/TaxiExpense/Update/${expenseId}`, undefined, { params: toApiPayload(draft) }),
     onSuccess: invalidate,
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (expenseId: string) => apiClient.delete(`/api/TaxiExpense/Delete/${expenseId}`),
+    mutationFn: (expenseId: number) => apiClient.delete(`/api/TaxiExpense/Delete/${expenseId}`),
     onSuccess: invalidate,
   })
 
   const approveMutation = useMutation({
-    mutationFn: (expenseId: string) => apiClient.put(`/api/TaxiExpense/Approve/${expenseId}`),
+    mutationFn: (expenseId: number) => apiClient.put(`/api/TaxiExpense/Approve/${expenseId}`),
     onSuccess: invalidate,
   })
 
   const rejectMutation = useMutation({
-    mutationFn: (expenseId: string) => apiClient.put(`/api/TaxiExpense/Reject/${expenseId}`),
+    mutationFn: (expenseId: number) => apiClient.put(`/api/TaxiExpense/Reject/${expenseId}`),
     onSuccess: invalidate,
   })
 

@@ -22,7 +22,7 @@ function dayOfMonth(isoDate: string) {
 }
 
 function fileName(report: PayoutReport) {
-  const employee = report.employeeName.trim().replace(/\s+/g, '-').toLowerCase()
+  const employee = report.fullname.trim().replace(/\s+/g, '-').toLowerCase()
   const month = String(report.month).padStart(2, '0')
 
   return `transport-report-${employee || 'employee'}-${report.year}-${month}.pdf`
@@ -53,7 +53,7 @@ function drawHeader(doc: jsPDF, report: PayoutReport, pageWidth: number) {
   doc.line(margin, 31, pageWidth - margin, 31)
 
   const facts: [string, string][] = [
-    ['Employee', report.employeeName],
+    ['Employee', report.fullname],
     ['Crew', report.crewName],
     ['Period', formatMonthLabel(report.year, report.month)],
     ['Payment status', report.isPaid ? 'Paid' : 'Not paid yet'],
@@ -80,7 +80,7 @@ function drawDailyTable(doc: jsPDF, report: PayoutReport, startY: number) {
     dayOfMonth(row.date),
     weekday(row.date),
     transportModeLabels[row.morningMode],
-    transportModeLabels[row.afternoonMode],
+    row.afternoonMode ? transportModeLabels[row.afternoonMode] : '—',
     row.drivenKm > 0 ? formatKm(row.drivenKm) : '—',
     row.extraBusinessKm > 0 ? formatKm(row.extraBusinessKm) : '—',
     row.taxiAmount > 0 ? formatCurrency(row.taxiAmount) : '—',

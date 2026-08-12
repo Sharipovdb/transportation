@@ -38,11 +38,7 @@ import { useCrews } from '@/features/crews/crews-context'
 import { useMonthlySheets } from '@/features/monthly-sheets/monthly-sheets-context'
 import { usePayoutReportPrinter } from '@/features/monthly-sheets/use-payout-report-printer'
 import { getErrorMessage } from '@/lib/api-error'
-import {
-  isSameId,
-  legLabels,
-  taxiExpenseStatusLabels,
-} from '@/lib/domain-types'
+import { legLabels, taxiExpenseStatusLabels } from '@/lib/domain-types'
 import type { MonthlySheet, PayoutLine } from '@/lib/domain-types'
 import {
   formatCurrency,
@@ -75,25 +71,22 @@ function MonthlySheetsPage() {
   const [period, setPeriod] = useState<Period>(() =>
     getMonthYear(todayIsoDate()),
   )
-  const [crewId, setCrewId] = useState('')
+  const [crewId, setCrewId] = useState<number | null>(null)
   const [preview, setPreview] = useState<MonthlySheet | null>(null)
   const [isBusy, setIsBusy] = useState(false)
   const [actionError, setActionError] = useState('')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
-  const [expandedEmployeeId, setExpandedEmployeeId] = useState<string | null>(
+  const [expandedEmployeeId, setExpandedEmployeeId] = useState<number | null>(
     null,
   )
 
-  // Crew ids arrive as numbers but every sheet-side id is a string, so the two are
-  // normalised here — comparing them raw is what used to make an existing sheet
-  // invisible and leave the page stuck on "No sheet yet".
-  const activeCrewId = crews.some((crew) => isSameId(crew.id, crewId))
+  const activeCrewId = crews.some((crew) => crew.id === crewId)
     ? crewId
-    : String(crews[0]?.id ?? '')
-  const crew = crews.find((candidate) => isSameId(candidate.id, activeCrewId))
+    : (crews[0]?.id ?? null)
+  const crew = crews.find((candidate) => candidate.id === activeCrewId)
   const sheet = crew
     ? getSheet({
-        crewId: String(crew.id),
+        crewId: crew.id,
         year: period.year,
         month: period.month,
       })
@@ -105,7 +98,7 @@ function MonthlySheetsPage() {
     setExpandedEmployeeId(null)
   }
 
-  function selectCrew(nextCrewId: string) {
+  function selectCrew(nextCrewId: number) {
     setCrewId(nextCrewId)
     resetTransientState()
   }
@@ -123,7 +116,7 @@ function MonthlySheetsPage() {
 
     try {
       const result = await previewSheet({
-        crewId: String(crew.id),
+        crewId: crew.id,
         year: period.year,
         month: period.month,
       })
@@ -145,7 +138,7 @@ function MonthlySheetsPage() {
 
     try {
       await generateSheet({
-        crewId: String(crew.id),
+        crewId: crew.id,
         year: period.year,
         month: period.month,
       })
@@ -218,8 +211,8 @@ function MonthlySheetsPage() {
 
           <div className="flex flex-wrap items-end gap-3">
             <Select
-              value={activeCrewId}
-              onChange={(event) => selectCrew(event.target.value)}
+              value={activeCrewId ?? ''}
+              onChange={(event) => selectCrew(Number(event.target.value))}
               className="w-56"
             >
               {crews.length === 0 && <option value="">No crews yet</option>}
@@ -366,7 +359,7 @@ function MonthlySheetsPage() {
                       <TableRow>
                         <TableCell className="font-medium text-slate-900">
                           <span className="flex items-center gap-2">
-                            {line.employeeName}
+                            {line.fullname}
                             {line.isPaid && <Badge variant="success">Paid</Badge>}
                           </span>
                         </TableCell>
@@ -397,7 +390,7 @@ function MonthlySheetsPage() {
                               variant="outline"
                               size="icon-sm"
                               className="rounded-full border-sky-100 text-sky-700"
-                              title={`Print ${line.employeeName}'s report as PDF`}
+                              title={`Print ${line.fullname}'s report as PDF`}
                               onClick={() => handlePrint(displayedSheet, line)}
                             >
                               <FileText className="size-3.5" />
@@ -411,15 +404,15 @@ function MonthlySheetsPage() {
                                 className="rounded-full text-slate-400"
                                 onClick={() =>
                                   setExpandedEmployeeId((current) =>
-                                    current === line.employeeId
+                                    current === line.userId
                                       ? null
-                                      : line.employeeId,
+                                      : line.userId,
                                   )
                                 }
                               >
                                 <ChevronDown
                                   className={
-                                    expandedEmployeeId === line.employeeId
+                                    expandedEmployeeId === line.userId
                                       ? 'rotate-180 transition-transform'
                                       : 'transition-transform'
                                   }
@@ -430,7 +423,7 @@ function MonthlySheetsPage() {
                         </TableCell>
                       </TableRow>
 
-                      {expandedEmployeeId === line.employeeId &&
+                      {expandedEmployeeId === line.userId &&
                         line.taxiExpenses.length > 0 && (
                           <TableRow className="hover:bg-transparent">
                             <TableCell colSpan={6} className="bg-sky-50/40">
@@ -448,12 +441,16 @@ function MonthlySheetsPage() {
                                     </span>
                                     <Badge
                                       variant={
-                                        expense.status === 'approved'
+                                        expense.taxiExpenseStatus === 'Approved'
                                           ? 'success'
                                           : 'secondary'
                                       }
                                     >
-                                      {taxiExpenseStatusLabels[expense.status]}
+                                      {
+                                        taxiExpenseStatusLabels[
+                                          expense.taxiExpenseStatus
+                                        ]
+                                      }
                                     </Badge>
                                   </div>
                                 ))}

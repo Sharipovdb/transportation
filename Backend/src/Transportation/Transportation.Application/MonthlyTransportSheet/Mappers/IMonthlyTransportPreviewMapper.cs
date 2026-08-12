@@ -24,8 +24,7 @@ internal sealed class MonthlyTransportPreviewMapper
                 .Select(x => new PayoutLineDto
                     {
                         UserId = x.UserId,
-                        FirstName = x.FirstName,
-                        LastName = x.LastName,
+                        Fullname = $"{x.FirstName} {x.LastName}".Trim(),
                         DriverKm = x.DriverKm,
                         ExtraBusinessKm = x.ExtraBusinessKm,
                         TaxiCompensation = x.TaxiCompensation,

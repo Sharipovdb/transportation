@@ -46,8 +46,8 @@ const taxiFareSchema = z.object({
 })
 
 const legFields = [
-  { leg: 'morning' as Leg, mode: 'morningMode' as const, fare: 'morningTaxi' as const },
-  { leg: 'afternoon' as Leg, mode: 'afternoonMode' as const, fare: 'afternoonTaxi' as const },
+  { leg: 'Morning' as Leg, mode: 'morningMode' as const, fare: 'morningTaxi' as const },
+  { leg: 'Afternoon' as Leg, mode: 'afternoonMode' as const, fare: 'afternoonTaxi' as const },
 ]
 
 const dayFormSchema = z
@@ -63,7 +63,7 @@ const dayFormSchema = z
   })
   .superRefine((values, context) => {
     for (const leg of legFields) {
-      if (values[leg.mode] !== 'taxi') {
+      if (values[leg.mode] !== 'Taxi') {
         continue
       }
 
@@ -96,8 +96,8 @@ function defaultValues(): DayFormInput {
   return {
     crewId: '',
     date: todayIsoDate(),
-    morningMode: 'driven',
-    afternoonMode: 'driven',
+    morningMode: 'Driven',
+    afternoonMode: 'Driven',
     extraBusinessKm: 0,
     notes: '',
     morningTaxi: { amount: 0, paidById: '' },
@@ -107,11 +107,11 @@ function defaultValues(): DayFormInput {
 
 function toDraft(values: DayFormValues): Omit<TransportDayDraft, 'crewId' | 'date'> {
   const taxiFares: TaxiFare[] = legFields
-    .filter((leg) => values[leg.mode] === 'taxi')
+    .filter((leg) => values[leg.mode] === 'Taxi')
     .map((leg) => ({
       leg: leg.leg,
       amount: values[leg.fare].amount,
-      paidById: values[leg.fare].paidById,
+      paidById: Number(values[leg.fare].paidById),
     }))
 
   return {
@@ -124,9 +124,9 @@ function toDraft(values: DayFormValues): Omit<TransportDayDraft, 'crewId' | 'dat
 }
 
 const modeBadgeVariant: Record<TransportMode, 'success' | 'warning' | 'secondary'> = {
-  driven: 'success',
-  taxi: 'warning',
-  none: 'secondary',
+  Driven: 'success',
+  Taxi: 'warning',
+  None: 'secondary',
 }
 
 function TransportDaysPage() {
@@ -145,9 +145,9 @@ function TransportDaysPage() {
 
   const [period, setPeriod] = useState<Period>(() => getMonthYear(todayIsoDate()))
   const [crewFilter, setCrewFilter] = useState('')
-  const [editingDayId, setEditingDayId] = useState<string | null>(null)
+  const [editingDayId, setEditingDayId] = useState<number | null>(null)
   const [formError, setFormError] = useState('')
-  const [deletingDayId, setDeletingDayId] = useState<string | null>(null)
+  const [deletingDayId, setDeletingDayId] = useState<number | null>(null)
 
   const {
     register,
@@ -205,7 +205,7 @@ function TransportDaysPage() {
     reset(defaultValues())
   }
 
-  function startEdit(dayId: string) {
+  function startEdit(dayId: number) {
     const day = transportDays.find((candidate) => candidate.id === dayId)
 
     if (!day) {
@@ -215,20 +215,20 @@ function TransportDaysPage() {
     const fareFor = (leg: Leg) => {
       const fare = day.taxiFares.find((candidate) => candidate.leg === leg)
 
-      return { amount: fare?.amount ?? 0, paidById: fare?.paidById ?? '' }
+      return { amount: fare?.amount ?? 0, paidById: fare ? String(fare.paidById) : '' }
     }
 
     setEditingDayId(dayId)
     setFormError('')
     reset({
-      crewId: day.crewId,
+      crewId: String(day.crewId),
       date: day.date,
       morningMode: day.morningMode,
-      afternoonMode: day.afternoonMode,
+      afternoonMode: day.afternoonMode ?? 'None',
       extraBusinessKm: day.extraBusinessKm,
-      notes: day.notes,
-      morningTaxi: fareFor('morning'),
-      afternoonTaxi: fareFor('afternoon'),
+      notes: day.notes ?? '',
+      morningTaxi: fareFor('Morning'),
+      afternoonTaxi: fareFor('Afternoon'),
     })
   }
 
@@ -239,7 +239,7 @@ function TransportDaysPage() {
       if (editingDayId) {
         await updateTransportDay(editingDayId, toDraft(values))
       } else {
-        await addTransportDay({ crewId: values.crewId, date: values.date, ...toDraft(values) })
+        await addTransportDay({ crewId: Number(values.crewId), date: values.date, ...toDraft(values) })
       }
 
       resetForm()
@@ -248,7 +248,7 @@ function TransportDaysPage() {
     }
   })
 
-  async function removeDay(dayId: string) {
+  async function removeDay(dayId: number) {
     if (editingDayId === dayId) {
       resetForm()
     }
@@ -260,7 +260,7 @@ function TransportDaysPage() {
     }
   }
 
-  async function toggleConfirm(dayId: string, confirmed: boolean) {
+  async function toggleConfirm(dayId: number, confirmed: boolean) {
     try {
       if (confirmed) {
         await unconfirmTransportDay(dayId)
@@ -272,7 +272,7 @@ function TransportDaysPage() {
     }
   }
 
-  function driverName(driverId: string | null) {
+  function driverName(driverId: number | null) {
     return driverId ? getEmployeeDisplayName(driverId) : '—'
   }
 
@@ -336,9 +336,9 @@ function TransportDaysPage() {
             </Field>
           </div>
 
-          {morningMode === 'taxi' && (
+          {morningMode === 'Taxi' && (
             <TaxiFareFields
-              leg="morning"
+              leg="Morning"
               members={crewMembers}
               amountField={register('morningTaxi.amount')}
               payerField={register('morningTaxi.paidById')}
@@ -347,9 +347,9 @@ function TransportDaysPage() {
             />
           )}
 
-          {afternoonMode === 'taxi' && (
+          {afternoonMode === 'Taxi' && (
             <TaxiFareFields
-              leg="afternoon"
+              leg="Afternoon"
               members={crewMembers}
               amountField={register('afternoonTaxi.amount')}
               payerField={register('afternoonTaxi.paidById')}
@@ -444,9 +444,13 @@ function TransportDaysPage() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={modeBadgeVariant[day.afternoonMode]}>
-                      {transportModeLabels[day.afternoonMode]}
-                    </Badge>
+                    {day.afternoonMode ? (
+                      <Badge variant={modeBadgeVariant[day.afternoonMode]}>
+                        {transportModeLabels[day.afternoonMode]}
+                      </Badge>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
                   </TableCell>
                   <TableCell>{driverName(day.driverId)}</TableCell>
                   <TableCell className="text-right">

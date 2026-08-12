@@ -51,10 +51,10 @@ function todayIsoDate() {
 }
 
 const statusBadgeVariant: Record<TaxiExpenseStatus, 'warning' | 'success' | 'destructive' | 'secondary'> = {
-  pending: 'warning',
-  approved: 'success',
-  rejected: 'destructive',
-  paid: 'secondary',
+  Pending: 'warning',
+  Approved: 'success',
+  Rejected: 'destructive',
+  Paid: 'secondary',
 }
 
 function TaxiExpensesPage() {
@@ -74,9 +74,9 @@ function TaxiExpensesPage() {
 
   const [period, setPeriod] = useState<Period>(() => getMonthYear(todayIsoDate()))
   const [crewFilter, setCrewFilter] = useState('')
-  const [editingExpenseId, setEditingExpenseId] = useState<string | null>(null)
+  const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null)
   const [formError, setFormError] = useState('')
-  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null)
+  const [deletingExpenseId, setDeletingExpenseId] = useState<number | null>(null)
 
   const {
     register,
@@ -133,7 +133,7 @@ function TaxiExpensesPage() {
     reset({ amount: 0, paidById: '' })
   }
 
-  function startEdit(expenseId: string) {
+  function startEdit(expenseId: number) {
     const expense = taxiExpenses.find((candidate) => candidate.id === expenseId)
 
     if (!expense) {
@@ -142,7 +142,7 @@ function TaxiExpensesPage() {
 
     setEditingExpenseId(expenseId)
     setFormError('')
-    reset({ amount: expense.amount, paidById: expense.paidById })
+    reset({ amount: expense.amount, paidById: String(expense.paidById) })
   }
 
   const onSubmit = handleSubmit(async (values: ExpenseFormValues) => {
@@ -158,7 +158,7 @@ function TaxiExpensesPage() {
         leg: editingExpense.leg,
         amount: values.amount,
         paidById: values.paidById,
-        status: editingExpense.status,
+        taxiExpenseStatus: editingExpense.taxiExpenseStatus,
       })
 
       resetForm()
@@ -167,7 +167,7 @@ function TaxiExpensesPage() {
     }
   })
 
-  async function removeExpense(expenseId: string) {
+  async function removeExpense(expenseId: number) {
     if (editingExpenseId === expenseId) {
       resetForm()
     }
@@ -179,7 +179,7 @@ function TaxiExpensesPage() {
     }
   }
 
-  async function handleApprove(expenseId: string) {
+  async function handleApprove(expenseId: number) {
     try {
       await approveTaxiExpense(expenseId)
     } catch (error) {
@@ -187,7 +187,7 @@ function TaxiExpensesPage() {
     }
   }
 
-  async function handleReject(expenseId: string) {
+  async function handleReject(expenseId: number) {
     try {
       await rejectTaxiExpense(expenseId)
     } catch (error) {
@@ -305,7 +305,7 @@ function TaxiExpensesPage() {
             <TableBody>
               {visibleExpenses.map((expense) => {
                 const day = getDayById(expense.transportDayId)
-                const isPending = expense.status === 'pending'
+                const isPending = expense.taxiExpenseStatus === 'Pending'
 
                 return (
                   <TableRow key={expense.id}>
@@ -317,8 +317,8 @@ function TaxiExpensesPage() {
                     <TableCell className="text-right">{formatCurrency(expense.amount)}</TableCell>
                     <TableCell>{getEmployeeDisplayName(expense.paidById)}</TableCell>
                     <TableCell>
-                      <Badge variant={statusBadgeVariant[expense.status]}>
-                        {taxiExpenseStatusLabels[expense.status]}
+                      <Badge variant={statusBadgeVariant[expense.taxiExpenseStatus]}>
+                        {taxiExpenseStatusLabels[expense.taxiExpenseStatus]}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">

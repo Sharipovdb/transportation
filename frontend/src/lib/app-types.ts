@@ -13,8 +13,7 @@ export interface AuthSession {
   id: number
   email: string
   userName: string
-  firstName: string
-  lastName: string
+  fullname: string
   phoneNumber: string
   telegramId: string
   roles: AppRole[]

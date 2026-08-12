@@ -31,8 +31,7 @@ public class MonthlyTransportSheetMapper
             Id = entity.Id,
             UserId = entity.UserId,
 
-            FirstName = entity.User.FirstName,
-            LastName = entity.User.LastName,
+            Fullname = entity.User.Fullname,
 
             DriverKm = entity.DriverKm,
             ExtraBusinessKm = entity.ExtraBusinessKm,

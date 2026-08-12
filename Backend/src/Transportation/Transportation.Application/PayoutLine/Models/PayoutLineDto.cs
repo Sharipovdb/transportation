@@ -8,9 +8,7 @@ public sealed class PayoutLineDto
 
     public long UserId { get; set; }
 
-    public string FirstName { get; set; } = string.Empty;
-
-    public string LastName { get; set; } = string.Empty;
+    public string Fullname { get; set; } = string.Empty;
 
     // Distance is reported, not priced — see PayoutLine for why there is no km rate.
     public double DriverKm { get; set; }

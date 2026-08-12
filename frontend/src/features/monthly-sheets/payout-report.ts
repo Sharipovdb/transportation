@@ -12,19 +12,19 @@ import type {
  * sheet moves the same fare on to `paid`, so both states describe money the company
  * owes (or has settled) — only `pending` and `rejected` are left out.
  */
-const settledTaxiStatuses: TaxiExpenseStatus[] = ['approved', 'paid']
+const settledTaxiStatuses: TaxiExpenseStatus[] = ['Approved', 'Paid']
 
 export interface PayoutReportRow {
   date: string // ISO yyyy-mm-dd
   morningMode: TransportMode
-  afternoonMode: TransportMode
+  afternoonMode: TransportMode | null
   drivenKm: number
   extraBusinessKm: number
   taxiAmount: number
 }
 
 export interface PayoutReport {
-  employeeName: string
+  fullname: string
   crewName: string
   year: number
   month: number
@@ -62,11 +62,11 @@ export function buildPayoutReport({
   days,
   taxiExpenses,
 }: BuildPayoutReportInput): PayoutReport {
-  const taxiByDay = new Map<string, number>()
+  const taxiByDay = new Map<number, number>()
 
   for (const expense of taxiExpenses) {
-    if (!isSameId(expense.paidById, line.employeeId)) continue
-    if (!settledTaxiStatuses.includes(expense.status)) continue
+    if (!isSameId(expense.paidById, line.userId)) continue
+    if (!settledTaxiStatuses.includes(expense.taxiExpenseStatus)) continue
 
     taxiByDay.set(
       expense.transportDayId,
@@ -77,7 +77,7 @@ export function buildPayoutReport({
   const rows = days
     .filter((day) => day.confirmed)
     .map((day) => {
-      const drove = isSameId(day.driverId, line.employeeId)
+      const drove = isSameId(day.driverId, line.userId)
 
       return {
         date: day.date,
@@ -97,7 +97,7 @@ export function buildPayoutReport({
     rows.reduce((sum, row) => sum + pick(row), 0)
 
   return {
-    employeeName: line.employeeName,
+    fullname: line.fullname,
     crewName,
     year,
     month,

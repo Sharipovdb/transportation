@@ -71,12 +71,14 @@ public class UserService (
 
     public async Task<ApiResponse<string>> CreateAsync(RegisterRequest request)
     {
+        var (firstName, lastName) = SplitFullname(request.Fullname);
+
         var user = new Domain.Entities.User
         {
             Email = request.Email,
             UserName = request.Username,
-            FirstName = request.Firstname,
-            LastName = request.LastName,
+            FirstName = firstName,
+            LastName = lastName,
             PhoneNumber = request.PhoneNumber,
             TelegramId = request.TelegramId
         };
@@ -107,8 +109,7 @@ public class UserService (
         var user = await userManager.FindByIdAsync(request.Id.ToString());
         if (user is null) return ApiResponse<UserDto>.Failure("The user was not found!", 404);
 
-        user.FirstName = request.FirstName;
-        user.LastName = request.LastName;
+        (user.FirstName, user.LastName) = SplitFullname(request.Fullname);
         user.Email = request.Email;
         user.UserName = request.UserName;
         user.PhoneNumber = request.PhoneNumber;
@@ -147,5 +148,18 @@ public class UserService (
         await userManager.DeleteAsync(user);
 
         return ApiResponse<string>.Success("The user was successfully deleted!", 204);
+    }
+
+    // Storage keeps FirstName/LastName as two columns (Identity seeding and a few
+    // tests build the entity that way), but the client sends and reads a single name
+    // field — this is the one place that reconciles the two shapes.
+    private static (string FirstName, string LastName) SplitFullname(string fullname)
+    {
+        var trimmed = fullname.Trim();
+        var separatorIndex = trimmed.IndexOf(' ');
+
+        return separatorIndex < 0
+            ? (trimmed, string.Empty)
+            : (trimmed[..separatorIndex], trimmed[(separatorIndex + 1)..].Trim());
     }
 }

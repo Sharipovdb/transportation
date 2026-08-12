@@ -89,7 +89,7 @@ export function AppShell({ children }: AppShellProps) {
 
                     <span className="hidden min-w-0 md:block">
                       <span className="block truncate text-sm font-semibold text-slate-900">
-                        {session.userName}
+                        {session.fullname}
                       </span>
                       <span className="block truncate text-xs text-slate-500">
                         {session.roles
@@ -115,7 +115,7 @@ export function AppShell({ children }: AppShellProps) {
 
                         <div className="min-w-0">
                           <p className="truncate text-sm font-semibold text-slate-900">
-                            {session.userName}
+                            {session.fullname}
                           </p>
                           <p className="truncate text-xs text-slate-500">
                             {session.roles

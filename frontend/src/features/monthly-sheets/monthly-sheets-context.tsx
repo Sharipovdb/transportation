@@ -15,14 +15,14 @@ import { nestedLargePage } from '@/lib/pagination'
 // PayoutLineDto.TaxiExpenses (see TaxiExpenseSummaryDto.cs) — numeric here even though
 // the standalone TaxiExpenseController's DTO stringifies the same enums.
 const legFromNumericValue: Record<number, Leg> = {
-  1: 'morning',
-  2: 'afternoon',
+  1: 'Morning',
+  2: 'Afternoon',
 }
 const statusFromNumericValue: Record<number, TaxiExpenseStatus> = {
-  1: 'pending',
-  2: 'approved',
-  3: 'rejected',
-  4: 'paid',
+  1: 'Pending',
+  2: 'Approved',
+  3: 'Rejected',
+  4: 'Paid',
 }
 
 interface TaxiExpenseSummaryApiDto {
@@ -35,8 +35,7 @@ interface TaxiExpenseSummaryApiDto {
 interface PayoutLineApiDto {
   id: number
   userId: number
-  firstName: string
-  lastName: string
+  fullname: string
   driverKm: number
   extraBusinessKm: number
   taxiCompensation: number
@@ -47,7 +46,7 @@ interface PayoutLineApiDto {
 }
 
 interface MonthlySheetApiDto {
-  id?: number
+  id: number
   crewId: number
   year: number
   month: number
@@ -68,9 +67,9 @@ const MONTHLY_SHEETS_QUERY_KEY = ['monthly-sheets']
 
 function toPayoutLine(dto: PayoutLineApiDto): PayoutLine {
   return {
-    id: String(dto.id),
-    employeeId: String(dto.userId),
-    employeeName: `${dto.firstName} ${dto.lastName}`.trim(),
+    id: dto.id,
+    userId: dto.userId,
+    fullname: dto.fullname,
     driverKm: dto.driverKm,
     extraBusinessKm: dto.extraBusinessKm,
     taxiCompensation: dto.taxiCompensation,
@@ -78,18 +77,19 @@ function toPayoutLine(dto: PayoutLineApiDto): PayoutLine {
     paidAt: dto.paidAt,
     totalAmount: dto.totalAmount,
     taxiExpenses: dto.taxiExpenses.map((expense) => ({
-      id: String(expense.id),
+      id: expense.id,
       amount: expense.amount,
-      leg: legFromNumericValue[expense.leg] ?? 'morning',
-      status: statusFromNumericValue[expense.taxiExpenseStatus] ?? 'pending',
+      leg: legFromNumericValue[expense.leg] ?? 'Morning',
+      taxiExpenseStatus:
+        statusFromNumericValue[expense.taxiExpenseStatus] ?? 'Pending',
     })),
   }
 }
 
 function toMonthlySheet(dto: MonthlySheetApiDto): MonthlySheet {
   return {
-    id: dto.id === undefined ? null : String(dto.id),
-    crewId: String(dto.crewId),
+    id: dto.id,
+    crewId: dto.crewId,
     year: dto.year,
     month: dto.month,
     isConfirmed: dto.isConfirmed,
@@ -102,7 +102,7 @@ function toMonthlySheet(dto: MonthlySheetApiDto): MonthlySheet {
 }
 
 export interface SheetPeriod {
-  crewId: string
+  crewId: number
   year: number
   month: number
 }
@@ -122,9 +122,9 @@ interface MonthlySheetsContextValue {
   getSheet: (period: SheetPeriod) => MonthlySheet | undefined
   previewSheet: (period: SheetPeriod) => Promise<MonthlySheet>
   generateSheet: (period: SheetPeriod) => Promise<MonthlySheet>
-  confirmSheet: (sheetId: string) => Promise<void>
-  deleteSheet: (sheetId: string) => Promise<void>
-  markPayoutLinePaid: (payoutLineId: string) => Promise<void>
+  confirmSheet: (sheetId: number) => Promise<void>
+  deleteSheet: (sheetId: number) => Promise<void>
+  markPayoutLinePaid: (payoutLineId: number) => Promise<void>
 }
 
 const MonthlySheetsContext = createContext<MonthlySheetsContextValue | null>(
@@ -156,7 +156,7 @@ export function MonthlySheetsProvider({ children }: { children: ReactNode }) {
       const response = await apiClient.post<MonthlySheetApiDto>(
         '/api/MonthlyTransportSheets/GetPreview',
         {
-          crewId: Number(period.crewId),
+          crewId: period.crewId,
           year: period.year,
           month: period.month,
         },
@@ -171,7 +171,7 @@ export function MonthlySheetsProvider({ children }: { children: ReactNode }) {
       const response = await apiClient.post<MonthlySheetApiDto>(
         '/api/MonthlyTransportSheets/Generate',
         {
-          crewId: Number(period.crewId),
+          crewId: period.crewId,
           year: period.year,
           month: period.month,
         },
@@ -183,13 +183,13 @@ export function MonthlySheetsProvider({ children }: { children: ReactNode }) {
   })
 
   const confirmMutation = useMutation({
-    mutationFn: (sheetId: string) =>
+    mutationFn: (sheetId: number) =>
       apiClient.put(`/api/MonthlyTransportSheets/Confirm/${sheetId}`),
     onSuccess: invalidate,
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (sheetId: string) =>
+    mutationFn: (sheetId: number) =>
       apiClient.delete(`/api/MonthlyTransportSheets/Delete/${sheetId}`),
     onSuccess: invalidate,
   })
@@ -197,7 +197,7 @@ export function MonthlySheetsProvider({ children }: { children: ReactNode }) {
   // Settling a member closes their line for the month; the backend refuses a second
   // call, so the refetched sheet is the source of truth for the button's state.
   const markPaidMutation = useMutation({
-    mutationFn: (payoutLineId: string) =>
+    mutationFn: (payoutLineId: number) =>
       apiClient.put(`/api/PayoutLine/MarkPaid/${payoutLineId}`),
     onSuccess: invalidate,
   })

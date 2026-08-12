@@ -83,7 +83,7 @@ export function CrewsProvider({ children }: { children: ReactNode }) {
     mutationFn: (draft: CrewDraft) =>
       apiClient.post('/api/Crew/Create', {
         name: draft.name,
-        routeId: Number(draft.routeId),
+        routeId: draft.routeId,
         driverLeadId: draft.driverLeadId,
         crewLeadId: draft.crewLeadId,
         seatCapacity: draft.seatCapacity,

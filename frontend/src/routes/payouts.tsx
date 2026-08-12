@@ -46,10 +46,10 @@ function todayIsoDate() {
 
 interface FlatPayoutRow {
   key: string
-  payoutLineId: string
+  payoutLineId: number
   crewName: string
-  employeeId: string
-  employeeName: string
+  userId: number
+  fullname: string
   driverKm: number
   extraBusinessKm: number
   taxiCompensation: number
@@ -78,8 +78,8 @@ function PayoutsPage() {
         key: `${sheet.id}-${line.id}`,
         payoutLineId: line.id,
         crewName,
-        employeeId: line.employeeId,
-        employeeName: line.employeeName,
+        userId: line.userId,
+        fullname: line.fullname,
         driverKm: line.driverKm,
         extraBusinessKm: line.extraBusinessKm,
         taxiCompensation: line.taxiCompensation,
@@ -104,7 +104,7 @@ function PayoutsPage() {
       await markPayoutLinePaid(row.payoutLineId)
     } catch (error) {
       setActionError(
-        getErrorMessage(error, `Could not mark ${row.employeeName} as paid.`),
+        getErrorMessage(error, `Could not mark ${row.fullname} as paid.`),
       )
     }
   }
@@ -158,7 +158,7 @@ function PayoutsPage() {
               {rows.map((row) => (
                 <Fragment key={row.key}>
                   <TableRow>
-                    <TableCell className="font-medium text-slate-900">{row.employeeName}</TableCell>
+                    <TableCell className="font-medium text-slate-900">{row.fullname}</TableCell>
                     <TableCell>{row.crewName}</TableCell>
                     <TableCell className="text-right">
                       {row.driverKm > 0 ? (
@@ -227,8 +227,8 @@ function PayoutsPage() {
                             >
                               <span className="text-slate-600">{legLabels[expense.leg]} leg</span>
                               <span className="text-slate-600">{formatCurrency(expense.amount)}</span>
-                              <Badge variant={expense.status === 'approved' ? 'success' : 'secondary'}>
-                                {taxiExpenseStatusLabels[expense.status]}
+                              <Badge variant={expense.taxiExpenseStatus === 'Approved' ? 'success' : 'secondary'}>
+                                {taxiExpenseStatusLabels[expense.taxiExpenseStatus]}
                               </Badge>
                             </div>
                           ))}
@@ -260,7 +260,7 @@ function PayoutsPage() {
       <ConfirmDialog
         open={payingRow !== null}
         onOpenChange={(open) => !open && setPayingRow(null)}
-        title={payingRow ? `Pay ${payingRow.employeeName}?` : 'Pay this member?'}
+        title={payingRow ? `Pay ${payingRow.fullname}?` : 'Pay this member?'}
         tone="positive"
         confirmLabel="Mark as paid"
         description={

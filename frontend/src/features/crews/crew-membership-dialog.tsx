@@ -17,7 +17,6 @@ import { useCrews } from '@/features/crews/crews-context'
 import { useEmployees } from '@/features/employees/employees-context'
 import { getErrorMessage } from '@/lib/api-error'
 import type { Crew } from '@/lib/domain-types'
-import { getEmployeeName } from '@/lib/domain-types'
 import {
   Combobox,
   ComboboxChip,
@@ -82,7 +81,7 @@ export function CrewMembershipDialog({
 
   function employeeName(employeeId: number) {
     const employee = employees.find((candidate) => candidate.id === employeeId)
-    return employee ? getEmployeeName(employee) : 'Unknown'
+    return employee ? employee.fullname : 'Unknown'
   }
 
   async function handleAssign() {
@@ -251,7 +250,7 @@ export function CrewMembershipDialog({
 
                         return (
                           <ComboboxChip key={id}>
-                            {employee ? getEmployeeName(employee) : id}
+                            {employee ? employee.fullname : id}
                           </ComboboxChip>
                         )
                       })
@@ -269,7 +268,7 @@ export function CrewMembershipDialog({
                   <ComboboxList>
                     {(item) => (
                       <ComboboxItem key={item.id} value={item.id}>
-                        {getEmployeeName(item)}
+                        {item.fullname}
                       </ComboboxItem>
                     )}
                   </ComboboxList>

@@ -31,7 +31,6 @@ import { useUsersByRole } from '@/features/employees/employees-context'
 import { useVehicles } from '@/features/vehicles/vehicles-context'
 import type { VehicleDraft } from '@/features/vehicles/vehicles-context'
 import { getErrorMessage } from '@/lib/api-error'
-import { getEmployeeName } from '@/lib/domain-types'
 
 export const Route = createFileRoute('/vehicles')({
   component: VehiclesPage,
@@ -155,7 +154,7 @@ function VehiclesPage() {
     const employee = driverLeads.find(
       (candidate) => candidate.id === employeeId,
     )
-    return employee ? getEmployeeName(employee) : 'Unknown'
+    return employee ? employee.fullname : 'Unknown'
   }
 
   return (
@@ -191,7 +190,7 @@ function VehiclesPage() {
               <option value={0}>Select driver-lead…</option>
               {availableDriverOptions.map((employee) => (
                 <option key={employee.id} value={employee.id}>
-                  {getEmployeeName(employee)}
+                  {employee.fullname}
                 </option>
               ))}
             </Select>
@@ -284,7 +283,7 @@ function VehiclesPage() {
                 </p>
                 <p className="mt-1 text-sm text-amber-700">
                   {driverLeadsWithoutVehicle
-                    .map((employee) => getEmployeeName(employee))
+                    .map((employee) => employee.fullname)
                     .join(', ')}{' '}
                   cannot be assigned as a crew Driver-Lead until a vehicle is
                   added.

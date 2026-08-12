@@ -8,14 +8,14 @@ import type {
   TransportDay,
 } from '@/lib/domain-types'
 
-const DRIVER_ID = '5'
-const PASSENGER_ID = '9'
+const DRIVER_ID = 5
+const PASSENGER_ID = 9
 
 function aLine(overrides: Partial<PayoutLine> = {}): PayoutLine {
   return {
-    id: '1',
-    employeeId: DRIVER_ID,
-    employeeName: 'Abbos Kamolov',
+    id: 1,
+    userId: DRIVER_ID,
+    fullname: 'Abbos Kamolov',
     driverKm: 0,
     extraBusinessKm: 0,
     taxiCompensation: 0,
@@ -29,16 +29,18 @@ function aLine(overrides: Partial<PayoutLine> = {}): PayoutLine {
 
 function aDay(overrides: Partial<TransportDay> = {}): TransportDay {
   return {
-    id: '100',
-    crewId: '1',
+    id: 100,
+    crewId: 1,
     date: '2026-08-03',
-    morningMode: 'driven',
-    afternoonMode: 'driven',
+    morningMode: 'Driven',
+    afternoonMode: 'Driven',
     driverId: DRIVER_ID,
     commuteKmPerLeg: 20,
     drivenKm: 40,
     extraBusinessKm: 0,
     notes: '',
+    loggedBy: DRIVER_ID,
+    loggedAt: '2026-08-03T00:00:00Z',
     confirmed: true,
     taxiFares: [],
     ...overrides,
@@ -47,12 +49,12 @@ function aDay(overrides: Partial<TransportDay> = {}): TransportDay {
 
 function anExpense(overrides: Partial<TaxiExpense> = {}): TaxiExpense {
   return {
-    id: '900',
-    transportDayId: '100',
-    leg: 'morning',
+    id: 900,
+    transportDayId: 100,
+    leg: 'Morning',
     amount: 30,
     paidById: DRIVER_ID,
-    status: 'approved',
+    taxiExpenseStatus: 'Approved',
     ...overrides,
   }
 }
@@ -85,17 +87,17 @@ describe('buildPayoutReport', () => {
   })
 
   it('gives a passenger no distance even on a day the crew drove', () => {
-    const report = build([aDay()], [], aLine({ employeeId: PASSENGER_ID }))
+    const report = build([aDay()], [], aLine({ userId: PASSENGER_ID }))
 
     expect(report.rows).toEqual([])
   })
 
-  it.each<TaxiExpenseStatus>(['approved', 'paid'])(
+  it.each<TaxiExpenseStatus>(['Approved', 'Paid'])(
     'reimburses a %s taxi fare to whoever fronted it',
-    (status) => {
+    (taxiExpenseStatus) => {
       const report = build(
-        [aDay({ morningMode: 'taxi', drivenKm: 0 })],
-        [anExpense({ status, amount: 45 })],
+        [aDay({ morningMode: 'Taxi', drivenKm: 0 })],
+        [anExpense({ taxiExpenseStatus, amount: 45 })],
       )
 
       expect(report.totalTaxiAmount).toBe(45)
@@ -103,12 +105,12 @@ describe('buildPayoutReport', () => {
     },
   )
 
-  it.each<TaxiExpenseStatus>(['pending', 'rejected'])(
+  it.each<TaxiExpenseStatus>(['Pending', 'Rejected'])(
     'leaves a %s taxi fare out of the report',
-    (status) => {
+    (taxiExpenseStatus) => {
       const report = build(
-        [aDay({ morningMode: 'taxi', drivenKm: 0 })],
-        [anExpense({ status })],
+        [aDay({ morningMode: 'Taxi', drivenKm: 0 })],
+        [anExpense({ taxiExpenseStatus })],
       )
 
       expect(report.totalTaxiAmount).toBe(0)
@@ -118,7 +120,7 @@ describe('buildPayoutReport', () => {
 
   it('only counts fares fronted by this member', () => {
     const report = build(
-      [aDay({ morningMode: 'taxi', drivenKm: 0 })],
+      [aDay({ morningMode: 'Taxi', drivenKm: 0 })],
       [anExpense({ paidById: PASSENGER_ID })],
     )
 
@@ -127,10 +129,10 @@ describe('buildPayoutReport', () => {
 
   it('sums both legs of a day into a single row', () => {
     const report = build(
-      [aDay({ morningMode: 'taxi', afternoonMode: 'taxi', drivenKm: 0 })],
+      [aDay({ morningMode: 'Taxi', afternoonMode: 'Taxi', drivenKm: 0 })],
       [
-        anExpense({ id: '901', leg: 'morning', amount: 30 }),
-        anExpense({ id: '902', leg: 'afternoon', amount: 25 }),
+        anExpense({ id: 901, leg: 'Morning', amount: 30 }),
+        anExpense({ id: 902, leg: 'Afternoon', amount: 25 }),
       ],
     )
 
@@ -140,8 +142,8 @@ describe('buildPayoutReport', () => {
 
   it('reports a mixed day as both distance and money', () => {
     const report = build(
-      [aDay({ morningMode: 'driven', afternoonMode: 'taxi', drivenKm: 20 })],
-      [anExpense({ leg: 'afternoon', amount: 35 })],
+      [aDay({ morningMode: 'Driven', afternoonMode: 'Taxi', drivenKm: 20 })],
+      [anExpense({ leg: 'Afternoon', amount: 35 })],
     )
 
     expect(report.rows[0]).toMatchObject({ drivenKm: 20, taxiAmount: 35 })
@@ -149,9 +151,9 @@ describe('buildPayoutReport', () => {
 
   it('orders rows by date so the printout reads as a calendar', () => {
     const report = build([
-      aDay({ id: '3', date: '2026-08-20' }),
-      aDay({ id: '1', date: '2026-08-04' }),
-      aDay({ id: '2', date: '2026-08-11' }),
+      aDay({ id: 3, date: '2026-08-20' }),
+      aDay({ id: 1, date: '2026-08-04' }),
+      aDay({ id: 2, date: '2026-08-11' }),
     ])
 
     expect(report.rows.map((row) => row.date)).toEqual([
@@ -165,7 +167,7 @@ describe('buildPayoutReport', () => {
     const report = build([aDay()], [], aLine({ isPaid: true }))
 
     expect(report.isPaid).toBe(true)
-    expect(report.employeeName).toBe('Abbos Kamolov')
+    expect(report.fullname).toBe('Abbos Kamolov')
     expect(report.crewName).toBe('Crew A')
   })
 })

@@ -88,7 +88,7 @@ function DashboardPage() {
         .filter((expense) => dayIdsInPeriod.has(expense.transportDayId))
         .filter(
           (expense) =>
-            expense.status === 'pending' || expense.status === 'approved',
+            expense.taxiExpenseStatus === 'Pending' || expense.taxiExpenseStatus === 'Approved',
         )
         .reduce((total, expense) => total + expense.amount, 0),
     [taxiExpenses, dayIdsInPeriod],
@@ -99,7 +99,7 @@ function DashboardPage() {
       taxiExpenses.filter(
         (expense) =>
           dayIdsInPeriod.has(expense.transportDayId) &&
-          expense.status === 'pending',
+          expense.taxiExpenseStatus === 'Pending',
       ).length,
     [taxiExpenses, dayIdsInPeriod],
   )
@@ -108,22 +108,22 @@ function DashboardPage() {
     () =>
       crews.map((crew) => {
         const days = getDaysForCrewMonth(
-          String(crew.id),
+          crew.id,
           period.year,
           period.month,
         )
         const drivenLegs = days.reduce(
           (count, day) =>
             count +
-            (day.morningMode === 'driven' ? 1 : 0) +
-            (day.afternoonMode === 'driven' ? 1 : 0),
+            (day.morningMode === 'Driven' ? 1 : 0) +
+            (day.afternoonMode === 'Driven' ? 1 : 0),
           0,
         )
         const taxiLegs = days.reduce(
           (count, day) =>
             count +
-            (day.morningMode === 'taxi' ? 1 : 0) +
-            (day.afternoonMode === 'taxi' ? 1 : 0),
+            (day.morningMode === 'Taxi' ? 1 : 0) +
+            (day.afternoonMode === 'Taxi' ? 1 : 0),
           0,
         )
 

@@ -33,7 +33,6 @@ import { useEmployees } from '@/features/employees/employees-context'
 import { useTransportRoutes } from '@/features/routes/routes-context'
 import { useVehicles } from '@/features/vehicles/vehicles-context'
 import { getErrorMessage } from '@/lib/api-error'
-import { getEmployeeName } from '@/lib/domain-types'
 
 export const Route = createFileRoute('/crews')({
   component: CrewsPage,
@@ -177,7 +176,7 @@ function CrewsPage() {
 
   function employeeName(employeeId: number | null) {
     const employee = employees.find((candidate) => candidate.id === employeeId)
-    return employee ? getEmployeeName(employee) : 'Unknown'
+    return employee ? employee.fullname : 'Unknown'
   }
 
   const membershipCrew = membershipCrewId
@@ -288,7 +287,7 @@ function CrewsPage() {
 
                 {employees.map((employee) => (
                   <option key={employee.id} value={employee.id}>
-                    {getEmployeeName(employee)}
+                    {employee.fullname}
                   </option>
                 ))}
               </Select>

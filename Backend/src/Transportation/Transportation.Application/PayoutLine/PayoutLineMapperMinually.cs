@@ -11,8 +11,7 @@ public class PayoutLineMapperMinually
         {
             Id = entity.Id,
             UserId = entity.UserId,
-            FirstName = entity.User?.FirstName ?? string.Empty,
-            LastName = entity.User?.LastName ?? string.Empty,
+            Fullname = entity.User?.Fullname ?? string.Empty,
             DriverKm = entity.DriverKm,
             ExtraBusinessKm = entity.ExtraBusinessKm,
             TaxiCompensation = entity.TaxiCompensation ?? 0,

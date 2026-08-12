@@ -5,7 +5,7 @@ import type { ReactNode } from 'react'
 import { apiClient } from '@/lib/api-client'
 import type { ApiResponse } from '@/lib/api-client'
 // import { appRoleToBackendRole, resolveAppRole } from '@/lib/app-types'
-import { getEmployeeName, isSameId } from '@/lib/domain-types'
+import { isSameId } from '@/lib/domain-types'
 import type { Employee, EntityId } from '@/lib/domain-types'
 import type { AppRole } from '@/lib/app-types'
 
@@ -16,8 +16,7 @@ interface UserApiDto {
   id: number
   email: string
   userName: string
-  firstName: string
-  lastName: string
+  fullname: string
   password: string
   phoneNumber: string
   telegramId: string
@@ -25,13 +24,12 @@ interface UserApiDto {
 }
 
 export interface EmployeeDraft {
-  email: string
+  email: string | null
   userName: string
-  firstName: string
-  lastName: string
+  fullname: string
   password?: string
   phoneNumber: string
-  telegramId: string
+  telegramId: string | null
   roles: AppRole[]
 }
 
@@ -120,8 +118,7 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
       await apiClient.post('/api/User/Create', {
         email: draft.email,
         userName: draft.userName,
-        firstName: draft.firstName,
-        lastName: draft.lastName,
+        fullname: draft.fullname,
         password: draft.password,
         phoneNumber,
         telegramId: draft.telegramId,
@@ -162,8 +159,7 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
         id: Number(employeeId),
         email: draft.email,
         userName: draft.userName,
-        firstName: draft.firstName,
-        lastName: draft.lastName,
+        fullname: draft.fullname,
         phoneNumber,
         telegramId: draft.telegramId,
         roles: draft.roles,
@@ -209,7 +205,7 @@ export function EmployeesProvider({ children }: { children: ReactNode }) {
           isSameId(candidate.id, employeeId),
         )
 
-        return employee ? getEmployeeName(employee) : 'Unknown'
+        return employee ? employee.fullname : 'Unknown'
       },
     }),
     [employees, isLoading, addMutation, updateMutation, deleteMutation],
