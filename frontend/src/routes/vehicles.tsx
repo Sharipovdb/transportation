@@ -31,6 +31,8 @@ import { useUsersByRole } from '@/features/employees/employees-context'
 import { useVehicles } from '@/features/vehicles/vehicles-context'
 import type { VehicleDraft } from '@/features/vehicles/vehicles-context'
 import { getErrorMessage } from '@/lib/api-error'
+import { useCapability } from '@/lib/use-capability'
+import { cn } from '@/lib/utils'
 
 export const Route = createFileRoute('/vehicles')({
   component: VehiclesPage,
@@ -66,7 +68,13 @@ function VehiclesPage() {
     useVehicles()
   const [editingVehicleId, setEditingVehicleId] = useState<number | null>(null)
   const [formError, setFormError] = useState('')
-  const [deletingVehicleId, setDeletingVehicleId] = useState<number | null>(null)
+  const [deletingVehicleId, setDeletingVehicleId] = useState<number | null>(
+    null,
+  )
+
+  const canCreateVehicle = useCapability('createVehicle')
+  const canUpdateVehicle = useCapability('updateVehicle')
+  const canDeleteVehicle = useCapability('deleteVehicle')
 
   const driverLeadsWithoutVehicle = useMemo(
     () =>
@@ -158,119 +166,126 @@ function VehiclesPage() {
   }
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
-      <Card>
-        <CardHeader className="flex-row items-start justify-between gap-4">
-          <div>
-            <CardEyebrow>Vehicles</CardEyebrow>
-            <CardTitle className="mt-2">
-              {editingVehicle ? 'Edit Vehicle' : 'Add Vehicle'}
-            </CardTitle>
-            <CardDescription className="mt-2">
-              Every Driver-Lead needs exactly one vehicle with a seat count and
-              amortization basis.
-            </CardDescription>
-          </div>
+    <section
+      className={cn(
+        'grid gap-6',
+        canCreateVehicle ? 'xl:grid-cols-[380px_minmax(0,1fr)]' : 'grid-cols-1',
+      )}
+    >
+      {canCreateVehicle && (
+        <Card>
+          <CardHeader className="flex-row items-start justify-between gap-4">
+            <div>
+              <CardEyebrow>Vehicles</CardEyebrow>
+              <CardTitle className="mt-2">
+                {editingVehicle ? 'Edit Vehicle' : 'Add Vehicle'}
+              </CardTitle>
+              <CardDescription className="mt-2">
+                Every Driver-Lead needs exactly one vehicle with a seat count
+                and amortization basis.
+              </CardDescription>
+            </div>
 
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
-            <Car className="size-5" />
-          </div>
-        </CardHeader>
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
+              <Car className="size-5" />
+            </div>
+          </CardHeader>
 
-        <form className="mt-2 space-y-5" onSubmit={onSubmit}>
-          <Field
-            label="Driver-Lead"
-            htmlFor="driverId"
-            error={errors.driverId?.message}
-          >
-            <Select
-              id="driverId"
-              {...register('driverId', { valueAsNumber: true })}
+          <form className="mt-2 space-y-5" onSubmit={onSubmit}>
+            <Field
+              label="Driver-Lead"
+              htmlFor="driverId"
+              error={errors.driverId?.message}
             >
-              <option value={0}>Select driver-lead…</option>
-              {availableDriverOptions.map((employee) => (
-                <option key={employee.id} value={employee.id}>
-                  {employee.fullname}
-                </option>
-              ))}
-            </Select>
-          </Field>
+              <Select
+                id="driverId"
+                {...register('driverId', { valueAsNumber: true })}
+              >
+                <option value={0}>Select driver-lead…</option>
+                {availableDriverOptions.map((employee) => (
+                  <option key={employee.id} value={employee.id}>
+                    {employee.fullname}
+                  </option>
+                ))}
+              </Select>
+            </Field>
 
-          <Field
-            label="Plate Number"
-            htmlFor="plate"
-            error={errors.plate?.message}
-          >
-            <Input
-              id="plate"
-              placeholder="01 T 123 AA"
-              {...register('plate')}
-            />
-          </Field>
-
-          <Field
-            label="Seat Count"
-            htmlFor="seatCount"
-            error={errors.seatCount?.message}
-          >
-            <Input
-              id="seatCount"
-              type="number"
-              min="1"
-              step="1"
-              {...register('seatCount')}
-            />
-          </Field>
-
-          <Field
-            label="Amortization Basis (TJS / month)"
-            htmlFor="amortizationBasis"
-            error={errors.amortizationBasis?.message}
-          >
-            <Input
-              id="amortizationBasis"
-              type="number"
-              min="0"
-              step="1"
-              {...register('amortizationBasis')}
-            />
-          </Field>
-
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Button
-              type="submit"
-              className="h-11 rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
-              disabled={isSubmitting}
+            <Field
+              label="Plate Number"
+              htmlFor="plate"
+              error={errors.plate?.message}
             >
-              {editingVehicle ? (
-                <PencilLine className="size-4" />
-              ) : (
-                <Plus className="size-4" />
-              )}
-              {editingVehicle ? 'Save Changes' : 'Add Vehicle'}
-            </Button>
+              <Input
+                id="plate"
+                placeholder="01 T 123 AA"
+                {...register('plate')}
+              />
+            </Field>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 rounded-2xl border-sky-100 px-5 text-slate-700"
-              onClick={resetForm}
+            <Field
+              label="Seat Count"
+              htmlFor="seatCount"
+              error={errors.seatCount?.message}
             >
-              Clear Form
-            </Button>
-          </div>
+              <Input
+                id="seatCount"
+                type="number"
+                min="1"
+                step="1"
+                {...register('seatCount')}
+              />
+            </Field>
 
-          {availableDriverOptions.length === 0 && !editingVehicle && (
-            <p className="text-xs font-medium text-amber-600">
-              Every Driver-Lead already has a vehicle assigned.
-            </p>
-          )}
+            <Field
+              label="Amortization Basis (TJS / month)"
+              htmlFor="amortizationBasis"
+              error={errors.amortizationBasis?.message}
+            >
+              <Input
+                id="amortizationBasis"
+                type="number"
+                min="0"
+                step="1"
+                {...register('amortizationBasis')}
+              />
+            </Field>
 
-          {formError && (
-            <p className="text-xs font-medium text-red-500">{formError}</p>
-          )}
-        </form>
-      </Card>
+            <div className="flex flex-wrap gap-3 pt-2">
+              <Button
+                type="submit"
+                className="h-11 rounded-2xl bg-sky-600 px-5 text-white hover:bg-sky-700"
+                disabled={isSubmitting}
+              >
+                {editingVehicle ? (
+                  <PencilLine className="size-4" />
+                ) : (
+                  <Plus className="size-4" />
+                )}
+                {editingVehicle ? 'Save Changes' : 'Add Vehicle'}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 rounded-2xl border-sky-100 px-5 text-slate-700"
+                onClick={resetForm}
+              >
+                Clear Form
+              </Button>
+            </div>
+
+            {availableDriverOptions.length === 0 && !editingVehicle && (
+              <p className="text-xs font-medium text-amber-600">
+                Every Driver-Lead already has a vehicle assigned.
+              </p>
+            )}
+
+            {formError && (
+              <p className="text-xs font-medium text-red-500">{formError}</p>
+            )}
+          </form>
+        </Card>
+      )}
 
       <div className="space-y-6">
         {driverLeadsWithoutVehicle.length > 0 && (
@@ -314,7 +329,9 @@ function VehiclesPage() {
                   <TableHead>Plate</TableHead>
                   <TableHead>Seats</TableHead>
                   <TableHead>Amortization</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  {(canUpdateVehicle || canDeleteVehicle) && (
+                    <TableHead className="text-right">Actions</TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -328,28 +345,34 @@ function VehiclesPage() {
                     </TableCell>
                     <TableCell>{vehicle.seatCount}</TableCell>
                     <TableCell>{vehicle.amortizationBasis} TJS / mo</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="rounded-full border-sky-100 text-sky-700"
-                          onClick={() => setEditingVehicleId(vehicle.id)}
-                        >
-                          <PencilLine className="size-4" />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon"
-                          className="rounded-full"
-                          onClick={() => setDeletingVehicleId(vehicle.id)}
-                        >
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+                    {(canUpdateVehicle || canDeleteVehicle) && (
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          {canUpdateVehicle && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="rounded-full border-sky-100 text-sky-700"
+                              onClick={() => setEditingVehicleId(vehicle.id)}
+                            >
+                              <PencilLine className="size-4" />
+                            </Button>
+                          )}
+                          {canDeleteVehicle && (
+                            <Button
+                              type="button"
+                              variant="destructive"
+                              size="icon"
+                              className="rounded-full"
+                              onClick={() => setDeletingVehicleId(vehicle.id)}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
 

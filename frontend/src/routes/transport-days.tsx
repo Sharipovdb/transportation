@@ -32,6 +32,7 @@ import { getErrorMessage } from '@/lib/api-error'
 import { isSameId, legLabels, transportModeLabels, transportModes } from '@/lib/domain-types'
 import type { Leg, TaxiFare, TransportMode } from '@/lib/domain-types'
 import { formatCurrency, formatDayLabel, formatKm, formatMonthLabel, getMonthYear } from '@/lib/format'
+import { useCapability } from '@/lib/use-capability'
 
 export const Route = createFileRoute('/transport-days')({
   component: TransportDaysPage,
@@ -148,6 +149,12 @@ function TransportDaysPage() {
   const [editingDayId, setEditingDayId] = useState<number | null>(null)
   const [formError, setFormError] = useState('')
   const [deletingDayId, setDeletingDayId] = useState<number | null>(null)
+
+  const canCreateTransportDay = useCapability('createTransportDay')
+  const canUpdateTransportDay = useCapability('updateTransportDay')
+  const canDeleteTransportDay = useCapability('deleteTransportDay')
+  const canConfirmTransportDay = useCapability('confirmTransportDay')
+  const canUnconfirmTransportDay = useCapability('unconfirmTransportDay')
 
   const {
     register,
@@ -280,8 +287,19 @@ function TransportDaysPage() {
     return fares.reduce((total, fare) => total + fare.amount, 0)
   }
 
+  // Someone who may neither log a new day nor amend an existing one has no use for the
+  // form, so the page collapses to the list rather than showing inputs that cannot save.
+  const canLogDay = canCreateTransportDay || canUpdateTransportDay
+
   return (
-    <section className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
+    <section
+      className={
+        canLogDay
+          ? 'grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]'
+          : 'grid gap-6'
+      }
+    >
+      {canLogDay && (
       <Card>
         <CardHeader className="flex-row items-start justify-between gap-4">
           <div>
@@ -393,6 +411,7 @@ function TransportDaysPage() {
           </div>
         </form>
       </Card>
+      )}
 
       <Card>
         <CardHeader className="flex-col gap-4 border-b border-sky-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
@@ -471,36 +490,42 @@ function TransportDaysPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-sm"
-                        className="rounded-full border-sky-100 text-sky-700"
-                        onClick={() => toggleConfirm(day.id, day.confirmed)}
-                        title={day.confirmed ? 'Unconfirm' : 'Confirm'}
-                      >
-                        {day.confirmed ? <RotateCcw className="size-3.5" /> : <CheckCircle2 className="size-3.5" />}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon-sm"
-                        className="rounded-full border-sky-100 text-sky-700"
-                        disabled={day.confirmed}
-                        title={day.confirmed ? 'Unconfirm the day to edit it' : 'Edit'}
-                        onClick={() => startEdit(day.id)}
-                      >
-                        <PencilLine className="size-3.5" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon-sm"
-                        className="rounded-full"
-                        onClick={() => setDeletingDayId(day.id)}
-                      >
-                        <Trash2 className="size-3.5" />
-                      </Button>
+                      {(day.confirmed ? canUnconfirmTransportDay : canConfirmTransportDay) && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          className="rounded-full border-sky-100 text-sky-700"
+                          onClick={() => toggleConfirm(day.id, day.confirmed)}
+                          title={day.confirmed ? 'Unconfirm' : 'Confirm'}
+                        >
+                          {day.confirmed ? <RotateCcw className="size-3.5" /> : <CheckCircle2 className="size-3.5" />}
+                        </Button>
+                      )}
+                      {canUpdateTransportDay && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          className="rounded-full border-sky-100 text-sky-700"
+                          disabled={day.confirmed}
+                          title={day.confirmed ? 'Unconfirm the day to edit it' : 'Edit'}
+                          onClick={() => startEdit(day.id)}
+                        >
+                          <PencilLine className="size-3.5" />
+                        </Button>
+                      )}
+                      {canDeleteTransportDay && (
+                        <Button
+                          type="button"
+                          variant="destructive"
+                          size="icon-sm"
+                          className="rounded-full"
+                          onClick={() => setDeletingDayId(day.id)}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>

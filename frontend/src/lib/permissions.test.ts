@@ -3,8 +3,16 @@ import { describe, expect, it } from 'vitest'
 import { getNavigationItemsForRole } from '@/app/navigation'
 import { appPagePaths, canAccessPath, hasCapability } from '@/lib/permissions'
 
-const { dashboard, payouts, monthlySheets, employees, crews, taxiExpenses, vehicles } =
-  appPagePaths
+const {
+  dashboard,
+  payouts,
+  monthlySheets,
+  employees,
+  crews,
+  transportDays,
+  taxiExpenses,
+  vehicles,
+} = appPagePaths
 
 // A session carries a list of roles, so every assertion passes one — a single-role
 // array is the common case.
@@ -41,8 +49,12 @@ describe('page access', () => {
     expect(canAccessPath([...crewLead], employees)).toBe(false)
   })
 
-  it('driver lead additionally sees vehicles', () => {
-    expect(canAccessPath([...driverLead], vehicles)).toBe(true)
+  // Both lead kinds do the same job on the same screens — the difference between them
+  // is who drives, not what they may open. Neither one administers the fleet.
+  it('both lead kinds get the same pages, and neither administers vehicles', () => {
+    expect(canAccessPath([...driverLead], transportDays)).toBe(true)
+    expect(canAccessPath([...crewLead], transportDays)).toBe(true)
+    expect(canAccessPath([...driverLead], vehicles)).toBe(false)
     expect(canAccessPath([...crewLead], vehicles)).toBe(false)
   })
 
@@ -95,5 +107,25 @@ describe('capabilities', () => {
     expect(hasCapability([...crewLead], 'payMember')).toBe(false)
     expect(hasCapability([...driverLead], 'payMember')).toBe(false)
     expect(hasCapability([...routeManager], 'payMember')).toBe(false)
+  })
+
+  it('leads log the day; the accountant rules on what it cost', () => {
+    expect(hasCapability([...crewLead], 'createTransportDay')).toBe(true)
+    expect(hasCapability([...driverLead], 'confirmTransportDay')).toBe(true)
+    expect(hasCapability([...accountant], 'createTransportDay')).toBe(false)
+    expect(hasCapability([...crewLead], 'rejectTaxiExpense')).toBe(false)
+  })
+
+  it('the route manager owns the fleet and the routes, not the money', () => {
+    expect(hasCapability([...routeManager], 'createRoute')).toBe(true)
+    expect(hasCapability([...routeManager], 'deleteVehicle')).toBe(true)
+    expect(hasCapability([...routeManager], 'viewFinance')).toBe(false)
+    expect(hasCapability([...crewLead], 'createVehicle')).toBe(false)
+  })
+
+  it('a worker has no capability at all', () => {
+    expect(hasCapability([...worker], 'createTransportDay')).toBe(false)
+    expect(hasCapability([...worker], 'viewFinance')).toBe(false)
+    expect(hasCapability([...worker], 'payMember')).toBe(false)
   })
 })

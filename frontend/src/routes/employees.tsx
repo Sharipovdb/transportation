@@ -309,7 +309,14 @@ function EmployeesPage() {
                   <ComboboxChips>
                     <ComboboxValue>
                       {field.value.map((role) => (
-                        <ComboboxChip key={role} showRemove={role !== 'Worker'}>
+                        <ComboboxChip
+                          key={role}
+                          showRemove={
+                            role !== 'Worker' &&
+                            role !== 'CrewLead' &&
+                            role !== 'DriverLead'
+                          }
+                        >
                           {role}
                         </ComboboxChip>
                       ))}

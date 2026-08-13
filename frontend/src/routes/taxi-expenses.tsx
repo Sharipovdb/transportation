@@ -324,30 +324,30 @@ function TaxiExpensesPage() {
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         {isPending && can('approveTaxiExpense') && (
-                          <>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon-sm"
-                              className="rounded-full border-emerald-200 text-emerald-700"
-                              onClick={() => handleApprove(expense.id)}
-                              title="Approve"
-                            >
-                              <Check className="size-3.5" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon-sm"
-                              className="rounded-full border-red-200 text-red-600"
-                              onClick={() => handleReject(expense.id)}
-                              title="Reject"
-                            >
-                              <X className="size-3.5" />
-                            </Button>
-                          </>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
+                            className="rounded-full border-emerald-200 text-emerald-700"
+                            onClick={() => handleApprove(expense.id)}
+                            title="Approve"
+                          >
+                            <Check className="size-3.5" />
+                          </Button>
                         )}
-                        {isPending && (
+                        {isPending && can('rejectTaxiExpense') && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
+                            className="rounded-full border-red-200 text-red-600"
+                            onClick={() => handleReject(expense.id)}
+                            title="Reject"
+                          >
+                            <X className="size-3.5" />
+                          </Button>
+                        )}
+                        {isPending && can('updateTaxiExpense') && (
                           <Button
                             type="button"
                             variant="outline"
@@ -359,15 +359,17 @@ function TaxiExpensesPage() {
                             <PencilLine className="size-3.5" />
                           </Button>
                         )}
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon-sm"
-                          className="rounded-full"
-                          onClick={() => setDeletingExpenseId(expense.id)}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
+                        {can('deleteTaxiExpense') && (
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon-sm"
+                            className="rounded-full"
+                            onClick={() => setDeletingExpenseId(expense.id)}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
