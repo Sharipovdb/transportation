@@ -3,14 +3,26 @@ import { createContext, useContext, useMemo } from 'react'
 import type { ReactNode } from 'react'
 
 import { apiClient } from '@/lib/api-client'
-import type { Leg, TaxiFare, TransportDay, TransportMode } from '@/lib/domain-types'
+import type {
+  Leg,
+  TaxiFare,
+  TransportDay,
+  TransportMode,
+} from '@/lib/domain-types'
 import { getMonthYear } from '@/lib/format'
 import { nestedLargePage } from '@/lib/pagination'
+
+import { useAuth } from '@/features/auth/auth-context'
+import type { AuthSession } from '@/lib/app-types'
 
 // TransportMode has no explicit int values on the backend (Driven=0, Taxi=1, None=2 by
 // ordinal) — request bodies want the number. Response DTOs give back the enum's own
 // PascalCase name, which already matches this union, so no reverse map is needed.
-const modeToApiValue: Record<TransportMode, number> = { Driven: 0, Taxi: 1, None: 2 }
+const modeToApiValue: Record<TransportMode, number> = {
+  Driven: 0,
+  Taxi: 1,
+  None: 2,
+}
 
 // Leg does have explicit backend values (Morning=1, Afternoon=2).
 const legToApiValue: Record<Leg, number> = { Morning: 1, Afternoon: 2 }
@@ -92,10 +104,19 @@ function toTaxiFarePayload(fares: TaxiFare[]) {
   }))
 }
 
-async function fetchTransportDays() {
-  const response = await apiClient.get<PaginatedResult<TransportDayApiDto>>('/api/TransportDays/GetAll', {
-    params: nestedLargePage,
-  })
+async function fetchTransportDays(session: AuthSession | null) {
+  const isAdmin = session?.roles.includes('Admin')
+
+  const endpoint = isAdmin
+    ? '/api/TransportDays/GetAll'
+    : '/api/TransportDays/GetByByCurrentUserId'
+
+  const response = await apiClient.get<PaginatedResult<TransportDayApiDto>>(
+    endpoint,
+    {
+      params: nestedLargePage,
+    },
+  )
 
   return response.data.items.map(toTransportDay)
 }
@@ -104,29 +125,42 @@ interface TransportDaysContextValue {
   transportDays: TransportDay[]
   isLoading: boolean
   getDayById: (dayId: number | null | undefined) => TransportDay | undefined
-  getDaysForCrewMonth: (crewId: number, year: number, month: number) => TransportDay[]
+  getDaysForCrewMonth: (
+    crewId: number,
+    year: number,
+    month: number,
+  ) => TransportDay[]
   addTransportDay: (draft: TransportDayDraft) => Promise<void>
-  updateTransportDay: (dayId: number, draft: Omit<TransportDayDraft, 'crewId' | 'date'>) => Promise<void>
+  updateTransportDay: (
+    dayId: number,
+    draft: Omit<TransportDayDraft, 'crewId' | 'date'>,
+  ) => Promise<void>
   deleteTransportDay: (dayId: number) => Promise<void>
   confirmTransportDay: (dayId: number) => Promise<void>
   unconfirmTransportDay: (dayId: number) => Promise<void>
 }
 
-const TransportDaysContext = createContext<TransportDaysContextValue | null>(null)
+const TransportDaysContext = createContext<TransportDaysContextValue | null>(
+  null,
+)
 
 export function TransportDaysProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
 
+  const { session } = useAuth()
+
   const { data: transportDays = [], isLoading } = useQuery({
-    queryKey: TRANSPORT_DAYS_QUERY_KEY,
-    queryFn: fetchTransportDays,
+    queryKey: [TRANSPORT_DAYS_QUERY_KEY, session],
+    queryFn: () => fetchTransportDays(session),
   })
 
   // Taxi expenses are written through the transport day, so anything that touches a day
   // can change them too — both caches are refreshed together.
   function invalidate() {
     return Promise.all([
-      queryClient.invalidateQueries({ queryKey: TRANSPORT_DAYS_QUERY_KEY }),
+      queryClient.invalidateQueries({
+        queryKey: [TRANSPORT_DAYS_QUERY_KEY, session],
+      }),
       queryClient.invalidateQueries({ queryKey: ['taxi-expenses'] }),
       queryClient.invalidateQueries({ queryKey: ['monthly-sheets'] }),
     ])
@@ -168,17 +202,20 @@ export function TransportDaysProvider({ children }: { children: ReactNode }) {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (dayId: number) => apiClient.delete(`/api/TransportDays/Delete/${dayId}`),
+    mutationFn: (dayId: number) =>
+      apiClient.delete(`/api/TransportDays/Delete/${dayId}`),
     onSuccess: invalidate,
   })
 
   const confirmMutation = useMutation({
-    mutationFn: (dayId: number) => apiClient.post(`/api/TransportDays/Confirm/${dayId}/confirm`),
+    mutationFn: (dayId: number) =>
+      apiClient.post(`/api/TransportDays/Confirm/${dayId}/confirm`),
     onSuccess: invalidate,
   })
 
   const unconfirmMutation = useMutation({
-    mutationFn: (dayId: number) => apiClient.post(`/api/TransportDays/UnConfirm/${dayId}/unconfirm`),
+    mutationFn: (dayId: number) =>
+      apiClient.post(`/api/TransportDays/UnConfirm/${dayId}/unconfirm`),
     onSuccess: invalidate,
   })
 
@@ -198,23 +235,47 @@ export function TransportDaysProvider({ children }: { children: ReactNode }) {
             return period.year === year && period.month === month
           })
           .sort((first, second) => first.date.localeCompare(second.date)),
-      addTransportDay: async (draft) => { await addMutation.mutateAsync(draft) },
-      updateTransportDay: async (dayId, draft) => { await updateMutation.mutateAsync({ dayId, draft }) },
-      deleteTransportDay: async (dayId) => { await deleteMutation.mutateAsync(dayId) },
-      confirmTransportDay: async (dayId) => { await confirmMutation.mutateAsync(dayId) },
-      unconfirmTransportDay: async (dayId) => { await unconfirmMutation.mutateAsync(dayId) },
+      addTransportDay: async (draft) => {
+        await addMutation.mutateAsync(draft)
+      },
+      updateTransportDay: async (dayId, draft) => {
+        await updateMutation.mutateAsync({ dayId, draft })
+      },
+      deleteTransportDay: async (dayId) => {
+        await deleteMutation.mutateAsync(dayId)
+      },
+      confirmTransportDay: async (dayId) => {
+        await confirmMutation.mutateAsync(dayId)
+      },
+      unconfirmTransportDay: async (dayId) => {
+        await unconfirmMutation.mutateAsync(dayId)
+      },
     }),
-    [transportDays, isLoading, addMutation, updateMutation, deleteMutation, confirmMutation, unconfirmMutation],
+    [
+      transportDays,
+      isLoading,
+      addMutation,
+      updateMutation,
+      deleteMutation,
+      confirmMutation,
+      unconfirmMutation,
+    ],
   )
 
-  return <TransportDaysContext.Provider value={value}>{children}</TransportDaysContext.Provider>
+  return (
+    <TransportDaysContext.Provider value={value}>
+      {children}
+    </TransportDaysContext.Provider>
+  )
 }
 
 export function useTransportDays() {
   const context = useContext(TransportDaysContext)
 
   if (!context) {
-    throw new Error('useTransportDays must be used inside TransportDaysProvider')
+    throw new Error(
+      'useTransportDays must be used inside TransportDaysProvider',
+    )
   }
 
   return context

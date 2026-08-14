@@ -11,7 +11,9 @@ const muted = '#64748b'
 const accent = '#0284c7'
 
 function weekday(isoDate: string) {
-  return new Date(`${isoDate}T00:00:00`).toLocaleDateString('en-GB', { weekday: 'short' })
+  return new Date(`${isoDate}T00:00:00`).toLocaleDateString('en-GB', {
+    weekday: 'short',
+  })
 }
 
 function dayOfMonth(isoDate: string) {
@@ -88,11 +90,37 @@ function drawDailyTable(doc: jsPDF, report: PayoutReport, startY: number) {
 
   autoTable(doc, {
     startY,
-    head: [['Date', 'Day', 'Morning', 'Afternoon', 'Driven km', 'Extra business km', 'Taxi fare']],
-    body: body.length > 0 ? body : [[{ content: 'No confirmed travel recorded for this month.', colSpan: 7 }]],
+    head: [
+      [
+        'Date',
+        'Day',
+        'Morning',
+        'Afternoon',
+        'Driven km',
+        'Extra business km',
+        'Taxi fare',
+      ],
+    ],
+    body:
+      body.length > 0
+        ? body
+        : [
+            [
+              {
+                content: 'No confirmed travel recorded for this month.',
+                colSpan: 7,
+              },
+            ],
+          ],
     foot: body.length > 0 ? [buildTotalsRow(report)] : undefined,
     theme: 'grid',
-    styles: { font: 'helvetica', fontSize: 9, cellPadding: 2, textColor: ink, lineColor: '#cbd5e1' },
+    styles: {
+      font: 'helvetica',
+      fontSize: 9,
+      cellPadding: 2,
+      textColor: ink,
+      lineColor: '#cbd5e1',
+    },
     headStyles: { fillColor: '#e0f2fe', textColor: ink, fontStyle: 'bold' },
     footStyles: { fillColor: '#f1f5f9', textColor: ink, fontStyle: 'bold' },
     columnStyles: {
@@ -115,7 +143,12 @@ function buildTotalsRow(report: PayoutReport) {
   ]
 }
 
-function drawSummary(doc: jsPDF, report: PayoutReport, pageWidth: number, startY: number) {
+function drawSummary(
+  doc: jsPDF,
+  report: PayoutReport,
+  pageWidth: number,
+  startY: number,
+) {
   const lines: [string, string][] = [
     ['Distance driven in own car', formatKm(report.totalDrivenKm)],
     ['Extra business distance', formatKm(report.totalExtraBusinessKm)],
@@ -144,7 +177,9 @@ function drawSummary(doc: jsPDF, report: PayoutReport, pageWidth: number, startY
   doc.setFont('helvetica', 'bold').setFontSize(11).setTextColor(ink)
   doc.text('Amount payable', margin, y)
   doc.setTextColor(accent)
-  doc.text(formatCurrency(report.totalTaxiAmount), pageWidth - margin, y, { align: 'right' })
+  doc.text(formatCurrency(report.totalTaxiAmount), pageWidth - margin, y, {
+    align: 'right',
+  })
 
   y += 6
   doc.setFont('helvetica', 'italic').setFontSize(8).setTextColor(muted)
@@ -180,5 +215,8 @@ function drawSignatures(doc: jsPDF, pageWidth: number, startY: number) {
 // autoTable records where it stopped on the document; typings expose it as an optional
 // field, so it is read through one helper instead of casting at every call site.
 function getTableEndY(doc: jsPDF) {
-  return (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 0
+  return (
+    (doc as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable
+      ?.finalY ?? 0
+  )
 }

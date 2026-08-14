@@ -203,9 +203,9 @@ function MonthlySheetsPage() {
             </CardTitle>
             <CardDescription className="mt-2">
               Computed by the backend from confirmed transport days and approved
-              taxi expenses. Kilometres driven in a member's own car are reported
-              as distance and priced by hand later; only taxi fares are settled
-              here.
+              taxi expenses. Kilometres driven in a member's own car are
+              reported as distance and priced by hand later; only taxi fares are
+              settled here.
             </CardDescription>
           </div>
 
@@ -287,7 +287,11 @@ function MonthlySheetsPage() {
                   disabled={isBusy}
                   onClick={handleGenerate}
                 >
-                  {sheet ? <RefreshCw className="size-3.5" /> : <Sparkles className="size-3.5" />}
+                  {sheet ? (
+                    <RefreshCw className="size-3.5" />
+                  ) : (
+                    <Sparkles className="size-3.5" />
+                  )}
                   {sheet ? 'Recalculate' : 'Generate & Save'}
                 </Button>
               )}
@@ -360,7 +364,9 @@ function MonthlySheetsPage() {
                         <TableCell className="font-medium text-slate-900">
                           <span className="flex items-center gap-2">
                             {line.fullname}
-                            {line.isPaid && <Badge variant="success">Paid</Badge>}
+                            {line.isPaid && (
+                              <Badge variant="success">Paid</Badge>
+                            )}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
