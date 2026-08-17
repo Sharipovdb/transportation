@@ -8,6 +8,7 @@ import type {
   TaxiFare,
   TransportDay,
   TransportMode,
+  TaxiExpenseStatus,
 } from '@/lib/domain-types'
 import { getMonthYear } from '@/lib/format'
 import { nestedLargePage } from '@/lib/pagination'
@@ -29,10 +30,11 @@ const legToApiValue: Record<Leg, number> = { Morning: 1, Afternoon: 2 }
 
 interface TaxiExpenseApiDto {
   id: number
+  transportDayId: number
   leg: Leg
   amount: number
   paidById: number
-  taxiExpenseStatus: string
+  taxiExpenseStatus: TaxiExpenseStatus
 }
 
 interface TransportDayApiDto {
@@ -81,17 +83,20 @@ function toTransportDay(dto: TransportDayApiDto): TransportDay {
     morningMode: dto.morningMode,
     afternoonMode: dto.afternoonMode,
     driverId: dto.driverId,
-    commuteKmPerLeg: dto.commuteKmPerLeg,
+    totalCommuteKm: dto.commuteKmPerLeg,
     drivenKm: dto.drivenCommuteKm,
     extraBusinessKm: dto.extraBusinessKm,
     notes: dto.notes ?? '',
     loggedBy: dto.loggedBy,
     loggedAt: dto.loggedAt,
     confirmed: dto.confirmed,
-    taxiFares: dto.taxiExpenses.map((expense) => ({
+    taxiExpenses: dto.taxiExpenses.map((expense) => ({
+      id: expense.id,
+      transportDayId: expense.transportDayId,
+      paidById: expense.paidById,
       leg: expense.leg,
       amount: expense.amount,
-      paidById: expense.paidById,
+      taxiExpenseStatus: expense.taxiExpenseStatus,
     })),
   }
 }
@@ -105,7 +110,10 @@ function toTaxiFarePayload(fares: TaxiFare[]) {
 }
 
 async function fetchTransportDays(session: AuthSession | null) {
-  const isAdmin = session?.roles.includes('Admin')
+  const isAdmin =
+    session?.roles.includes('Admin') ||
+    session?.roles.includes('Accountant') ||
+    session?.roles.includes('RouteManager')
 
   const endpoint = isAdmin
     ? '/api/TransportDays/GetAll'

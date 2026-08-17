@@ -132,7 +132,7 @@ export interface TransportDay {
   driverId: number | null
   // Length of one leg (crew route + any detour) versus what was actually driven:
   // a taxi leg costs money and covers no distance, so it adds nothing to drivenKm.
-  commuteKmPerLeg: number
+  totalCommuteKm: number
   drivenKm: number
   extraBusinessKm: number // km driven for company purposes beyond the commute
   notes: string | null
@@ -141,7 +141,7 @@ export interface TransportDay {
   confirmed: boolean
   // Every taxi leg carries its fare — recorded here, in the daily log, so a ride can
   // never end up without a reimbursable expense behind it.
-  taxiFares: TaxiFare[]
+  taxiExpenses: TaxiExpense[]
 }
 
 // The fare of one taxi leg as captured on the transport day.

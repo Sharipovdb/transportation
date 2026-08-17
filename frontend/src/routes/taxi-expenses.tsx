@@ -10,7 +10,13 @@ import type { Period } from '@/components/month-picker'
 import { MonthPicker } from '@/components/month-picker'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardDescription, CardEyebrow, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardDescription,
+  CardEyebrow,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import {
@@ -28,9 +34,18 @@ import { useEmployees } from '@/features/employees/employees-context'
 import { useTaxiExpenses } from '@/features/taxi-expenses/taxi-expenses-context'
 import { useTransportDays } from '@/features/transport-days/transport-days-context'
 import { getErrorMessage } from '@/lib/api-error'
-import { isSameId, legLabels, taxiExpenseStatusLabels } from '@/lib/domain-types'
+import {
+  isSameId,
+  legLabels,
+  taxiExpenseStatusLabels,
+} from '@/lib/domain-types'
 import type { TaxiExpenseStatus } from '@/lib/domain-types'
-import { formatCurrency, formatDayLabel, formatMonthLabel, getMonthYear } from '@/lib/format'
+import {
+  formatCurrency,
+  formatDayLabel,
+  formatMonthLabel,
+  getMonthYear,
+} from '@/lib/format'
 
 export const Route = createFileRoute('/taxi-expenses')({
   component: TaxiExpensesPage,
@@ -50,7 +65,10 @@ function todayIsoDate() {
   return new Date().toISOString().slice(0, 10)
 }
 
-const statusBadgeVariant: Record<TaxiExpenseStatus, 'warning' | 'success' | 'destructive' | 'secondary'> = {
+const statusBadgeVariant: Record<
+  TaxiExpenseStatus,
+  'warning' | 'success' | 'destructive' | 'secondary'
+> = {
   Pending: 'warning',
   Approved: 'success',
   Rejected: 'destructive',
@@ -72,11 +90,15 @@ function TaxiExpensesPage() {
     rejectTaxiExpense,
   } = useTaxiExpenses()
 
-  const [period, setPeriod] = useState<Period>(() => getMonthYear(todayIsoDate()))
+  const [period, setPeriod] = useState<Period>(() =>
+    getMonthYear(todayIsoDate()),
+  )
   const [crewFilter, setCrewFilter] = useState('')
   const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null)
   const [formError, setFormError] = useState('')
-  const [deletingExpenseId, setDeletingExpenseId] = useState<number | null>(null)
+  const [deletingExpenseId, setDeletingExpenseId] = useState<number | null>(
+    null,
+  )
 
   const {
     register,
@@ -89,14 +111,19 @@ function TaxiExpensesPage() {
   })
 
   const editingExpense = editingExpenseId
-    ? taxiExpenses.find((candidate) => candidate.id === editingExpenseId) ?? null
+    ? (taxiExpenses.find((candidate) => candidate.id === editingExpenseId) ??
+      null)
     : null
-  const editingDay = editingExpense ? getDayById(editingExpense.transportDayId) : undefined
+  const editingDay = editingExpense
+    ? getDayById(editingExpense.transportDayId)
+    : undefined
 
   // Only members of the crew that took the ride can be charged for it — the backend
   // enforces the same rule when the change is saved.
   const editingCrewMembers = useMemo(() => {
-    const crew = crews.find((candidate) => isSameId(candidate.id, editingDay?.crewId))
+    const crew = crews.find((candidate) =>
+      isSameId(candidate.id, editingDay?.crewId),
+    )
 
     if (!crew) {
       return []
@@ -106,7 +133,12 @@ function TaxiExpensesPage() {
       id: String(membership.employeeId),
       name: getEmployeeDisplayName(membership.employeeId),
     }))
-  }, [crews, editingDay?.crewId, getActiveMembersForCrew, getEmployeeDisplayName])
+  }, [
+    crews,
+    editingDay?.crewId,
+    getActiveMembersForCrew,
+    getEmployeeDisplayName,
+  ])
 
   const visibleExpenses = useMemo(() => {
     return taxiExpenses
@@ -117,14 +149,18 @@ function TaxiExpensesPage() {
           return false
         }
 
-        const inPeriod = getMonthYear(day.date).year === period.year && getMonthYear(day.date).month === period.month
+        const inPeriod =
+          getMonthYear(day.date).year === period.year &&
+          getMonthYear(day.date).month === period.month
         const inCrew = !crewFilter || isSameId(day.crewId, crewFilter)
 
         return inPeriod && inCrew
       })
-      .sort((first, second) => (getDayById(second.transportDayId)?.date ?? '').localeCompare(
-        getDayById(first.transportDayId)?.date ?? '',
-      ))
+      .sort((first, second) =>
+        (getDayById(second.transportDayId)?.date ?? '').localeCompare(
+          getDayById(first.transportDayId)?.date ?? '',
+        ),
+      )
   }, [taxiExpenses, period, crewFilter, getDayById])
 
   function resetForm() {
@@ -203,8 +239,9 @@ function TaxiExpensesPage() {
             <CardEyebrow>Reimbursements</CardEyebrow>
             <CardTitle className="mt-2">Amend Taxi Expense</CardTitle>
             <CardDescription className="mt-2">
-              Taxi rides are recorded on the transport day they belong to. Here a pending
-              expense can be corrected, approved, or rejected before it reaches a payout.
+              Taxi rides are recorded on the transport day they belong to. Here
+              a pending expense can be corrected, approved, or rejected before
+              it reaches a payout.
             </CardDescription>
           </div>
 
@@ -215,22 +252,44 @@ function TaxiExpensesPage() {
 
         {!editingExpense ? (
           <p className="mt-6 rounded-2xl bg-sky-50/60 px-4 py-8 text-center text-sm text-slate-500">
-            Pick a pending expense from the list to correct its fare or payer. New rides are
-            logged on the <span className="font-medium text-slate-700">Transport Days</span> page.
+            Pick a pending expense from the list to correct its fare or payer.
+            New rides are logged on the{' '}
+            <span className="font-medium text-slate-700">Transport Days</span>{' '}
+            page.
           </p>
         ) : (
           <form className="mt-2 space-y-5" onSubmit={onSubmit}>
             <dl className="space-y-2 rounded-2xl bg-sky-50/60 p-4 text-sm">
-              <Summary label="Day" value={editingDay ? formatDayLabel(editingDay.date) : '—'} />
-              <Summary label="Crew" value={editingDay ? getCrewName(editingDay.crewId) : '—'} />
+              <Summary
+                label="Day"
+                value={editingDay ? formatDayLabel(editingDay.date) : '—'}
+              />
+              <Summary
+                label="Crew"
+                value={editingDay ? getCrewName(editingDay.crewId) : '—'}
+              />
               <Summary label="Leg" value={legLabels[editingExpense.leg]} />
             </dl>
 
-            <Field label="Amount (TJS)" htmlFor="amount" error={errors.amount?.message}>
-              <Input id="amount" type="number" min="0" step="1" {...register('amount')} />
+            <Field
+              label="Amount (TJS)"
+              htmlFor="amount"
+              error={errors.amount?.message}
+            >
+              <Input
+                id="amount"
+                type="number"
+                min="0"
+                step="1"
+                {...register('amount')}
+              />
             </Field>
 
-            <Field label="Paid By" htmlFor="paidById" error={errors.paidById?.message}>
+            <Field
+              label="Paid By"
+              htmlFor="paidById"
+              error={errors.paidById?.message}
+            >
               <Select id="paidById" {...register('paidById')}>
                 <option value="">Select crew member…</option>
                 {editingCrewMembers.map((member) => (
@@ -241,7 +300,9 @@ function TaxiExpensesPage() {
               </Select>
             </Field>
 
-            {formError && <p className="text-xs font-medium text-red-500">{formError}</p>}
+            {formError && (
+              <p className="text-xs font-medium text-red-500">{formError}</p>
+            )}
 
             <div className="flex flex-wrap gap-3 pt-2">
               <Button
@@ -270,14 +331,22 @@ function TaxiExpensesPage() {
         <CardHeader className="flex-col gap-4 border-b border-sky-100 pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <CardEyebrow>Taxi expenses</CardEyebrow>
-            <CardTitle className="mt-2">{formatMonthLabel(period.year, period.month)}</CardTitle>
+            <CardTitle className="mt-2">
+              {formatMonthLabel(period.year, period.month)}
+            </CardTitle>
             <CardDescription className="mt-2">
-              {isLoading ? 'Loading…' : `${visibleExpenses.length} expense(s) shown.`}
+              {isLoading
+                ? 'Loading…'
+                : `${visibleExpenses.length} expense(s) shown.`}
             </CardDescription>
           </div>
 
           <div className="flex flex-wrap items-end gap-3">
-            <Select value={crewFilter} onChange={(event) => setCrewFilter(event.target.value)} className="w-48">
+            <Select
+              value={crewFilter}
+              onChange={(event) => setCrewFilter(event.target.value)}
+              className="w-48"
+            >
               <option value="">All crews</option>
               {crews.map((crew) => (
                 <option key={crew.id} value={crew.id}>
@@ -299,7 +368,12 @@ function TaxiExpensesPage() {
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Paid By</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                {(can('approveTaxiExpense') ||
+                  can('rejectTaxiExpense') ||
+                  can('updateTaxiExpense') ||
+                  can('deleteTaxiExpense')) && (
+                  <TableHead className="text-right">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -314,10 +388,16 @@ function TaxiExpensesPage() {
                     </TableCell>
                     <TableCell>{day ? getCrewName(day.crewId) : '—'}</TableCell>
                     <TableCell>{legLabels[expense.leg]}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(expense.amount)}</TableCell>
-                    <TableCell>{getEmployeeDisplayName(expense.paidById)}</TableCell>
+                    <TableCell className="text-right">
+                      {formatCurrency(expense.amount)}
+                    </TableCell>
                     <TableCell>
-                      <Badge variant={statusBadgeVariant[expense.taxiExpenseStatus]}>
+                      {getEmployeeDisplayName(expense.paidById)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={statusBadgeVariant[expense.taxiExpenseStatus]}
+                      >
                         {taxiExpenseStatusLabels[expense.taxiExpenseStatus]}
                       </Badge>
                     </TableCell>
@@ -378,7 +458,10 @@ function TaxiExpensesPage() {
 
               {!isLoading && visibleExpenses.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-slate-400">
+                  <TableCell
+                    colSpan={7}
+                    className="py-10 text-center text-slate-400"
+                  >
                     No taxi expenses recorded for this period.
                   </TableCell>
                 </TableRow>

@@ -269,7 +269,7 @@ function TransportDaysPage() {
     }
 
     const fareFor = (leg: Leg) => {
-      const fare = day.taxiFares.find((candidate) => candidate.leg === leg)
+      const fare = day.taxiExpenses.find((candidate) => candidate.leg === leg)
 
       return {
         amount: fare?.amount ?? 0,
@@ -551,11 +551,15 @@ function TransportDaysPage() {
                 <TableHead>Morning</TableHead>
                 <TableHead>Afternoon</TableHead>
                 {isAdmin && <TableHead>Driver</TableHead>}
-                <TableHead className="text-right">Driven km</TableHead>
                 <TableHead className="text-right">Extra km</TableHead>
                 <TableHead className="text-right">Taxi fare</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                {(canUpdateTransportDay ||
+                  canDeleteTransportDay ||
+                  canConfirmTransportDay ||
+                  canUnconfirmTransportDay) && (
+                  <TableHead className="text-right">Actions</TableHead>
+                )}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -581,20 +585,13 @@ function TransportDaysPage() {
                   </TableCell>
                   {isAdmin && <TableCell>{driverName(day.driverId)}</TableCell>}
                   <TableCell className="text-right">
-                    {day.drivenKm > 0 ? (
-                      formatKm(day.drivenKm)
-                    ) : (
-                      <span className="text-slate-300">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
                     {day.extraBusinessKm > 0
                       ? formatKm(day.extraBusinessKm)
                       : '—'}
                   </TableCell>
                   <TableCell className="text-right">
-                    {day.taxiFares.length > 0 ? (
-                      formatCurrency(taxiTotal(day.taxiFares))
+                    {day.taxiExpenses.length > 0 ? (
+                      formatCurrency(taxiTotal(day.taxiExpenses))
                     ) : (
                       <span className="text-slate-300">—</span>
                     )}
