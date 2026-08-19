@@ -1,5 +1,4 @@
-﻿using MediatR;
-using Microsoft.AspNetCore.Authorization;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Transportation.Application.MonthlyTransportSheet.Commands;
 using Transportation.Application.MonthlyTransportSheet.Models;
@@ -23,7 +22,7 @@ public class MonthlyTransportSheetsController : BaseController
     {
         return await _mediator.Send(query, cancellationToken);
     }
-    
+
     [HttpGet("{id:long}")]
     public async Task<MonthlyTransportSheetDto> GetById(
         long id,
@@ -33,7 +32,7 @@ public class MonthlyTransportSheetsController : BaseController
     }
 
     [HttpPost]
-    public async Task<PreviewMonthlyTransportSheetResponse> GetPreview(
+    public async Task<MonthlyTransportSheetDto> GetPreview(
         [FromBody] PreviewMonthlyTransportSheetQuery query,
         CancellationToken cancellationToken = default)
     {
@@ -52,6 +51,24 @@ public class MonthlyTransportSheetsController : BaseController
     public async Task<NoContentResult> Confirm(long id, CancellationToken cancellationToken = default)
     {
         await _mediator.Send(new ConfirmMonthlyTransportSheetCommand(id), cancellationToken);
+
+        return new NoContentResult();
+    }
+
+    /// <summary>Puts a confirmed sheet back to draft so the month can be corrected.</summary>
+    [HttpPut("{id:long}")]
+    public async Task<NoContentResult> Unconfirm(long id, CancellationToken cancellationToken = default)
+    {
+        await _mediator.Send(new UnconfirmMonthlyTransportSheetCommand(id), cancellationToken);
+
+        return new NoContentResult();
+    }
+
+    /// <summary>Releases the crew's month to its lead. Settlement is per sheet, once.</summary>
+    [HttpPut("{id:long}")]
+    public async Task<NoContentResult> MarkPaid(long id, CancellationToken cancellationToken = default)
+    {
+        await _mediator.Send(new MarkMonthlyTransportSheetPaidCommand(id), cancellationToken);
 
         return new NoContentResult();
     }

@@ -1,13 +1,9 @@
-﻿using FluentValidation;
+using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Transportation.Application.Common.Extensions;
-using Transportation.Application.MonthlyTransportSheet.Calculations;
-using Transportation.Application.MonthlyTransportSheet.Factories;
-using Transportation.Application.MonthlyTransportSheet.Mappers;
 using Transportation.Application.MonthlyTransportSheet.Services;
-using Transportation.Application.PayoutLine;
 using Transportation.Application.TransportDay;
 using Transportation.Application.TransportDay.Services;
 using Transportation.Mediator.Helper.Behaviors;
@@ -30,16 +26,11 @@ public static class ConfigureServices
 
         services
             .AddScoped(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>))
-            .AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>))
-            .AddScoped<PayoutLineMapperMinually>();
+            .AddScoped(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
 
         services.TryAddSingleton<ICurrentUserAccessor, CurrentUserAccessor>();
 
-        services.AddScoped<IMonthlyTransportSheetGenerator, MonthlyTransportSheetGenerator>();
-        services.AddScoped<IMonthlyTransportCalculator, MonthlyTransportCalculator>();
-        services.AddScoped<IMonthlyTransportSheetFactory, MonthlyTransportSheetFactory>();
-
-        services.AddScoped<IMonthlyTransportPreviewMapper, MonthlyTransportPreviewMapper>();
+        services.AddScoped<IMonthlyTransportSheetBuilder, MonthlyTransportSheetBuilder>();
         services.AddScoped<ITransportDayTaxiFareService, TransportDayTaxiFareService>();
         services.AddScoped<TransportDayMapper>();
 

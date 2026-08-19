@@ -26,8 +26,7 @@ public class TransportDayEndpointsTests : IntegrationTestBase
             ExtraBusinessKm = 0,
             Notes = "Test",
             LoggedBy = 1,
-            LoggedAt = DateTime.Now,
-            Confirmed = true
+            LoggedAt = DateTime.Now
         };
 
         // Act
@@ -51,8 +50,7 @@ public class TransportDayEndpointsTests : IntegrationTestBase
             ExtraBusinessKm = 0,
             Notes = "Test",
             LoggedBy = 1,
-            LoggedAt = DateTime.Now,
-            Confirmed = true
+            LoggedAt = DateTime.Now
 
         };
         var createResponse = await HttpClient.PostAsJsonAsync("/api/TransportDays/Create", transportDay);

@@ -30,7 +30,7 @@ public class TransportDay : BaseEntity
     public User LoggedByUser { get; set; } = null!;
 
     public DateTime LoggedAt { get; set; }
-    public bool Confirmed { get; set; }
+
     public List<TaxiExpense> TaxiExpenses { get; set; } = new();
 
     /// <summary>

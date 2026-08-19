@@ -36,7 +36,7 @@ public class DeleteMonthlyTransportSheetCommandTests
 
         var command = fixture.Create<DeleteMonthlyTransportSheetCommand>();
         _monthlyTransportSheetRepository
-            .GetByIdAsync(Arg.Any<MonthlyTransportSheetByIdSpec>())
+            .FirstOrDefaultAsync(Arg.Any<MonthlyTransportSheetByIdSpec>())
             .Returns((Domain.Entities.MonthlyTransportSheet?)null);
 
         // Act
@@ -66,7 +66,7 @@ public class DeleteMonthlyTransportSheetCommandTests
         };
 
         _monthlyTransportSheetRepository
-            .GetByIdAsync(Arg.Any<MonthlyTransportSheetByIdSpec>())
+            .FirstOrDefaultAsync(Arg.Any<MonthlyTransportSheetByIdSpec>())
             .Returns(entity);
 
         // Act

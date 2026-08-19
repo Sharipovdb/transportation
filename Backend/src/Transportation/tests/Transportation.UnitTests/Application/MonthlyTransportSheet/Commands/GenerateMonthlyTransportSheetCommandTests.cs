@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using AutoFixture;
 using FluentAssertions;
 using FluentAssertions.Execution;
@@ -8,8 +9,10 @@ using Transportation.Application.MonthlyTransportSheet.Commands;
 using Transportation.Application.MonthlyTransportSheet.Repositories;
 using Transportation.Application.MonthlyTransportSheet.Services;
 using Transportation.Application.MonthlyTransportSheet.Specifications;
+using Transportation.Domain.Entities;
 using Transportation.Mediator.Helper.Exceptions;
 using Transportation.Mediator.Helper.Persistence;
+using Transportation.Shared;
 using Transportation.UnitTests.Utils;
 
 namespace Transportation.UnitTests.Application.MonthlyTransportSheet.Commands;
@@ -17,11 +20,12 @@ namespace Transportation.UnitTests.Application.MonthlyTransportSheet.Commands;
 public class GenerateMonthlyTransportSheetCommandTests
 {
     private const long CrewId = 3;
+    private const long LeadId = 7;
     private const int Year = 2026;
     private const int Month = 8;
 
     private readonly IMonthlyTransportSheetRepository _monthlyTransportSheetRepository;
-    private readonly IMonthlyTransportSheetGenerator _generator;
+    private readonly IMonthlyTransportSheetBuilder _builder;
     private readonly IUnitOfWork _unitOfWork;
     private readonly FakeTimeProvider _fakeTimeProvider = new();
 
@@ -34,42 +38,50 @@ public class GenerateMonthlyTransportSheetCommandTests
         fixture.Register<TimeProvider>(() => _fakeTimeProvider);
 
         _monthlyTransportSheetRepository = fixture.Freeze<IMonthlyTransportSheetRepository>();
-        _generator = fixture.Freeze<IMonthlyTransportSheetGenerator>();
+        _builder = fixture.Freeze<IMonthlyTransportSheetBuilder>();
         _unitOfWork = fixture.Freeze<IUnitOfWork>();
+
+        fixture.Freeze<ICurrentUserAccessor>().User = AnAccountant();
 
         _handler = fixture.Create<GenerateMonthlyTransportSheetCommandHandler>();
     }
+
+    private static ClaimsPrincipal AnAccountant()
+        => new(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, "42")]));
 
     private static GenerateMonthlyTransportSheetCommand ACommand()
         => new(CrewId, Year, Month);
 
     private static Domain.Entities.MonthlyTransportSheet ASheet(
-        params Domain.Entities.PayoutLine[] payoutLines)
+        long id = 0,
+        params MonthlyTransportSheetDay[] days)
     {
         return new Domain.Entities.MonthlyTransportSheet
         {
-            Id = 11,
+            Id = id,
             CrewId = CrewId,
             Year = Year,
             Month = Month,
-            PayoutLines = payoutLines.ToList()
+            RecipientId = LeadId,
+            Recipient = new User { Id = LeadId, FirstName = "Abbos", LastName = "Kamolov" },
+            Days = days.ToList()
         };
     }
 
-    private static Domain.Entities.PayoutLine APayoutLine(long userId, bool isPaid = false)
+    private static MonthlyTransportSheetDay ADay(int dayOfMonth, double drivenKm = 40, decimal taxi = 0)
         => new()
         {
-            UserId = userId,
-            IsPaid = isPaid,
-            User = new Domain.Entities.User { FirstName = "Test", LastName = $"Member {userId}" }
+            TransportDayId = dayOfMonth,
+            Date = new DateOnly(Year, Month, dayOfMonth),
+            DrivenKm = drivenKm,
+            TaxiAmount = taxi
         };
 
-    /// <summary>Freshly calculated result handed back by the generator.</summary>
-    private void GivenCalculated(params Domain.Entities.PayoutLine[] payoutLines)
+    private void GivenCalculated(params MonthlyTransportSheetDay[] days)
     {
-        _generator
-            .GenerateAsync(CrewId, Year, Month, Arg.Any<CancellationToken>())
-            .Returns(ASheet(payoutLines));
+        _builder
+            .BuildAsync(CrewId, Year, Month, Arg.Any<CancellationToken>())
+            .Returns(ASheet(days: days));
     }
 
     private void GivenExistingSheet(Domain.Entities.MonthlyTransportSheet? sheet)
@@ -77,13 +89,6 @@ public class GenerateMonthlyTransportSheetCommandTests
         _monthlyTransportSheetRepository
             .FirstOrDefaultAsync(Arg.Any<MonthlyTransportSheetByPeriodSpec>())
             .Returns(sheet);
-
-        if (sheet is not null)
-        {
-            _monthlyTransportSheetRepository
-                .FirstOrDefaultAsync(Arg.Any<MonthlyTransportSheetWithPayoutsSpec>())
-                .Returns(sheet);
-        }
     }
 
     [Fact]
@@ -91,20 +96,12 @@ public class GenerateMonthlyTransportSheetCommandTests
     {
         // Arrange
         GivenExistingSheet(null);
-        GivenCalculated(APayoutLine(userId: 1));
+        GivenCalculated(ADay(3), ADay(4));
 
         Domain.Entities.MonthlyTransportSheet added = null!;
         _monthlyTransportSheetRepository
             .When(x => x.AddAsync(Arg.Any<Domain.Entities.MonthlyTransportSheet>()))
-            .Do(x =>
-            {
-                added = x.Arg<Domain.Entities.MonthlyTransportSheet>();
-
-                // The handler re-reads the saved sheet before mapping it.
-                _monthlyTransportSheetRepository
-                    .FirstOrDefaultAsync(Arg.Any<MonthlyTransportSheetWithPayoutsSpec>())
-                    .Returns(added);
-            });
+            .Do(x => added = x.Arg<Domain.Entities.MonthlyTransportSheet>());
 
         // Act
         var dto = await _handler.Handle(ACommand(), CancellationToken.None);
@@ -115,9 +112,11 @@ public class GenerateMonthlyTransportSheetCommandTests
             added.CrewId.Should().Be(CrewId);
             added.Year.Should().Be(Year);
             added.Month.Should().Be(Month);
+            added.RecipientId.Should().Be(LeadId);
 
             dto.CrewId.Should().Be(CrewId);
-            dto.PayoutLines.Should().HaveCount(1);
+            dto.RecipientId.Should().Be(LeadId);
+            dto.Days.Should().HaveCount(2);
         }
 
         _ = _unitOfWork.Received().SaveChangesAsync();
@@ -127,21 +126,21 @@ public class GenerateMonthlyTransportSheetCommandTests
     public async Task DraftSheet_ShouldBeRecalculatedInPlace()
     {
         // Arrange — the draft was produced before another day was confirmed.
-        var existing = ASheet(APayoutLine(userId: 1));
+        var existing = ASheet(id: 11, ADay(3));
         GivenExistingSheet(existing);
-        GivenCalculated(APayoutLine(userId: 1), APayoutLine(userId: 2));
+        GivenCalculated(ADay(3), ADay(4));
 
         // Act
         var dto = await _handler.Handle(ACommand(), CancellationToken.None);
 
-        // Assert — same sheet row, freshly computed lines, no second sheet inserted.
+        // Assert — same sheet row, freshly computed days, no second sheet inserted.
         using (new AssertionScope())
         {
-            existing.PayoutLines.Should().HaveCount(2);
+            existing.Days.Should().HaveCount(2);
             existing.UpdatedAt.Should().NotBeNull();
 
             dto.Id.Should().Be(existing.Id);
-            dto.PayoutLines.Should().HaveCount(2);
+            dto.Days.Should().HaveCount(2);
         }
 
         _ = _monthlyTransportSheetRepository
@@ -155,10 +154,10 @@ public class GenerateMonthlyTransportSheetCommandTests
     public async Task ConfirmedSheet_ShouldNotBeRecalculated()
     {
         // Arrange
-        var existing = ASheet(APayoutLine(userId: 1));
+        var existing = ASheet(id: 11, ADay(3));
         existing.IsConfirmed = true;
         GivenExistingSheet(existing);
-        GivenCalculated(APayoutLine(userId: 1));
+        GivenCalculated(ADay(3));
 
         // Act
         var action = () => _handler.Handle(ACommand(), CancellationToken.None);
@@ -169,25 +168,17 @@ public class GenerateMonthlyTransportSheetCommandTests
     }
 
     [Fact]
-    public async Task AlreadyPaidMember_ShouldKeepTheirLineWhileTheRestIsRefreshed()
+    public async Task PeriodWithoutConfirmedDays_ShouldNotProduceAnEmptySheet()
     {
-        // Arrange — member 1 has been settled in person; member 2 has not.
-        var paidLine = APayoutLine(userId: 1, isPaid: true);
-        var existing = ASheet(paidLine, APayoutLine(userId: 2));
-        GivenExistingSheet(existing);
-        GivenCalculated(APayoutLine(userId: 1), APayoutLine(userId: 2), APayoutLine(userId: 3));
+        // Arrange
+        GivenExistingSheet(null);
+        GivenCalculated();
 
         // Act
-        await _handler.Handle(ACommand(), CancellationToken.None);
+        var action = () => _handler.Handle(ACommand(), CancellationToken.None);
 
-        // Assert — the paid line survives untouched and is not duplicated by the
-        // freshly calculated one for the same member.
-        using (new AssertionScope())
-        {
-            existing.PayoutLines.Should().HaveCount(3);
-            existing.PayoutLines.Should().ContainSingle(x => x.UserId == 1)
-                .Which.Should().BeSameAs(paidLine);
-            existing.PayoutLines.Select(x => x.UserId).Should().BeEquivalentTo([1L, 2L, 3L]);
-        }
+        // Assert
+        var exception = await action.Should().ThrowAsync<BusinessLogicException>();
+        exception.Which.Error.Should().Be(MonthlyTransportSheetErrors.NothingToReport);
     }
 }

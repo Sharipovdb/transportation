@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createFileRoute } from '@tanstack/react-router'
-import { CheckCircle2, PencilLine, Plus, Route as RouteIcon, RotateCcw, Trash2 } from 'lucide-react'
+import { PencilLine, Plus, Route as RouteIcon, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import type { UseFormRegisterReturn } from 'react-hook-form'
@@ -29,8 +29,20 @@ import { useEmployees } from '@/features/employees/employees-context'
 import type { TransportDayDraft } from '@/features/transport-days/transport-days-context'
 import { useTransportDays } from '@/features/transport-days/transport-days-context'
 import { getErrorMessage } from '@/lib/api-error'
-import { isSameId, legLabels, transportModeLabels, transportModes } from '@/lib/domain-types'
-import type { Leg, TaxiFare, TransportMode } from '@/lib/domain-types'
+import {
+  isDayOpen,
+  isSameId,
+  legLabels,
+  taxiExpenseStatusLabels,
+  transportModeLabels,
+  transportModes,
+} from '@/lib/domain-types'
+import type {
+  Leg,
+  TaxiExpenseStatus,
+  TaxiFareDraft,
+  TransportMode,
+} from '@/lib/domain-types'
 import { formatCurrency, formatDayLabel, formatKm, formatMonthLabel, getMonthYear } from '@/lib/format'
 import { useCapability } from '@/lib/use-capability'
 
@@ -107,7 +119,7 @@ function defaultValues(): DayFormInput {
 }
 
 function toDraft(values: DayFormValues): Omit<TransportDayDraft, 'crewId' | 'date'> {
-  const taxiFares: TaxiFare[] = legFields
+  const taxiFares: TaxiFareDraft[] = legFields
     .filter((leg) => values[leg.mode] === 'Taxi')
     .map((leg) => ({
       leg: leg.leg,
@@ -130,6 +142,17 @@ const modeBadgeVariant: Record<TransportMode, 'success' | 'warning' | 'secondary
   None: 'secondary',
 }
 
+// A fare is only money once it is approved, so the log says where each one stands.
+const fareBadgeVariant: Record<
+  TaxiExpenseStatus,
+  'success' | 'warning' | 'destructive' | 'secondary'
+> = {
+  Pending: 'warning',
+  Approved: 'success',
+  Rejected: 'destructive',
+  Paid: 'secondary',
+}
+
 function TransportDaysPage() {
   const { crews, getCrewName } = useCrews()
   const { getActiveMembersForCrew } = useCrewMemberships()
@@ -140,8 +163,6 @@ function TransportDaysPage() {
     addTransportDay,
     updateTransportDay,
     deleteTransportDay,
-    confirmTransportDay,
-    unconfirmTransportDay,
   } = useTransportDays()
 
   const [period, setPeriod] = useState<Period>(() => getMonthYear(todayIsoDate()))
@@ -153,8 +174,6 @@ function TransportDaysPage() {
   const canCreateTransportDay = useCapability('createTransportDay')
   const canUpdateTransportDay = useCapability('updateTransportDay')
   const canDeleteTransportDay = useCapability('deleteTransportDay')
-  const canConfirmTransportDay = useCapability('confirmTransportDay')
-  const canUnconfirmTransportDay = useCapability('unconfirmTransportDay')
 
   const {
     register,
@@ -198,13 +217,15 @@ function TransportDaysPage() {
       .sort((first, second) => second.date.localeCompare(first.date))
   }, [transportDays, period, crewFilter])
 
-  // Confirming a day approves its taxi expenses, so the backend locks it. Drop out of
+  // Approving a day's fare closes the day, so the backend refuses to save it. Drop out of
   // edit mode rather than leaving the form pointed at a record that can't be saved.
+  const isEditingDayOpen = editingDay === null || isDayOpen(editingDay)
+
   useEffect(() => {
-    if (editingDay?.confirmed) {
+    if (!isEditingDayOpen) {
       resetForm()
     }
-  }, [editingDay?.confirmed])
+  }, [isEditingDayOpen])
 
   function resetForm() {
     setEditingDayId(null)
@@ -267,24 +288,8 @@ function TransportDaysPage() {
     }
   }
 
-  async function toggleConfirm(dayId: number, confirmed: boolean) {
-    try {
-      if (confirmed) {
-        await unconfirmTransportDay(dayId)
-      } else {
-        await confirmTransportDay(dayId)
-      }
-    } catch (error) {
-      setFormError(getErrorMessage(error, 'Could not update confirmation.'))
-    }
-  }
-
   function driverName(driverId: number | null) {
     return driverId ? getEmployeeDisplayName(driverId) : '—'
-  }
-
-  function taxiTotal(fares: TaxiFare[]) {
-    return fares.reduce((total, fare) => total + fare.amount, 0)
   }
 
   // Someone who may neither log a new day nor amend an existing one has no use for the
@@ -306,8 +311,10 @@ function TransportDaysPage() {
             <CardEyebrow>Daily Log</CardEyebrow>
             <CardTitle className="mt-2">{editingDay ? 'Edit Transport Day' : 'Log Transport Day'}</CardTitle>
             <CardDescription className="mt-2">
-              One record per crew per working day. The driver and the route distance come
-              from the crew; a leg taken by taxi needs its fare instead.
+              One record per crew per working day. Kilometres come from the crew's route,
+              so a day travelled by car reaches Monthly Sheets and Payouts as soon as it
+              is logged. A leg taken by taxi needs its fare instead — that goes to Taxi
+              Expenses and becomes money once it is approved.
             </CardDescription>
           </div>
 
@@ -442,98 +449,98 @@ function TransportDaysPage() {
               <TableRow>
                 <TableHead>Day</TableHead>
                 <TableHead>Crew</TableHead>
-                <TableHead>Morning</TableHead>
-                <TableHead>Afternoon</TableHead>
-                <TableHead>Driver</TableHead>
+                <TableHead>Travel</TableHead>
+                <TableHead>Lead</TableHead>
                 <TableHead className="text-right">Driven km</TableHead>
                 <TableHead className="text-right">Extra km</TableHead>
-                <TableHead className="text-right">Taxi fare</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Taxi fare</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visibleDays.map((day) => (
-                <TableRow key={day.id}>
-                  <TableCell className="font-medium text-slate-900">{formatDayLabel(day.date)}</TableCell>
-                  <TableCell>{getCrewName(day.crewId)}</TableCell>
-                  <TableCell>
-                    <Badge variant={modeBadgeVariant[day.morningMode]}>
-                      {transportModeLabels[day.morningMode]}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {day.afternoonMode ? (
-                      <Badge variant={modeBadgeVariant[day.afternoonMode]}>
-                        {transportModeLabels[day.afternoonMode]}
-                      </Badge>
-                    ) : (
-                      <span className="text-slate-300">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>{driverName(day.driverId)}</TableCell>
-                  <TableCell className="text-right">
-                    {day.drivenKm > 0 ? formatKm(day.drivenKm) : <span className="text-slate-300">—</span>}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {day.extraBusinessKm > 0 ? formatKm(day.extraBusinessKm) : '—'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {day.taxiFares.length > 0 ? (
-                      formatCurrency(taxiTotal(day.taxiFares))
-                    ) : (
-                      <span className="text-slate-300">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {day.confirmed ? <Badge variant="success">Confirmed</Badge> : <Badge variant="warning">Draft</Badge>}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      {(day.confirmed ? canUnconfirmTransportDay : canConfirmTransportDay) && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon-sm"
-                          className="rounded-full border-sky-100 text-sky-700"
-                          onClick={() => toggleConfirm(day.id, day.confirmed)}
-                          title={day.confirmed ? 'Unconfirm' : 'Confirm'}
-                        >
-                          {day.confirmed ? <RotateCcw className="size-3.5" /> : <CheckCircle2 className="size-3.5" />}
-                        </Button>
+              {visibleDays.map((day) => {
+                // A day is open until the accountant rules on its fare; after that the
+                // backend refuses both edits and deletion, so neither is offered.
+                const isOpen = isDayOpen(day)
+                const closedReason = 'Its taxi fare has been ruled on — reject it first'
+
+                return (
+                  <TableRow key={day.id}>
+                    <TableCell className="font-medium text-slate-900">{formatDayLabel(day.date)}</TableCell>
+                    <TableCell>{getCrewName(day.crewId)}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        <Badge variant={modeBadgeVariant[day.morningMode]}>
+                          {transportModeLabels[day.morningMode]}
+                        </Badge>
+                        {day.afternoonMode && (
+                          <Badge variant={modeBadgeVariant[day.afternoonMode]}>
+                            {transportModeLabels[day.afternoonMode]}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>{driverName(day.driverId)}</TableCell>
+                    <TableCell className="text-right">
+                      {day.drivenKm > 0 ? formatKm(day.drivenKm) : <span className="text-slate-300">—</span>}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {day.extraBusinessKm > 0 ? formatKm(day.extraBusinessKm) : <span className="text-slate-300">—</span>}
+                    </TableCell>
+                    <TableCell>
+                      {day.taxiFares.length === 0 ? (
+                        <span className="text-slate-300">—</span>
+                      ) : (
+                        <div className="space-y-1">
+                          {day.taxiFares.map((fare) => (
+                            <div key={fare.id} className="flex items-center gap-2 whitespace-nowrap">
+                              <span className="text-slate-500">{legLabels[fare.leg]}</span>
+                              <span className="font-medium text-slate-700">{formatCurrency(fare.amount)}</span>
+                              <Badge variant={fareBadgeVariant[fare.status]}>
+                                {taxiExpenseStatusLabels[fare.status]}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
                       )}
-                      {canUpdateTransportDay && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon-sm"
-                          className="rounded-full border-sky-100 text-sky-700"
-                          disabled={day.confirmed}
-                          title={day.confirmed ? 'Unconfirm the day to edit it' : 'Edit'}
-                          onClick={() => startEdit(day.id)}
-                        >
-                          <PencilLine className="size-3.5" />
-                        </Button>
-                      )}
-                      {canDeleteTransportDay && (
-                        <Button
-                          type="button"
-                          variant="destructive"
-                          size="icon-sm"
-                          className="rounded-full"
-                          onClick={() => setDeletingDayId(day.id)}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        {canUpdateTransportDay && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-sm"
+                            className="rounded-full border-sky-100 text-sky-700"
+                            disabled={!isOpen}
+                            title={isOpen ? 'Edit' : closedReason}
+                            onClick={() => startEdit(day.id)}
+                          >
+                            <PencilLine className="size-3.5" />
+                          </Button>
+                        )}
+                        {canDeleteTransportDay && (
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="icon-sm"
+                            className="rounded-full"
+                            disabled={!isOpen}
+                            title={isOpen ? 'Delete' : closedReason}
+                            onClick={() => setDeletingDayId(day.id)}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
 
               {!isLoading && visibleDays.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={10} className="py-10 text-center text-slate-400">
+                  <TableCell colSpan={8} className="py-10 text-center text-slate-400">
                     No transport days logged for this period.
                   </TableCell>
                 </TableRow>

@@ -1,9 +1,13 @@
-﻿using Transportation.Application.MonthlyTransportSheet.Models;
-using Transportation.Application.PayoutLine.Models;
+using Transportation.Application.MonthlyTransportSheet.Models;
 
 namespace Transportation.Application.MonthlyTransportSheet.Mappers;
 
-public class MonthlyTransportSheetMapper
+/// <summary>
+/// The only place a sheet becomes a DTO. A preview is an unsaved sheet entity, so it
+/// travels through here too — which is what keeps "what you previewed" and "what was
+/// generated" from ever being two different calculations.
+/// </summary>
+public sealed class MonthlyTransportSheetMapper
 {
     public MonthlyTransportSheetDto Map(Domain.Entities.MonthlyTransportSheet entity)
     {
@@ -13,9 +17,15 @@ public class MonthlyTransportSheetMapper
             CrewId = entity.CrewId,
             Year = entity.Year,
             Month = entity.Month,
+            RecipientId = entity.RecipientId,
+            RecipientFullname = entity.Recipient?.Fullname ?? string.Empty,
             IsConfirmed = entity.IsConfirmed,
-
-            PayoutLines = entity.PayoutLines.Select(MapPayoutLine).ToList()
+            IsPaid = entity.IsPaid,
+            PaidAt = entity.PaidAt,
+            Days = entity.Days
+                .OrderBy(x => x.Date)
+                .Select(MapDay)
+                .ToList()
         };
     }
 
@@ -24,32 +34,15 @@ public class MonthlyTransportSheetMapper
         return entities.Select(Map).ToList();
     }
 
-    private PayoutLineDto MapPayoutLine(Domain.Entities.PayoutLine entity)
+    private static MonthlyTransportSheetDayDto MapDay(Domain.Entities.MonthlyTransportSheetDay entity)
     {
-        return new PayoutLineDto
+        return new MonthlyTransportSheetDayDto
         {
-            Id = entity.Id,
-            UserId = entity.UserId,
-
-            Fullname = entity.User.Fullname,
-
-            DriverKm = entity.DriverKm,
+            TransportDayId = entity.TransportDayId,
+            Date = entity.Date,
+            DrivenKm = entity.DrivenKm,
             ExtraBusinessKm = entity.ExtraBusinessKm,
-
-            TaxiCompensation = entity.TaxiCompensation ?? 0,
-
-            IsPaid = entity.IsPaid,
-            PaidAt = entity.PaidAt,
-
-            TaxiExpenses = entity.TaxiExpenses
-                .Select(x => new TaxiExpenseSummaryDto
-                    {
-                        Id = x.TaxiExpense.Id,
-                        Amount = x.TaxiExpense.Amount,
-                        Leg = x.TaxiExpense.Leg,
-                        TaxiExpenseStatus = x.TaxiExpense.TaxiExpenseStatus
-                    }
-                ).ToList()
+            TaxiAmount = entity.TaxiAmount
         };
     }
 }

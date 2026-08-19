@@ -33,6 +33,7 @@ import { useEmployees } from '@/features/employees/employees-context'
 import { useTransportRoutes } from '@/features/routes/routes-context'
 import { useVehicles } from '@/features/vehicles/vehicles-context'
 import { getErrorMessage } from '@/lib/api-error'
+import { formatKm } from '@/lib/format'
 
 export const Route = createFileRoute('/crews')({
   component: CrewsPage,
@@ -170,8 +171,12 @@ function CrewsPage() {
     }
   }
 
-  function routeName(routeId: number) {
-    return routes.find((route) => route.id === routeId)?.name ?? 'Unknown route'
+  // A driven day is worth this route's distance each way, so the crew card states it
+  // rather than leaving the number to be discovered on the Routes page.
+  function routeLabel(routeId: number) {
+    const route = routes.find((candidate) => candidate.id === routeId)
+
+    return route ? `${route.name} · ${formatKm(route.distanceKm)} each way` : 'Unknown route'
   }
 
   function employeeName(employeeId: number | null) {
@@ -194,8 +199,9 @@ function CrewsPage() {
                 {editingCrew ? 'Edit Crew' : 'Add Crew'}
               </CardTitle>
               <CardDescription className="mt-2">
-                A crew has a name, a route, and a lead — either a Driver-Lead or
-                a Crew-Lead.
+                A crew has a name, a route, and a lead — either a Driver-Lead or a
+                Crew-Lead. The route sets what a day travelled by car is worth, and the
+                lead is who the crew's month is paid to.
               </CardDescription>
             </div>
 
@@ -364,7 +370,7 @@ function CrewsPage() {
                       {crew.name}
                     </h3>
                     <p className="text-sm text-slate-500">
-                      {routeName(crew.routeId)}
+                      {routeLabel(crew.routeId)}
                     </p>
                   </div>
 

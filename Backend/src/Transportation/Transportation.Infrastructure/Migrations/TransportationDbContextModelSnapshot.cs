@@ -243,7 +243,8 @@ namespace Transportation.Infrastructure.Migrations
                     b.HasIndex("DriverLeadId");
 
                     b.HasIndex("Name")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.HasIndex("RouteId");
 
@@ -322,8 +323,22 @@ namespace Transportation.Infrastructure.Migrations
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("IsPaid")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<int>("Month")
                         .HasColumnType("integer");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<long?>("PaidById")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("RecipientId")
+                        .HasColumnType("bigint");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -335,13 +350,18 @@ namespace Transportation.Infrastructure.Migrations
 
                     b.HasIndex("CreatedById");
 
-                    b.HasIndex("CrewId", "Year", "Month")
-                        .IsUnique();
+                    b.HasIndex("PaidById");
 
-                    b.ToTable("MonthlyTransportSheets", "transportation");
+                    b.HasIndex("RecipientId");
+
+                    b.HasIndex("CrewId", "Year", "Month")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.ToTable("monthly_transport_sheets", "transportation");
                 });
 
-            modelBuilder.Entity("Transportation.Domain.Entities.PayoutLine", b =>
+            modelBuilder.Entity("Transportation.Domain.Entities.MonthlyTransportSheetDay", b =>
                 {
                     b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
@@ -352,66 +372,28 @@ namespace Transportation.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<double>("DriverKm")
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<double>("DrivenKm")
+                        .HasPrecision(10, 2)
                         .HasColumnType("double precision");
 
                     b.Property<double>("ExtraBusinessKm")
+                        .HasPrecision(10, 2)
                         .HasColumnType("double precision");
 
                     b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<bool>("IsPaid")
                         .HasColumnType("boolean");
 
                     b.Property<long>("MonthlyTransportSheetId")
                         .HasColumnType("bigint");
 
-                    b.Property<DateTime?>("PaidAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long?>("PaidById")
-                        .HasColumnType("bigint");
-
-                    b.Property<decimal?>("TaxiCompensation")
+                    b.Property<decimal>("TaxiAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<long>("UserId")
-                        .HasColumnType("bigint");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MonthlyTransportSheetId");
-
-                    b.HasIndex("PaidById");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("payout_lines", "transportation");
-                });
-
-            modelBuilder.Entity("Transportation.Domain.Entities.PayoutLineTaxiExpense", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<long>("PayoutLineId")
-                        .HasColumnType("bigint");
-
-                    b.Property<long>("TaxiExpenseId")
+                    b.Property<long>("TransportDayId")
                         .HasColumnType("bigint");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -419,11 +401,12 @@ namespace Transportation.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("PayoutLineId");
+                    b.HasIndex("TransportDayId");
 
-                    b.HasIndex("TaxiExpenseId");
+                    b.HasIndex("MonthlyTransportSheetId", "TransportDayId")
+                        .IsUnique();
 
-                    b.ToTable("PayoutLineTaxiExpenses", "transportation");
+                    b.ToTable("monthly_transport_sheet_days", "transportation");
                 });
 
             modelBuilder.Entity("Transportation.Domain.Entities.Route", b =>
@@ -496,7 +479,8 @@ namespace Transportation.Infrastructure.Migrations
                     b.HasIndex("TransportDayId");
 
                     b.HasIndex("TransportDayId", "Leg", "PaidById")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("TaxiExpense", "transportation");
                 });
@@ -514,11 +498,6 @@ namespace Transportation.Infrastructure.Migrations
 
                     b.Property<double>("BaseRouteKm")
                         .HasColumnType("double precision");
-
-                    b.Property<bool>("Confirmed")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false);
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -562,11 +541,13 @@ namespace Transportation.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("CrewId");
-
                     b.HasIndex("DriverId");
 
                     b.HasIndex("LoggedBy");
+
+                    b.HasIndex("CrewId", "Date")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("transport_days", "transportation");
                 });
@@ -722,7 +703,8 @@ namespace Transportation.Infrastructure.Migrations
                     b.HasIndex("DriverId");
 
                     b.HasIndex("Plate")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
 
                     b.ToTable("vehicles", "transportation");
                 });
@@ -842,20 +824,7 @@ namespace Transportation.Infrastructure.Migrations
                     b.HasOne("Transportation.Domain.Entities.Crew", "Crew")
                         .WithMany()
                         .HasForeignKey("CrewId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("CreatedBy");
-
-                    b.Navigation("Crew");
-                });
-
-            modelBuilder.Entity("Transportation.Domain.Entities.PayoutLine", b =>
-                {
-                    b.HasOne("Transportation.Domain.Entities.MonthlyTransportSheet", "MonthlyTransportSheet")
-                        .WithMany("PayoutLines")
-                        .HasForeignKey("MonthlyTransportSheetId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Transportation.Domain.Entities.User", "PaidBy")
@@ -863,36 +832,38 @@ namespace Transportation.Infrastructure.Migrations
                         .HasForeignKey("PaidById")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("Transportation.Domain.Entities.User", "User")
+                    b.HasOne("Transportation.Domain.Entities.User", "Recipient")
                         .WithMany()
-                        .HasForeignKey("UserId")
+                        .HasForeignKey("RecipientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Crew");
+
+                    b.Navigation("PaidBy");
+
+                    b.Navigation("Recipient");
+                });
+
+            modelBuilder.Entity("Transportation.Domain.Entities.MonthlyTransportSheetDay", b =>
+                {
+                    b.HasOne("Transportation.Domain.Entities.MonthlyTransportSheet", "MonthlyTransportSheet")
+                        .WithMany("Days")
+                        .HasForeignKey("MonthlyTransportSheetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Transportation.Domain.Entities.TransportDay", "TransportDay")
+                        .WithMany()
+                        .HasForeignKey("TransportDayId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("MonthlyTransportSheet");
 
-                    b.Navigation("PaidBy");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("Transportation.Domain.Entities.PayoutLineTaxiExpense", b =>
-                {
-                    b.HasOne("Transportation.Domain.Entities.PayoutLine", "PayoutLine")
-                        .WithMany("TaxiExpenses")
-                        .HasForeignKey("PayoutLineId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Transportation.Domain.Entities.TaxiExpense", "TaxiExpense")
-                        .WithMany("PayoutLines")
-                        .HasForeignKey("TaxiExpenseId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("PayoutLine");
-
-                    b.Navigation("TaxiExpense");
+                    b.Navigation("TransportDay");
                 });
 
             modelBuilder.Entity("Transportation.Domain.Entities.TaxiExpense", b =>
@@ -952,17 +923,7 @@ namespace Transportation.Infrastructure.Migrations
 
             modelBuilder.Entity("Transportation.Domain.Entities.MonthlyTransportSheet", b =>
                 {
-                    b.Navigation("PayoutLines");
-                });
-
-            modelBuilder.Entity("Transportation.Domain.Entities.PayoutLine", b =>
-                {
-                    b.Navigation("TaxiExpenses");
-                });
-
-            modelBuilder.Entity("Transportation.Domain.Entities.TaxiExpense", b =>
-                {
-                    b.Navigation("PayoutLines");
+                    b.Navigation("Days");
                 });
 
             modelBuilder.Entity("Transportation.Domain.Entities.TransportDay", b =>

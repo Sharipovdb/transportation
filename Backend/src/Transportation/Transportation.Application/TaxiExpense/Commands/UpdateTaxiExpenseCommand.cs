@@ -1,4 +1,4 @@
-﻿using Transportation.Application.CrewMembership.Repositories;
+using Transportation.Application.CrewMembership.Repositories;
 using Transportation.Application.CrewMembership.Specification;
 using Transportation.Application.TaxiExpense.Models;
 using Transportation.Application.TaxiExpense.Repositories;
@@ -14,10 +14,15 @@ using Transportation.Mediator.Helper.Persistence;
 
 namespace Transportation.Application.TaxiExpense.Commands;
 
+/// <summary>
+/// Corrects what a ride cost and who paid for it, while the fare is still Pending. The
+/// leg it belongs to is deliberately not editable — the transport day is what says which
+/// legs were taken by taxi, and moving a fare to another leg there would leave one leg
+/// claiming nothing and another claiming twice.
+/// </summary>
 public sealed record UpdateTaxiExpenseCommand(
     long Id,
     long? PaidById,
-    Leg? Leg,
     decimal? Amount
 ) : ICommand<TaxiExpenseDto>;
 
@@ -48,41 +53,48 @@ internal sealed class UpdateTaxiExpenseCommandHandler : ICommandHandler<UpdateTa
 
     public async Task<TaxiExpenseDto> Handle(UpdateTaxiExpenseCommand request, CancellationToken cancellationToken)
     {
-        var spec = new TaxiExpenseByIdSpec(request.Id);
-        var entity = await _taxiExpenseRepository.FirstOrDefaultAsync(spec, cancellationToken);
+        var entity = await _taxiExpenseRepository
+            .FirstOrDefaultAsync(new TaxiExpenseByIdSpec(request.Id), cancellationToken);
 
         if (entity is null)
             throw new ResourceNotFoundException(TaxiExpenseErrors.NotFound);
 
+        // An expense that has been approved, rejected or paid is an accounting fact.
         if (entity.TaxiExpenseStatus is not TaxiExpenseStatus.Pending)
             throw new BusinessLogicException(TaxiExpenseErrors.ExpenseNotPending);
 
-        var transportDay = await _transportDayRepository
-            .FirstOrDefaultAsync(new TransportDayByIdSpec(entity.TransportDayId), cancellationToken);
+        if (request.PaidById.HasValue)
+        {
+            await EnsurePayerIsInCrew(entity.TransportDayId, request.PaidById.Value, cancellationToken);
 
-        if (transportDay is null)
-            throw new ResourceNotFoundException(TransportDayErrors.NotFound);
-
-        var crewMemberships = await _crewMembershipRepository
-            .ListAsync(new CrewMembershipByCrewIdSpec(transportDay.CrewId), cancellationToken);
-
-        var isPayerInCrew = crewMemberships.Any(x => x.UserId == request.PaidById);
-
-        if (!isPayerInCrew)
-            throw new BusinessLogicException(TaxiExpenseErrors.ExpensePaidByNonExistentCrewMember);
-
-        if (request.PaidById.HasValue) 
             entity.PaidById = request.PaidById.Value;
-
-        if (request.Leg.HasValue)
-            entity.Leg = request.Leg.Value;
+        }
 
         if (request.Amount.HasValue)
             entity.Amount = request.Amount.Value;
 
         entity.UpdatedAt = _timeProvider.GetLocalDateTimeNowKindUtc();
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return _taxiExpenseMapper.Map(entity);
+    }
+
+    // Only someone who travelled with the crew can have fronted its fare. The check used
+    // to run even when no payer was supplied, comparing against null, so correcting just
+    // the amount always failed as "paid by a non-member".
+    private async Task EnsurePayerIsInCrew(long transportDayId, long payerId, CancellationToken cancellationToken)
+    {
+        var transportDay = await _transportDayRepository
+            .FirstOrDefaultAsync(new TransportDayByIdSpec(transportDayId), cancellationToken);
+
+        if (transportDay is null)
+            throw new ResourceNotFoundException(TransportDayErrors.NotFound);
+
+        var memberships = await _crewMembershipRepository
+            .ListAsync(new CrewMembershipByCrewIdSpec(transportDay.CrewId), cancellationToken);
+
+        if (memberships.All(x => x.UserId != payerId))
+            throw new BusinessLogicException(TaxiExpenseErrors.ExpensePaidByNonExistentCrewMember);
     }
 }

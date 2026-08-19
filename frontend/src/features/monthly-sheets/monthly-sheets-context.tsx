@@ -3,46 +3,17 @@ import { createContext, useContext, useMemo } from 'react'
 import type { ReactNode } from 'react'
 
 import { apiClient } from '@/lib/api-client'
-import type {
-  Leg,
-  MonthlySheet,
-  PayoutLine,
-  TaxiExpenseStatus,
-} from '@/lib/domain-types'
+import type { MonthlySheet } from '@/lib/domain-types'
 import { nestedLargePage } from '@/lib/pagination'
 
-// Matches the numeric Leg/TaxiExpenseStatus enum values as they appear nested inside
-// PayoutLineDto.TaxiExpenses (see TaxiExpenseSummaryDto.cs) — numeric here even though
-// the standalone TaxiExpenseController's DTO stringifies the same enums.
-const legFromNumericValue: Record<number, Leg> = {
-  1: 'Morning',
-  2: 'Afternoon',
-}
-const statusFromNumericValue: Record<number, TaxiExpenseStatus> = {
-  1: 'Pending',
-  2: 'Approved',
-  3: 'Rejected',
-  4: 'Paid',
-}
-
-interface TaxiExpenseSummaryApiDto {
-  id: number
-  amount: number
-  leg: number
-  taxiExpenseStatus: number
-}
-
-interface PayoutLineApiDto {
-  id: number
-  userId: number
-  fullname: string
-  driverKm: number
+// The API shape matches MonthlyTransportSheetDto one-to-one; only the date is narrowed
+// to the yyyy-mm-dd the rest of the app uses.
+interface MonthlySheetDayApiDto {
+  transportDayId: number
+  date: string
+  drivenKm: number
   extraBusinessKm: number
-  taxiCompensation: number
-  isPaid: boolean
-  paidAt: string | null
-  totalAmount: number
-  taxiExpenses: TaxiExpenseSummaryApiDto[]
+  taxiAmount: number
 }
 
 interface MonthlySheetApiDto {
@@ -50,12 +21,15 @@ interface MonthlySheetApiDto {
   crewId: number
   year: number
   month: number
+  recipientId: number
+  recipientFullname: string
   isConfirmed: boolean
-  payoutLines: PayoutLineApiDto[]
-  totalDriverKm: number
+  isPaid: boolean
+  paidAt: string | null
+  days: MonthlySheetDayApiDto[]
+  totalDrivenKm: number
   totalExtraBusinessKm: number
   totalTaxiAmount: number
-  totalAmount: number
 }
 
 interface PaginatedResult<T> {
@@ -65,39 +39,10 @@ interface PaginatedResult<T> {
 
 const MONTHLY_SHEETS_QUERY_KEY = ['monthly-sheets']
 
-function toPayoutLine(dto: PayoutLineApiDto): PayoutLine {
-  return {
-    id: dto.id,
-    userId: dto.userId,
-    fullname: dto.fullname,
-    driverKm: dto.driverKm,
-    extraBusinessKm: dto.extraBusinessKm,
-    taxiCompensation: dto.taxiCompensation,
-    isPaid: dto.isPaid,
-    paidAt: dto.paidAt,
-    totalAmount: dto.totalAmount,
-    taxiExpenses: dto.taxiExpenses.map((expense) => ({
-      id: expense.id,
-      amount: expense.amount,
-      leg: legFromNumericValue[expense.leg] ?? 'Morning',
-      taxiExpenseStatus:
-        statusFromNumericValue[expense.taxiExpenseStatus] ?? 'Pending',
-    })),
-  }
-}
-
 function toMonthlySheet(dto: MonthlySheetApiDto): MonthlySheet {
   return {
-    id: dto.id,
-    crewId: dto.crewId,
-    year: dto.year,
-    month: dto.month,
-    isConfirmed: dto.isConfirmed,
-    payoutLines: dto.payoutLines.map(toPayoutLine),
-    totalDriverKm: dto.totalDriverKm,
-    totalExtraBusinessKm: dto.totalExtraBusinessKm,
-    totalTaxiAmount: dto.totalTaxiAmount,
-    totalAmount: dto.totalAmount,
+    ...dto,
+    days: dto.days.map((day) => ({ ...day, date: day.date.slice(0, 10) })),
   }
 }
 
@@ -116,15 +61,41 @@ async function fetchSheets() {
   return response.data.items.map(toMonthlySheet)
 }
 
+async function fetchPreview(period: SheetPeriod) {
+  const response = await apiClient.post<MonthlySheetApiDto>(
+    '/api/MonthlyTransportSheets/GetPreview',
+    period,
+  )
+
+  return toMonthlySheet(response.data)
+}
+
+/**
+ * What generating this period would produce, computed server-side and saved nowhere.
+ * Passing `null` disables it — a month that already has a saved sheet reads that sheet
+ * instead, and the record must never be second-guessed by a recalculation.
+ *
+ * It is keyed under the sheets key so generating, confirming or deleting a sheet
+ * refreshes the preview with everything else.
+ */
+export function useMonthlySheetPreview(period: SheetPeriod | null) {
+  return useQuery({
+    queryKey: [...MONTHLY_SHEETS_QUERY_KEY, 'preview', period],
+    queryFn: () => fetchPreview(period!),
+    enabled: period !== null,
+    retry: false,
+  })
+}
+
 interface MonthlySheetsContextValue {
   sheets: MonthlySheet[]
   isLoading: boolean
   getSheet: (period: SheetPeriod) => MonthlySheet | undefined
-  previewSheet: (period: SheetPeriod) => Promise<MonthlySheet>
   generateSheet: (period: SheetPeriod) => Promise<MonthlySheet>
   confirmSheet: (sheetId: number) => Promise<void>
+  unconfirmSheet: (sheetId: number) => Promise<void>
+  markSheetPaid: (sheetId: number) => Promise<void>
   deleteSheet: (sheetId: number) => Promise<void>
-  markPayoutLinePaid: (payoutLineId: number) => Promise<void>
 }
 
 const MonthlySheetsContext = createContext<MonthlySheetsContextValue | null>(
@@ -147,34 +118,20 @@ export function MonthlySheetsProvider({ children }: { children: ReactNode }) {
     queryFn: fetchSheets,
   })
 
+  // Paying a sheet moves the taxi fares behind it on to Paid, so the expense list is
+  // stale afterwards too.
   function invalidate() {
-    return queryClient.invalidateQueries({ queryKey: MONTHLY_SHEETS_QUERY_KEY })
+    return Promise.all([
+      queryClient.invalidateQueries({ queryKey: MONTHLY_SHEETS_QUERY_KEY }),
+      queryClient.invalidateQueries({ queryKey: ['taxi-expenses'] }),
+    ])
   }
-
-  const previewMutation = useMutation({
-    mutationFn: async (period: SheetPeriod) => {
-      const response = await apiClient.post<MonthlySheetApiDto>(
-        '/api/MonthlyTransportSheets/GetPreview',
-        {
-          crewId: period.crewId,
-          year: period.year,
-          month: period.month,
-        },
-      )
-
-      return toMonthlySheet(response.data)
-    },
-  })
 
   const generateMutation = useMutation({
     mutationFn: async (period: SheetPeriod) => {
       const response = await apiClient.post<MonthlySheetApiDto>(
         '/api/MonthlyTransportSheets/Generate',
-        {
-          crewId: period.crewId,
-          year: period.year,
-          month: period.month,
-        },
+        period,
       )
 
       return toMonthlySheet(response.data)
@@ -188,17 +145,25 @@ export function MonthlySheetsProvider({ children }: { children: ReactNode }) {
     onSuccess: invalidate,
   })
 
-  const deleteMutation = useMutation({
+  // Confirming is reversible right up to payment, so the month can be reopened, fixed
+  // and recalculated instead of being deleted and rebuilt from scratch.
+  const unconfirmMutation = useMutation({
     mutationFn: (sheetId: number) =>
-      apiClient.delete(`/api/MonthlyTransportSheets/Delete/${sheetId}`),
+      apiClient.put(`/api/MonthlyTransportSheets/Unconfirm/${sheetId}`),
     onSuccess: invalidate,
   })
 
-  // Settling a member closes their line for the month; the backend refuses a second
-  // call, so the refetched sheet is the source of truth for the button's state.
+  // Settling a crew closes its month; the backend refuses a second call, so the
+  // refetched sheet is the source of truth for the button's state.
   const markPaidMutation = useMutation({
-    mutationFn: (payoutLineId: number) =>
-      apiClient.put(`/api/PayoutLine/MarkPaid/${payoutLineId}`),
+    mutationFn: (sheetId: number) =>
+      apiClient.put(`/api/MonthlyTransportSheets/MarkPaid/${sheetId}`),
+    onSuccess: invalidate,
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (sheetId: number) =>
+      apiClient.delete(`/api/MonthlyTransportSheets/Delete/${sheetId}`),
     onSuccess: invalidate,
   })
 
@@ -207,26 +172,28 @@ export function MonthlySheetsProvider({ children }: { children: ReactNode }) {
       sheets,
       isLoading,
       getSheet: (period) => sheets.find((sheet) => isSamePeriod(sheet, period)),
-      previewSheet: (period) => previewMutation.mutateAsync(period),
       generateSheet: (period) => generateMutation.mutateAsync(period),
       confirmSheet: async (sheetId) => {
         await confirmMutation.mutateAsync(sheetId)
       },
+      unconfirmSheet: async (sheetId) => {
+        await unconfirmMutation.mutateAsync(sheetId)
+      },
+      markSheetPaid: async (sheetId) => {
+        await markPaidMutation.mutateAsync(sheetId)
+      },
       deleteSheet: async (sheetId) => {
         await deleteMutation.mutateAsync(sheetId)
-      },
-      markPayoutLinePaid: async (payoutLineId) => {
-        await markPaidMutation.mutateAsync(payoutLineId)
       },
     }),
     [
       sheets,
       isLoading,
-      previewMutation,
       generateMutation,
       confirmMutation,
-      deleteMutation,
+      unconfirmMutation,
       markPaidMutation,
+      deleteMutation,
     ],
   )
 

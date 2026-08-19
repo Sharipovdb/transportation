@@ -14,7 +14,8 @@ internal sealed class CrewConfigaration : IEntityTypeConfiguration<Crew>
         
         builder
             .HasIndex(x => x.Name)
-            .IsUnique();
+            .IsUnique()
+            .HasFilter(SoftDelete.NotDeleted);
         
         builder
             .Property(x => x.SeatCapacity)

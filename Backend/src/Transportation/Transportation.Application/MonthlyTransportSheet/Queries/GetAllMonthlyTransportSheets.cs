@@ -46,16 +46,13 @@ internal sealed class GetAllMonthlyTransportSheetsHandler
 
         spec.Query
             .Where(x => !x.IsDeleted)
-            .OrderByDescending(x => x.Month)
+            .OrderByDescending(x => x.Year)
+            .ThenByDescending(x => x.Month)
             .WithPagination(request.PaginationInfo);
 
-        spec.Query.Include(x => x.PayoutLines)
-            .ThenInclude(x => x.User);
-
-        spec.Query.Include(x => x.PayoutLines)
-            .ThenInclude(x => x.TaxiExpenses)
-            .ThenInclude(x => x.TaxiExpense)
-            .ThenInclude(x => x.PaidBy);
+        spec.Query
+            .Include(x => x.Recipient)
+            .Include(x => x.Days);
 
         var items = await _monthlyTransportSheetRepository.ListAsync(spec, cancellationToken);
         var totalCount = await _monthlyTransportSheetRepository.CountAsync(spec, cancellationToken);

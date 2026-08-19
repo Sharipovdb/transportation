@@ -38,7 +38,6 @@ internal sealed class TransportDayDatabaseSeeder : IDemoDataSeeder
             driverUsername: "rustam.driver",
             loggedByUsername: "bekzod.manager",
             notes: "Normal working day",
-            confirmed: true,
             crews,
             users,
             now);
@@ -54,7 +53,6 @@ internal sealed class TransportDayDatabaseSeeder : IDemoDataSeeder
             driverUsername: "rustam.driver",
             loggedByUsername: "bekzod.manager",
             notes: "Morning taxi because vehicle problem",
-            confirmed: false,
             crews,
             users,
             now);
@@ -70,7 +68,6 @@ internal sealed class TransportDayDatabaseSeeder : IDemoDataSeeder
             driverUsername: "diyor.driver",
             loggedByUsername: "sardor.lead",
             notes: "Afternoon taxi",
-            confirmed: true,
             crews,
             users,
             now);
@@ -86,7 +83,6 @@ internal sealed class TransportDayDatabaseSeeder : IDemoDataSeeder
             driverUsername: "rustam.driver",
             loggedByUsername: "javlon.lead",
             notes: "Late start due to weather",
-            confirmed: false,
             crews,
             users,
             now);
@@ -105,7 +101,6 @@ internal sealed class TransportDayDatabaseSeeder : IDemoDataSeeder
         string driverUsername,
         string loggedByUsername,
         string notes,
-        bool confirmed,
         Dictionary<string, long> crews,
         Dictionary<string, long> users,
         DateTime now)
@@ -142,7 +137,6 @@ internal sealed class TransportDayDatabaseSeeder : IDemoDataSeeder
             Notes = notes,
             LoggedBy = loggedById,
             LoggedAt = now,
-            Confirmed = confirmed,
             CreatedAt = now,
             UpdatedAt = now,
             IsDeleted = false

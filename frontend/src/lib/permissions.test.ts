@@ -77,11 +77,15 @@ describe('page access', () => {
 })
 
 describe('capabilities', () => {
-  it('the crew lead confirms, the accountant deletes (no reopen exists server-side)', () => {
-    expect(hasCapability([...crewLead], 'confirmSheet')).toBe(true)
-    expect(hasCapability([...crewLead], 'deleteSheet')).toBe(false)
+  // The sheet is the accountant's from end to end, mirroring
+  // MonthlyTransportSheetsController's RoleAuthorize(Accountant, Admin). A lead never
+  // touches it — they cannot even open the page.
+  it('the accountant owns the sheet; a lead does not', () => {
+    expect(hasCapability([...accountant], 'generateSheet')).toBe(true)
+    expect(hasCapability([...accountant], 'confirmSheet')).toBe(true)
     expect(hasCapability([...accountant], 'deleteSheet')).toBe(true)
-    expect(hasCapability([...accountant], 'confirmSheet')).toBe(false)
+    expect(hasCapability([...crewLead], 'confirmSheet')).toBe(false)
+    expect(hasCapability([...crewLead], 'generateSheet')).toBe(false)
   })
 
   it('money is limited to admin and accountant', () => {
@@ -99,19 +103,17 @@ describe('capabilities', () => {
     expect(hasCapability([...driverLead], 'approveTaxiExpense')).toBe(false)
   })
 
-  // Releasing a member's money mirrors PayoutLineController's RoleAuthorize: a lead
-  // confirms the sheet but never settles cash.
-  it('only accountant/admin settle a member payout', () => {
-    expect(hasCapability([...accountant], 'payMember')).toBe(true)
-    expect(hasCapability([...admin], 'payMember')).toBe(true)
-    expect(hasCapability([...crewLead], 'payMember')).toBe(false)
-    expect(hasCapability([...driverLead], 'payMember')).toBe(false)
-    expect(hasCapability([...routeManager], 'payMember')).toBe(false)
+  it('only accountant/admin settle a crew payout', () => {
+    expect(hasCapability([...accountant], 'paySheet')).toBe(true)
+    expect(hasCapability([...admin], 'paySheet')).toBe(true)
+    expect(hasCapability([...crewLead], 'paySheet')).toBe(false)
+    expect(hasCapability([...driverLead], 'paySheet')).toBe(false)
+    expect(hasCapability([...routeManager], 'paySheet')).toBe(false)
   })
 
   it('leads log the day; the accountant rules on what it cost', () => {
     expect(hasCapability([...crewLead], 'createTransportDay')).toBe(true)
-    expect(hasCapability([...driverLead], 'confirmTransportDay')).toBe(true)
+    expect(hasCapability([...driverLead], 'deleteTransportDay')).toBe(true)
     expect(hasCapability([...accountant], 'createTransportDay')).toBe(false)
     expect(hasCapability([...crewLead], 'rejectTaxiExpense')).toBe(false)
   })
@@ -126,6 +128,6 @@ describe('capabilities', () => {
   it('a worker has no capability at all', () => {
     expect(hasCapability([...worker], 'createTransportDay')).toBe(false)
     expect(hasCapability([...worker], 'viewFinance')).toBe(false)
-    expect(hasCapability([...worker], 'payMember')).toBe(false)
+    expect(hasCapability([...worker], 'paySheet')).toBe(false)
   })
 })

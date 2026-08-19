@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Transportation.Infrastructure.Persistence.Seeders.Interfaces;
 
@@ -6,13 +7,18 @@ namespace Transportation.Infrastructure.Persistence;
 
 internal sealed class DatabaseInitializer : IHostedService
 {
-    private readonly IServiceProvider _serviceProvider;
-    private readonly IHostEnvironment _environment;
+    /// <summary>
+    /// Opt-in switch for the demo dataset. Off unless the configuration says otherwise.
+    /// </summary>
+    private const string SeedDemoDataKey = "SeedDemoData";
 
-    public DatabaseInitializer(IServiceProvider serviceProvider, IHostEnvironment environment)
+    private readonly IServiceProvider _serviceProvider;
+    private readonly IConfiguration _configuration;
+
+    public DatabaseInitializer(IServiceProvider serviceProvider, IConfiguration configuration)
     {
         _serviceProvider = serviceProvider;
-        _environment = environment;
+        _configuration = configuration;
     }
 
     public async Task StartAsync(CancellationToken cancellationToken)
@@ -22,24 +28,28 @@ internal sealed class DatabaseInitializer : IHostedService
         var blankSeeders = scope.ServiceProvider
             .GetServices<IBlankDataSeeder>()
             .OrderBy(x => x.Order);
-        
+
         foreach (var seeder in blankSeeders)
         {
             await seeder.SeedAsync();
         }
-        
-        if (_environment.IsDevelopment())
+
+        // Demo data used to go in on every Development start. Invented crews, transport
+        // days and taxi fares are indistinguishable from real ones once they are in the
+        // database, and they end up on payout sheets the company acts on — so seeding
+        // them now has to be asked for explicitly, per environment.
+        if (!_configuration.GetValue<bool>(SeedDemoDataKey))
+            return;
+
+        var demoSeeders = scope.ServiceProvider
+            .GetServices<IDemoDataSeeder>()
+            .OrderBy(x => x.Order);
+
+        foreach (var seeder in demoSeeders)
         {
-            var demoSeeders = scope.ServiceProvider
-                .GetServices<IDemoDataSeeder>()
-                .OrderBy(x => x.Order);
-            
-            foreach (var seeder in demoSeeders)
-            {
-                await seeder.SeedAsync();
-            }
+            await seeder.SeedAsync();
         }
     }
-    
+
     public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

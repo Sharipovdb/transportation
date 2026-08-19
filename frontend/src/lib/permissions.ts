@@ -2,8 +2,7 @@
 //
 // Page access is declared once here and consumed by BOTH the sidebar and the route
 // guard, so a role can never see a link it is not allowed to open. Capabilities cover
-// the finer-grained rights *inside* a page that several roles share — e.g. a crew lead
-// and an accountant both open Monthly Sheets, but only the lead confirms them.
+// the finer-grained rights *inside* a page that several roles share.
 
 import type { AppRole } from './app-types'
 
@@ -33,7 +32,9 @@ const {
 
 // Derived from the roles in the spec:
 // - Route Manager assigns people to crews and routes; no financial screens.
-// - Crew leads (manager or driver) log days, record taxis, and confirm their sheet.
+// - Crew leads (manager or driver) log days and the taxi fares that go with them.
+//   They do not open the money screens: ruling on a fare and settling a month are the
+//   accountant's, matching RoleAuthorize on the controllers.
 // - The accountant "sees all" for reconciliation.
 // - A worker only notifies absence, so they get the dashboard until an Absences page exists.
 // Employees (login accounts + business profile in one, backed by /api/User) is where
@@ -95,24 +96,22 @@ export function canAccessPath(roles: AppRole[], pathname: string) {
 export type Capability =
   // Money. These stay coarse on purpose: a monthly sheet is settled as a whole, and
   // the backend gates the same actions with RoleAuthorize(Accountant, Admin) on
-  // MonthlyTransportSheetsController and PayoutLineController.
+  // MonthlyTransportSheetsController.
   | 'viewFinance' // payout figures and outstanding money on the dashboard
   | 'generateSheet'
-  | 'confirmSheet' // the crew lead confirms their own sheet (FR-20)
-  | 'deleteSheet' // the backend has no "reopen" — the correction path is delete + regenerate
-  | 'payMember' // release one member's money for a month; a lead confirms but never pays
+  | 'confirmSheet' // signs the month off, and withdraws that signature while unpaid
+  | 'deleteSheet' // drops a draft entirely; a paid sheet is final and neither applies
+  | 'paySheet' // release a crew's month to its lead; a lead confirms but never pays
 
-  // Transport days
+  // Transport days. A logged day needs no sign-off — its kilometres are known from the
+  // crew's route — so there is nothing to confirm here.
   | 'createTransportDay'
   | 'updateTransportDay'
   | 'deleteTransportDay'
-  | 'confirmTransportDay'
-  | 'unconfirmTransportDay'
 
-  // Taxi expenses
-  | 'createTaxiExpense'
+  // Taxi expenses. Rides are created and removed through the transport day; this screen
+  // only corrects a fare and rules on it, which is the one gate money passes.
   | 'updateTaxiExpense'
-  | 'deleteTaxiExpense'
   | 'approveTaxiExpense'
   | 'rejectTaxiExpense'
 
@@ -131,12 +130,8 @@ const roleCapabilities: Partial<Record<AppRole, ReadonlyArray<Capability>>> = {
     'createTransportDay',
     'updateTransportDay',
     'deleteTransportDay',
-    'confirmTransportDay',
-    'unconfirmTransportDay',
 
-    'createTaxiExpense',
     'updateTaxiExpense',
-    'deleteTaxiExpense',
     'approveTaxiExpense',
     'rejectTaxiExpense',
 
@@ -152,7 +147,7 @@ const roleCapabilities: Partial<Record<AppRole, ReadonlyArray<Capability>>> = {
     'generateSheet',
     'confirmSheet',
     'deleteSheet',
-    'payMember',
+    'paySheet',
   ],
   RouteManager: [
     'createRoute',
@@ -167,27 +162,15 @@ const roleCapabilities: Partial<Record<AppRole, ReadonlyArray<Capability>>> = {
     'createTransportDay',
     'updateTransportDay',
     'deleteTransportDay',
-    'confirmTransportDay',
-    'unconfirmTransportDay',
 
-    'createTaxiExpense',
     'updateTaxiExpense',
-    'deleteTaxiExpense',
-
-    'confirmSheet',
   ],
   DriverLead: [
-    'createTaxiExpense',
-    'updateTaxiExpense',
-    'deleteTaxiExpense',
-
     'createTransportDay',
     'updateTransportDay',
     'deleteTransportDay',
-    'confirmTransportDay',
-    'unconfirmTransportDay',
 
-    'confirmSheet',
+    'updateTaxiExpense',
   ],
   Accountant: [
     'approveTaxiExpense',
@@ -195,8 +178,9 @@ const roleCapabilities: Partial<Record<AppRole, ReadonlyArray<Capability>>> = {
 
     'viewFinance',
     'generateSheet',
+    'confirmSheet',
     'deleteSheet',
-    'payMember',
+    'paySheet',
   ],
 }
 

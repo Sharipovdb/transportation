@@ -8,7 +8,7 @@ import type { AppRole } from './app-types'
 /**
  * Backend ids are `long`. Some contexts keep them as numbers (Employee, Crew, Vehicle,
  * TransportRoute, CrewMembership) while the operational ones stringify them
- * (TransportDay, TaxiExpense, PayoutLine, MonthlySheet). A plain `===` across that
+ * (TransportDay, TaxiExpense, MonthlySheet). A plain `===` across that
  * boundary compares 1 to "1" and is silently always false, which is what used to turn
  * every crew into "Unknown crew". Cross-entity lookups must go through this helper.
  */
@@ -123,6 +123,11 @@ export const transportModeLabels: Record<TransportMode, string> = {
 // A working day for one crew. Splitting the mode into two legs is what makes the
 // "drove in the morning, taxied home" case representable without a hack. The driver
 // and the route distance are derived server-side from the crew — not set here.
+//
+// A logged day needs no further sign-off for its kilometres: the crew's route is
+// attached to the crew, so the distance is known the moment the day is recorded and
+// flows straight to Monthly Sheets and Payouts. Money is the part that gets reviewed,
+// and that review happens on the taxi fare itself.
 export interface TransportDay {
   id: number
   crewId: number
@@ -138,17 +143,36 @@ export interface TransportDay {
   notes: string | null
   loggedBy: number
   loggedAt: string
-  confirmed: boolean
   // Every taxi leg carries its fare — recorded here, in the daily log, so a ride can
   // never end up without a reimbursable expense behind it.
   taxiFares: TaxiFare[]
 }
 
-// The fare of one taxi leg as captured on the transport day.
-export interface TaxiFare {
+// What the person logging the day knows about a taxi leg: what it cost and who paid.
+export interface TaxiFareDraft {
   leg: Leg
   amount: number
   paidById: number
+}
+
+// The same fare once it exists server-side. `status` is what decides whether it is money
+// yet, and it also decides whether the day can still be changed: once a fare has been
+// ruled on, its day is closed.
+export interface TaxiFare extends TaxiFareDraft {
+  id: number
+  status: TaxiExpenseStatus
+}
+
+/** A day stays editable and deletable only while every fare on it is still Pending. */
+export function isDayOpen(day: TransportDay) {
+  return day.taxiFares.every((fare) => fare.status === 'Pending')
+}
+
+/** Only approved fares are money the company owes; the rest are not counted anywhere. */
+export function owedTaxiAmount(fares: TaxiFare[]) {
+  return fares
+    .filter((fare) => fare.status === 'Approved' || fare.status === 'Paid')
+    .reduce((total, fare) => total + fare.amount, 0)
 }
 
 // --- Taxi expenses (mirrors Transportation.Domain.Entities.TaxiExpense) ---
@@ -161,8 +185,9 @@ export const legLabels: Record<Leg, string> = {
   Afternoon: 'Afternoon',
 }
 
-// Mirrors the backend's TaxiExpenseStatus exactly. Only Approved expenses count
-// toward a driver's payout; confirming a monthly sheet bulk-flips Approved -> Paid.
+// Mirrors the backend's TaxiExpenseStatus exactly. Only Approved expenses count toward
+// a crew's payout, and they stay Approved — owed, not yet handed over — until the sheet
+// that carries them is paid, which is what flips them Approved -> Paid.
 export const taxiExpenseStatuses = [
   'Pending',
   'Approved',
@@ -187,44 +212,38 @@ export interface TaxiExpense {
   taxiExpenseStatus: TaxiExpenseStatus
 }
 
-// --- Payout line (mirrors Transportation.Domain.Entities.PayoutLine) ---
-// Fully computed server-side — read-only from the frontend's perspective. Two units
-// of account, deliberately never mixed: kilometres driven in a member's own car are
-// *reported* (priced by hand outside this system), while approved taxi fares are
-// *settled* — they are the only money a payout line owes.
-export interface PayoutLineTaxiExpense {
-  id: number
-  amount: number
-  leg: Leg
-  taxiExpenseStatus: TaxiExpenseStatus
-}
-
-export interface PayoutLine {
-  id: number
-  userId: number
-  fullname: string // denormalized onto PayoutLineDto by the backend
-  driverKm: number // distance driven on commute legs — reported, not priced
-  extraBusinessKm: number // company km beyond the commute — reported, not priced
-  taxiCompensation: number
-  totalAmount: number // == taxiCompensation: km never turn into money here
-  // Settlement is per member per month: once paid, the line is closed for the period.
-  isPaid: boolean
-  paidAt: string | null
-  taxiExpenses: PayoutLineTaxiExpense[]
-}
-
 // --- Monthly sheet (mirrors Transportation.Domain.Entities.MonthlyTransportSheet) ---
-// `id` is null for an unsaved preview (POST /GetPreview computes but doesn't persist).
+//
+// A crew's month is settled as a whole with its lead, who distributes the money inside
+// the team — so there is one recipient, not a line per member. Everything below is
+// computed server-side and read-only here: the figures on every screen and in the
+// printed report come from this one payload, never from a second calculation.
+
+/** One working day of the crew: distance covered in its own car, or what a taxi cost. */
+export interface MonthlySheetDay {
+  transportDayId: number
+  date: string // ISO yyyy-mm-dd
+  drivenKm: number // round trip when both legs were driven
+  extraBusinessKm: number
+  taxiAmount: number
+}
+
+// `id` is 0 for an unsaved preview (POST /GetPreview computes but doesn't persist).
 export interface MonthlySheet {
   id: number
   crewId: number
   year: number
   month: number // 1-12
+  recipientId: number
+  recipientFullname: string
   isConfirmed: boolean
-  payoutLines: PayoutLine[]
-  // Km and taxi spend are totalled separately: different units of account.
-  totalDriverKm: number
+  isPaid: boolean
+  paidAt: string | null
+  days: MonthlySheetDay[]
+  // Two units of account, deliberately never mixed: kilometres are *reported* and
+  // priced by the accountant with their own indices, while taxi fares are *settled* —
+  // they are the only money this sheet owes.
+  totalDrivenKm: number
   totalExtraBusinessKm: number
   totalTaxiAmount: number
-  totalAmount: number
 }

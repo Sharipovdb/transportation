@@ -105,9 +105,12 @@ internal sealed class CreateTransportDayCommandHandler :
 
         var now = _timeProvider.GetLocalDateTimeNowKindUtc();
 
-        // The route length and the driver-lead are copied onto the day rather than read
+        // The route length and the crew's lead are copied onto the day rather than read
         // through the crew later: both can change, and a logged day has to keep saying
-        // what it was worth on the date it happened.
+        // what it was worth on the date it happened. The lead is the driver-lead when
+        // the crew has one and the manager-lead otherwise — a manager-led crew that
+        // drove used to land here with no driver at all, which silently dropped its
+        // kilometres from the monthly sheet.
         var entity = new Domain.Entities.TransportDay
         {
             CrewId = crew.Id,
@@ -117,11 +120,10 @@ internal sealed class CreateTransportDayCommandHandler :
             BaseRouteKm = crew.Route.DistanceKm,
             ExtraCommuteKm = request.ExtraCommuteKm ?? 0,
             ExtraBusinessKm = request.ExtraBusinessKm ?? 0,
-            DriverId = crew.DriverLeadId,
+            DriverId = crew.DriverLeadId ?? crew.CrewLeadId,
             Notes = request.Notes ?? string.Empty,
             LoggedBy = currentUserId,
             LoggedAt = now,
-            Confirmed = false,
             CreatedAt = now
         };
 

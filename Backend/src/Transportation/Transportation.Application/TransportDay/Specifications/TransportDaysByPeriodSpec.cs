@@ -1,21 +1,21 @@
-﻿using Ardalis.Specification;
+using Ardalis.Specification;
 
 namespace Transportation.Application.TransportDay.Specifications;
 
+/// <summary>
+/// The days a crew's month is built from — every day logged in the period.
+///
+/// Kilometres need no sign-off: the crew's route is attached to the crew, so the distance
+/// a driven day is worth is known the moment the day is logged. Money is the part that is
+/// reviewed, and that review happens on the taxi fare itself (Pending → Approved), not on
+/// the day.
+/// </summary>
 public sealed class TransportDaysByPeriodSpec : Specification<Domain.Entities.TransportDay>
 {
-    public long CrewId { get; }
-
-    public DateOnly From { get; }
-
-    public DateOnly To { get; }
-
     public TransportDaysByPeriodSpec(long crewId, int year, int month, bool asNoTracking = false)
     {
-        CrewId = crewId;
-
-        From = new DateOnly(year, month, 1);
-        To = From.AddMonths(1);
+        var from = new DateOnly(year, month, 1);
+        var to = from.AddMonths(1);
 
         if (asNoTracking)
             Query.AsNoTracking();
@@ -23,15 +23,11 @@ public sealed class TransportDaysByPeriodSpec : Specification<Domain.Entities.Tr
         Query.Where(x =>
             x.CrewId == crewId &&
             !x.IsDeleted &&
-            x.Confirmed &&
-            x.Date >= From &&
-            x.Date < To);
+            x.Date >= from &&
+            x.Date < to);
 
-        Query.Include(x => x.TaxiExpenses)
-            .ThenInclude(x => x.PaidBy);
+        Query.Include(x => x.TaxiExpenses);
 
-        Query.Include(x => x.Driver);
-        Query.Include(x => x.Crew);
-        Query.Include(x => x.LoggedByUser);
+        Query.OrderBy(x => x.Date);
     }
 }

@@ -24,8 +24,11 @@ public class TransportDayConfiguration : IEntityTypeConfiguration<TransportDay>
         builder.Property(x => x.Notes)
             .HasMaxLength(500);
 
-        builder.Property(x => x.Confirmed)
-            .HasDefaultValue(false);
+        // One record per crew per day — the report grid has one cell per date. Deleted
+        // days are excluded so a date can be logged again after its day was removed.
+        builder.HasIndex(x => new { x.CrewId, x.Date })
+            .IsUnique()
+            .HasFilter(SoftDelete.NotDeleted);
 
         builder.HasOne(x => x.Crew)
             .WithMany()

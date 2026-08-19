@@ -21,9 +21,8 @@ public sealed class TransportationDbContext : IdentityDbContext<User, IdentityRo
     public DbSet<TaxiExpense> TaxiExpenses { get; set; }
     public DbSet<TransportDay> TransportDays { get; set; }
     public DbSet<MonthlyTransportSheet> MonthlyTransportSheets { get; set; }
-    public DbSet<PayoutLine> PayoutLines { get; set; }
+    public DbSet<MonthlyTransportSheetDay> MonthlyTransportSheetDays { get; set; }
     public DbSet<TransportSettings> TransportSettings { get; set; }
-    public DbSet<PayoutLineTaxiExpense> PayoutLineTaxiExpenses { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

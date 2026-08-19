@@ -42,14 +42,9 @@ public class TaxiExpenseController : BaseController
         return await _mediator.Send(requestedStatus, cancellationToken);
     }
 
-    [HttpPost]
-    [RoleAuthorize(RoleNames.Admin, RoleNames.CrewLead, RoleNames.DriverLead)]
-    public async Task<TaxiExpenseDto> Create([FromBody] CreateTaxiExpenseCommand command,
-        CancellationToken cancellationToken = default)
-    {
-        return await _mediator.Send(command, cancellationToken);
-    }
-
+    // A taxi ride is recorded on the transport day it belongs to, never here: that is what
+    // keeps a taxi leg from existing without a fare behind it, and a fare from existing
+    // without a ride. This screen only corrects, approves or rejects what the day logged.
     [HttpPut("{id:long}")]
     [RoleAuthorize(RoleNames.Admin, RoleNames.CrewLead, RoleNames.DriverLead)]
     public async Task<NoContentResult> Update(long id,
@@ -60,19 +55,9 @@ public class TaxiExpenseController : BaseController
             new UpdateTaxiExpenseCommand(
                 Id: id,
                 PaidById: request.PaidById,
-                Leg: request.Leg,
                 Amount: request.Amount
             ), cancellationToken
         );
-
-        return new NoContentResult();
-    }
-
-    [HttpDelete("{id:long}")]
-    [RoleAuthorize(RoleNames.Admin, RoleNames.CrewLead, RoleNames.DriverLead)]
-    public async Task<NoContentResult> Delete(long id, CancellationToken cancellationToken = default)
-    {
-        await _mediator.Send(new DeleteTaxiExpenseCommand(id), cancellationToken);
 
         return new NoContentResult();
     }
@@ -91,15 +76,8 @@ public class TaxiExpenseController : BaseController
         return SetStatus(id, TaxiExpenseStatus.Rejected, cancellationToken);
     }
 
-    [HttpPut("{id:long}")]
-    [RoleAuthorize(RoleNames.Admin, RoleNames.Accountant)]
-    public async Task<NoContentResult> Paid(long id, CancellationToken cancellationToken = default)
-    {
-        await _mediator.Send(new TaxiExpensePaidCommand(TaxiExpenseId: id), cancellationToken);
-
-        return new NoContentResult();
-    }
-
+    // There is no "mark this fare paid" action: money is released a whole crew-month at
+    // a time by confirming its monthly sheet, which is what moves its fares on to Paid.
     private async Task<NoContentResult> SetStatus(long id, TaxiExpenseStatus status,
         CancellationToken cancellationToken)
     {

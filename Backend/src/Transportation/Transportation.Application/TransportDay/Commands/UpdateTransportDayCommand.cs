@@ -75,12 +75,9 @@ internal sealed class UpdateTransportDayCommandHandler
         if (entity is null)
             throw new ResourceNotFoundException(TransportDayErrors.NotFound);
 
-        // Confirming a day approves its taxi expenses and releases it to the monthly
-        // sheet. Editing it afterwards would silently move money that has already been
-        // signed off, so the day is locked until it is unconfirmed again.
-        if (entity.Confirmed)
-            throw new BusinessLogicException(TransportDayErrors.ConfirmedDayIsReadOnly);
-
+        // A day stays editable for as long as its money is still open: the fare service
+        // refuses to rewrite an expense that has already been ruled on, which is what
+        // stops an edit from moving money that was signed off.
         if (request.MorningMode.HasValue)
             entity.MorningMode = request.MorningMode.Value;
 

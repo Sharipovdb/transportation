@@ -1,5 +1,6 @@
-﻿using Transportation.Application.TransportDay.Repositories;
+using Transportation.Application.TransportDay.Repositories;
 using Transportation.Application.TransportDay.Specifications;
+using Transportation.Domain.Entities;
 using Transportation.Mediator.Helper.Commands;
 using Transportation.Mediator.Helper.Exceptions;
 using Transportation.Mediator.Helper.Persistence;
@@ -28,6 +29,15 @@ internal sealed class DeleteTransportDayCommandHandler : ICommandHandler<DeleteT
 
         if (entity is null)
             throw new ResourceNotFoundException(TransportDayErrors.NotFound);
+
+        // Same rule as editing: a day is open for as long as its money is. Removing a day
+        // whose fare has been approved or paid would withdraw a claim the accountant has
+        // already settled, so that fare has to be rejected on its own first.
+        var isRuledOn = entity.TaxiExpenses
+            .Any(x => !x.IsDeleted && x.TaxiExpenseStatus is not TaxiExpenseStatus.Pending);
+
+        if (isRuledOn)
+            throw new BusinessLogicException(TransportDayErrors.FareAlreadyRuledOn);
 
         entity.IsDeleted = true;
 

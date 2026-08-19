@@ -1,15 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router'
 import {
+  BadgeCheck,
+  CalendarCheck,
   CheckCircle2,
-  ChevronDown,
-  Eye,
   FileText,
   Loader2,
   RefreshCw,
   Sparkles,
   Trash2,
+  Undo2,
+  Wallet,
 } from 'lucide-react'
-import { Fragment, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import type { Period } from '@/components/month-picker'
@@ -24,22 +26,23 @@ import {
   CardTitle,
 } from '@/components/ui/card'
 import { Select } from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableFooter,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { StatCard } from '@/components/ui/stat-card'
 import { usePermissions } from '@/features/auth/use-permissions'
 import { useCrews } from '@/features/crews/crews-context'
-import { useMonthlySheets } from '@/features/monthly-sheets/monthly-sheets-context'
-import { usePayoutReportPrinter } from '@/features/monthly-sheets/use-payout-report-printer'
+import { MonthGrid } from '@/features/monthly-sheets/month-grid'
+import { buildMonthlyReport } from '@/features/monthly-sheets/monthly-report'
+import {
+  useMonthlySheetPreview,
+  useMonthlySheets,
+} from '@/features/monthly-sheets/monthly-sheets-context'
+import { PaySheetDialog } from '@/features/monthly-sheets/pay-sheet-dialog'
+import {
+  isPayable,
+  SheetStatusBadge,
+} from '@/features/monthly-sheets/sheet-status'
+import { useMonthlyReportPrinter } from '@/features/monthly-sheets/use-monthly-report-printer'
 import { getErrorMessage } from '@/lib/api-error'
-import { legLabels, taxiExpenseStatusLabels } from '@/lib/domain-types'
-import type { MonthlySheet, PayoutLine } from '@/lib/domain-types'
+import type { MonthlySheet } from '@/lib/domain-types'
 import {
   formatCurrency,
   formatKm,
@@ -57,140 +60,126 @@ function todayIsoDate() {
 
 function MonthlySheetsPage() {
   const { can } = usePermissions()
-  const { crews } = useCrews()
+  const { crews, getCrewName } = useCrews()
   const {
     isLoading,
     getSheet,
-    previewSheet,
     generateSheet,
     confirmSheet,
+    unconfirmSheet,
+    markSheetPaid,
     deleteSheet,
   } = useMonthlySheets()
-  const printPayoutReport = usePayoutReportPrinter()
+  const printReport = useMonthlyReportPrinter()
 
   const [period, setPeriod] = useState<Period>(() =>
     getMonthYear(todayIsoDate()),
   )
   const [crewId, setCrewId] = useState<number | null>(null)
-  const [preview, setPreview] = useState<MonthlySheet | null>(null)
   const [isBusy, setIsBusy] = useState(false)
   const [actionError, setActionError] = useState('')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
-  const [expandedEmployeeId, setExpandedEmployeeId] = useState<number | null>(
-    null,
-  )
+  const [payingSheet, setPayingSheet] = useState<MonthlySheet | null>(null)
 
   const activeCrewId = crews.some((crew) => crew.id === crewId)
     ? crewId
     : (crews[0]?.id ?? null)
   const crew = crews.find((candidate) => candidate.id === activeCrewId)
   const sheet = crew
-    ? getSheet({
-        crewId: crew.id,
-        year: period.year,
-        month: period.month,
-      })
+    ? getSheet({ crewId: crew.id, year: period.year, month: period.month })
     : undefined
 
-  function resetTransientState() {
-    setPreview(null)
-    setActionError('')
-    setExpandedEmployeeId(null)
-  }
+  // A month without a saved sheet is still worth reading, so what generating would
+  // produce is loaded straight away rather than hidden behind a button. A saved sheet
+  // always wins: once the month exists, that is the record and there is nothing to
+  // preview.
+  const preview = useMonthlySheetPreview(
+    crew && !sheet
+      ? { crewId: crew.id, year: period.year, month: period.month }
+      : null,
+  )
+
+  const displayedSheet = sheet ?? preview.data ?? null
+
+  const report = useMemo(
+    () =>
+      displayedSheet
+        ? buildMonthlyReport(displayedSheet, getCrewName(displayedSheet.crewId))
+        : null,
+    [displayedSheet, getCrewName],
+  )
+
+  // Generating a month the crew neither drove nor paid for is refused server-side, so
+  // the button only appears once there is something to save.
+  const hasSomethingToSave = (displayedSheet?.days.length ?? 0) > 0
 
   function selectCrew(nextCrewId: number) {
     setCrewId(nextCrewId)
-    resetTransientState()
+    setActionError('')
   }
 
   function selectPeriod(nextPeriod: Period) {
     setPeriod(nextPeriod)
-    resetTransientState()
+    setActionError('')
   }
 
-  async function handlePreview() {
-    if (!crew) return
-
+  // Every action fails the same way — into one message under the header — so each one
+  // is just its own call plus a sentence to show if the backend refuses it.
+  async function run(action: () => Promise<unknown>, fallbackMessage: string) {
     setIsBusy(true)
     setActionError('')
 
     try {
-      const result = await previewSheet({
-        crewId: crew.id,
-        year: period.year,
-        month: period.month,
-      })
-      setPreview(result)
+      await action()
     } catch (error) {
-      setActionError(
-        getErrorMessage(error, 'Could not compute a preview for this period.'),
-      )
+      setActionError(getErrorMessage(error, fallbackMessage))
     } finally {
       setIsBusy(false)
     }
   }
 
-  async function handleGenerate() {
-    if (!crew) return
+  const handleGenerate = () =>
+    run(async () => {
+      if (!crew) return
 
-    setIsBusy(true)
-    setActionError('')
-
-    try {
       await generateSheet({
         crewId: crew.id,
         year: period.year,
         month: period.month,
       })
-      setPreview(null)
-    } catch (error) {
-      setActionError(getErrorMessage(error, 'Could not generate the sheet.'))
-    } finally {
-      setIsBusy(false)
-    }
-  }
+    }, 'Could not generate the sheet.')
 
-  async function handleConfirm() {
-    if (!sheet?.id) return
+  const handleConfirm = () =>
+    run(async () => {
+      if (sheet) await confirmSheet(sheet.id)
+    }, 'Could not confirm the sheet.')
 
-    setIsBusy(true)
-    setActionError('')
+  const handleUnconfirm = () =>
+    run(async () => {
+      if (sheet) await unconfirmSheet(sheet.id)
+    }, 'Could not reopen the sheet.')
 
-    try {
-      await confirmSheet(sheet.id)
-    } catch (error) {
-      setActionError(getErrorMessage(error, 'Could not confirm the sheet.'))
-    } finally {
-      setIsBusy(false)
-    }
-  }
+  const handlePay = (paidSheet: MonthlySheet) =>
+    run(() => markSheetPaid(paidSheet.id), 'Could not mark this crew as paid.')
 
-  async function handlePrint(sheetToPrint: MonthlySheet, line: PayoutLine) {
-    setActionError('')
+  const handleDelete = () =>
+    run(async () => {
+      if (sheet) await deleteSheet(sheet.id)
+    }, 'Could not delete the sheet.')
 
-    try {
-      await printPayoutReport(sheetToPrint, line)
-    } catch (error) {
-      setActionError(getErrorMessage(error, 'Could not build the PDF report.'))
-    }
-  }
+  const handlePrint = () =>
+    run(async () => {
+      if (displayedSheet) await printReport(displayedSheet)
+    }, 'Could not build the PDF report.')
 
-  async function handleDelete() {
-    if (!sheet?.id) return
-
-    setIsBusy(true)
-    setActionError('')
-
-    try {
-      await deleteSheet(sheet.id)
-    } catch (error) {
-      setActionError(getErrorMessage(error, 'Could not delete the sheet.'))
-    } finally {
-      setIsBusy(false)
-    }
-  }
-
-  const displayedSheet = sheet ?? preview
+  const errorMessage =
+    actionError ||
+    (preview.error
+      ? getErrorMessage(
+          preview.error,
+          'Could not compute this period for the crew.',
+        )
+      : '')
 
   return (
     <section className="space-y-6">
@@ -202,10 +191,10 @@ function MonthlySheetsPage() {
               {formatMonthLabel(period.year, period.month)}
             </CardTitle>
             <CardDescription className="mt-2">
-              Computed by the backend from confirmed transport days and approved
-              taxi expenses. Kilometres driven in a member's own car are reported
-              as distance and priced by hand later; only taxi fares are settled
-              here.
+              One sheet per crew per month, computed from its logged transport
+              days. Kilometres count as soon as a day is logged; a taxi fare
+              counts once it is approved. The whole month is settled with the
+              crew's lead, who distributes it inside the team.
             </CardDescription>
           </div>
 
@@ -233,7 +222,7 @@ function MonthlySheetsPage() {
             Add a crew first on the Crews page.
           </p>
         </Card>
-      ) : isLoading ? (
+      ) : isLoading || preview.isLoading ? (
         <Card>
           <p className="flex items-center justify-center gap-2 py-10 text-slate-400">
             <Loader2 className="size-4 animate-spin" /> Loading…
@@ -244,53 +233,52 @@ function MonthlySheetsPage() {
           <CardHeader className="flex-col gap-4 border-b border-sky-100 pb-5 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardEyebrow>{crew.name}</CardEyebrow>
-              <CardTitle className="mt-2 flex items-center gap-3">
-                {sheet
-                  ? 'Generated Sheet'
-                  : preview
-                    ? 'Preview (not saved)'
-                    : 'No sheet yet'}
-                {sheet?.isConfirmed && (
-                  <Badge variant="success">Confirmed</Badge>
-                )}
-                {sheet && !sheet.isConfirmed && (
-                  <Badge variant="warning">Draft</Badge>
-                )}
-                {!sheet && preview && (
-                  <Badge variant="secondary">Unsaved</Badge>
+              <CardTitle className="mt-2 flex flex-wrap items-center gap-3">
+                {sheet ? (
+                  <>
+                    Generated Sheet
+                    <SheetStatusBadge sheet={sheet} />
+                  </>
+                ) : displayedSheet ? (
+                  <>
+                    Not generated yet
+                    <Badge variant="secondary">Unsaved</Badge>
+                  </>
+                ) : (
+                  'No sheet yet'
                 )}
               </CardTitle>
+              {displayedSheet && (
+                <CardDescription className="mt-2">
+                  Paid to{' '}
+                  <span className="font-medium text-slate-700">
+                    {displayedSheet.recipientFullname || 'the crew lead'}
+                  </span>
+                </CardDescription>
+              )}
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {!sheet && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="rounded-full border-sky-100 text-sky-700"
-                  disabled={isBusy}
-                  onClick={handlePreview}
-                >
-                  <Eye className="size-3.5" />
-                  Preview
-                </Button>
-              )}
-
               {/* Days keep being logged and confirmed after a sheet is first produced,
                   so a draft can be recomputed in place to pick them up. */}
-              {(!sheet || !sheet.isConfirmed) && can('generateSheet') && (
-                <Button
-                  type="button"
-                  size="sm"
-                  className="rounded-full bg-sky-600 text-white hover:bg-sky-700"
-                  disabled={isBusy}
-                  onClick={handleGenerate}
-                >
-                  {sheet ? <RefreshCw className="size-3.5" /> : <Sparkles className="size-3.5" />}
-                  {sheet ? 'Recalculate' : 'Generate & Save'}
-                </Button>
-              )}
+              {(!sheet || !sheet.isConfirmed) &&
+                hasSomethingToSave &&
+                can('generateSheet') && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="rounded-full bg-sky-600 text-white hover:bg-sky-700"
+                    disabled={isBusy}
+                    onClick={handleGenerate}
+                  >
+                    {sheet ? (
+                      <RefreshCw className="size-3.5" />
+                    ) : (
+                      <Sparkles className="size-3.5" />
+                    )}
+                    {sheet ? 'Recalculate' : 'Generate & Save'}
+                  </Button>
+                )}
 
               {sheet && !sheet.isConfirmed && can('confirmSheet') && (
                 <Button
@@ -305,7 +293,54 @@ function MonthlySheetsPage() {
                 </Button>
               )}
 
-              {sheet && can('deleteSheet') && (
+              {/* Confirming only freezes the figures, so it can be taken back while the
+                  month is still unpaid — the sheet returns to draft and can be
+                  recalculated. Paying is what closes it for good. */}
+              {sheet &&
+                !sheet.isPaid &&
+                sheet.isConfirmed &&
+                can('confirmSheet') && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full border-sky-100 text-sky-700"
+                    disabled={isBusy}
+                    onClick={handleUnconfirm}
+                  >
+                    <Undo2 className="size-3.5" />
+                    Go back
+                  </Button>
+                )}
+
+              {sheet && isPayable(sheet) && can('paySheet') && (
+                <Button
+                  type="button"
+                  size="sm"
+                  className="rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+                  disabled={isBusy}
+                  onClick={() => setPayingSheet(sheet)}
+                >
+                  <BadgeCheck className="size-3.5" />
+                  Mark as paid
+                </Button>
+              )}
+
+              {displayedSheet && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full border-sky-100 text-sky-700"
+                  disabled={isBusy}
+                  onClick={handlePrint}
+                >
+                  <FileText className="size-3.5" />
+                  Print PDF
+                </Button>
+              )}
+
+              {sheet && !sheet.isConfirmed && can('deleteSheet') && (
                 <Button
                   type="button"
                   variant="destructive"
@@ -321,183 +356,51 @@ function MonthlySheetsPage() {
             </div>
           </CardHeader>
 
-          {actionError && (
+          {errorMessage && (
             <p className="mt-4 text-sm font-medium text-red-500">
-              {actionError}
+              {errorMessage}
             </p>
           )}
 
-          <div className="mt-4">
-            {!displayedSheet ? (
-              <p className="py-10 text-center text-slate-400">
-                Nothing generated for this period yet — try Preview first.
-              </p>
-            ) : displayedSheet.payoutLines.length === 0 ? (
-              <p className="py-10 text-center text-slate-400">
-                No payout lines — this crew has no logged transport days for
-                this period.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Employee</TableHead>
-                    <TableHead className="text-right">Driven km</TableHead>
-                    <TableHead className="text-right">
-                      Extra business km
-                    </TableHead>
-                    <TableHead className="text-right">
-                      Taxi compensation
-                    </TableHead>
-                    <TableHead className="text-right">Total payout</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {displayedSheet.payoutLines.map((line) => (
-                    <Fragment key={line.id}>
-                      <TableRow>
-                        <TableCell className="font-medium text-slate-900">
-                          <span className="flex items-center gap-2">
-                            {line.fullname}
-                            {line.isPaid && <Badge variant="success">Paid</Badge>}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {line.driverKm > 0 ? (
-                            formatKm(line.driverKm)
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {line.extraBusinessKm > 0 ? (
-                            formatKm(line.extraBusinessKm)
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatCurrency(line.taxiCompensation)}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-slate-900">
-                          {formatCurrency(line.totalAmount)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon-sm"
-                              className="rounded-full border-sky-100 text-sky-700"
-                              title={`Print ${line.fullname}'s report as PDF`}
-                              onClick={() => handlePrint(displayedSheet, line)}
-                            >
-                              <FileText className="size-3.5" />
-                            </Button>
+          {!report ? (
+            <p className="py-10 text-center text-slate-400">
+              Nothing to show for this period yet.
+            </p>
+          ) : (
+            <div className="mt-5 space-y-6">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(170px,1fr))] gap-4">
+                <StatCard
+                  label="Days travelled"
+                  value={report.travelledDayCount}
+                  icon={CalendarCheck}
+                />
+                <StatCard
+                  label="Driven (round trip)"
+                  value={formatKm(report.totalDrivenKm)}
+                  icon={RefreshCw}
+                  hint={
+                    report.totalExtraBusinessKm > 0
+                      ? `+ ${formatKm(report.totalExtraBusinessKm)} business`
+                      : undefined
+                  }
+                />
+                <StatCard
+                  label="Taxi to reimburse"
+                  value={formatCurrency(report.totalTaxiAmount)}
+                  icon={Wallet}
+                  hint="The amount payable to the lead"
+                />
+              </div>
 
-                            {line.taxiExpenses.length > 0 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                className="rounded-full text-slate-400"
-                                onClick={() =>
-                                  setExpandedEmployeeId((current) =>
-                                    current === line.userId
-                                      ? null
-                                      : line.userId,
-                                  )
-                                }
-                              >
-                                <ChevronDown
-                                  className={
-                                    expandedEmployeeId === line.userId
-                                      ? 'rotate-180 transition-transform'
-                                      : 'transition-transform'
-                                  }
-                                />
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-
-                      {expandedEmployeeId === line.userId &&
-                        line.taxiExpenses.length > 0 && (
-                          <TableRow className="hover:bg-transparent">
-                            <TableCell colSpan={6} className="bg-sky-50/40">
-                              <div className="space-y-1.5 py-2">
-                                {line.taxiExpenses.map((expense) => (
-                                  <div
-                                    key={expense.id}
-                                    className="flex items-center justify-between rounded-xl border border-sky-100 bg-white px-3 py-2 text-sm"
-                                  >
-                                    <span className="text-slate-600">
-                                      {legLabels[expense.leg]} leg
-                                    </span>
-                                    <span className="text-slate-600">
-                                      {formatCurrency(expense.amount)}
-                                    </span>
-                                    <Badge
-                                      variant={
-                                        expense.taxiExpenseStatus === 'Approved'
-                                          ? 'success'
-                                          : 'secondary'
-                                      }
-                                    >
-                                      {
-                                        taxiExpenseStatusLabels[
-                                          expense.taxiExpenseStatus
-                                        ]
-                                      }
-                                    </Badge>
-                                  </div>
-                                ))}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        )}
-                    </Fragment>
-                  ))}
-                </TableBody>
-                <TableFooter>
-                  <TableRow>
-                    <TableCell
-                      className="font-semibold text-slate-900"
-                      colSpan={4}
-                    >
-                      Total payout — {crew.name}
-                      <span className="mt-1 flex flex-wrap gap-x-5 gap-y-1 text-xs font-normal text-slate-500">
-                        <span>
-                          Driven km:{' '}
-                          <span className="font-medium text-slate-700">
-                            {formatKm(displayedSheet.totalDriverKm)}
-                          </span>
-                        </span>
-                        <span>
-                          Extra business km:{' '}
-                          <span className="font-medium text-slate-700">
-                            {formatKm(displayedSheet.totalExtraBusinessKm)}
-                          </span>
-                        </span>
-                        <span>
-                          Taxi cost:{' '}
-                          <span className="font-medium text-slate-700">
-                            {formatCurrency(displayedSheet.totalTaxiAmount)}
-                          </span>
-                        </span>
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right align-top text-base font-semibold text-sky-700">
-                      {formatCurrency(displayedSheet.totalAmount)}
-                    </TableCell>
-                    <TableCell />
-                  </TableRow>
-                </TableFooter>
-              </Table>
-            )}
-          </div>
+              {report.travelledDayCount === 0 ? (
+                <p className="py-10 text-center text-slate-400">
+                  No travel logged for this crew in this period.
+                </p>
+              ) : (
+                <MonthGrid report={report} />
+              )}
+            </div>
+          )}
         </Card>
       )}
 
@@ -505,8 +408,14 @@ function MonthlySheetsPage() {
         open={confirmingDelete}
         onOpenChange={setConfirmingDelete}
         title="Delete this monthly sheet?"
-        description="This action cannot be undone."
+        description="This action cannot be undone. It can be generated again from the confirmed transport days."
         onConfirm={handleDelete}
+      />
+
+      <PaySheetDialog
+        sheet={payingSheet}
+        onClose={() => setPayingSheet(null)}
+        onConfirm={handlePay}
       />
     </section>
   )

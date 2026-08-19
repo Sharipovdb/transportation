@@ -74,26 +74,4 @@ public class TransportDaysController : BaseController
 
         return new NoContentResult();
     }
-   
-    [HttpPost("{id:long}/confirm")]
-    [RoleAuthorize(RoleNames.Admin, RoleNames.CrewLead, RoleNames.DriverLead)]
-    public async Task<TransportDayDto> Confirm(
-        long id,
-        CancellationToken cancellationToken)
-    {
-        return await _mediator.Send(
-            new ConfirmTransportDayCommand(id),
-            cancellationToken);
-    }
-    
-    [HttpPost("{id:long}/unconfirm")]
-    [RoleAuthorize(RoleNames.Admin, RoleNames.CrewLead, RoleNames.DriverLead)]
-    public async Task<TransportDayDto> UnConfirm(
-        long id,
-        CancellationToken cancellationToken)
-    {
-        return await _mediator.Send(
-            new UnConfirmTransportDayCommand(id),
-            cancellationToken);
-    }
 }

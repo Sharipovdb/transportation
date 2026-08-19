@@ -142,7 +142,6 @@ public class CreateDransportDayCommandTests
             entity.Notes.Should().Be(command.Notes);
             entity.LoggedAt.Should().Be(datetimeNow);
             entity.CreatedAt.Should().Be(datetimeNow);
-            entity.Confirmed.Should().BeFalse();
 
             dto.CrewId.Should().Be(entity.CrewId);
             dto.Date.Should().Be(entity.Date);
@@ -150,7 +149,6 @@ public class CreateDransportDayCommandTests
             dto.Notes.Should().Be(entity.Notes);
             dto.LoggedBy.Should().Be(entity.LoggedBy);
             dto.LoggedAt.Should().Be(entity.LoggedAt);
-            dto.Confirmed.Should().Be(entity.Confirmed);
         }
     }
 

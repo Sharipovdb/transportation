@@ -10,8 +10,6 @@ public class TaxiExpense : BaseEntity
     public long PaidById { get; set; }
     public User PaidBy { get; set; } = null!;
     public TaxiExpenseStatus TaxiExpenseStatus { get; set; }
-    
-    public List<PayoutLineTaxiExpense> PayoutLines { get; set; } = new();
 }
 
 public enum Leg

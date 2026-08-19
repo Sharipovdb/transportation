@@ -24,6 +24,7 @@ public class VehicleConfiguration : IEntityTypeConfiguration<Vehicle>
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(x => x.Plate)
-            .IsUnique();
+            .IsUnique()
+            .HasFilter(SoftDelete.NotDeleted);
     }
 }

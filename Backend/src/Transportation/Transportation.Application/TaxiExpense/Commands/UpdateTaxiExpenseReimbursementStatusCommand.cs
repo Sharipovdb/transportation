@@ -59,33 +59,16 @@ internal sealed class UpdateTaxiExpenseReimbursementStatusCommandHandler
         if (taxiExpense is null)
             throw new ResourceNotFoundException(TaxiExpenseErrors.NotFound);
         
+        // Approving is the single gate a taxi fare passes to become money the company
+        // owes, and it is passed once: a fare that has already been ruled on cannot be
+        // ruled on again.
         if (taxiExpense.TaxiExpenseStatus is not TaxiExpenseStatus.Pending)
             throw new BusinessLogicException(TaxiExpenseErrors.ExpenseNotPending);
 
-        switch (request.TaxiExpenseStatus)
-        {
-            case TaxiExpenseStatus.Approved:
-            {
-                if (taxiExpense.TaxiExpenseStatus is TaxiExpenseStatus.Approved)
-                    throw new BusinessLogicException(TaxiExpenseErrors.ExpenseAlreadyApproved);
-                
-                taxiExpense.TaxiExpenseStatus = TaxiExpenseStatus.Approved;
-                break;
-            }
+        if (request.TaxiExpenseStatus is not (TaxiExpenseStatus.Approved or TaxiExpenseStatus.Rejected))
+            throw new BusinessLogicException(TaxiExpenseErrors.InvalidEnumValue);
 
-            case TaxiExpenseStatus.Rejected:
-            {
-                if (taxiExpense.TaxiExpenseStatus is TaxiExpenseStatus.Rejected)
-                    throw new BusinessLogicException(TaxiExpenseErrors.ExpenseAlreadyRejected);
-                
-                taxiExpense.TaxiExpenseStatus = TaxiExpenseStatus.Rejected;
-                break;
-            }
-            
-            default:
-                throw new BusinessLogicException(TaxiExpenseErrors.InvalidEnumValue);
-        }
-
+        taxiExpense.TaxiExpenseStatus = request.TaxiExpenseStatus;
         taxiExpense.UpdatedAt = _timeProvider.GetLocalDateTimeNowKindUtc();
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         

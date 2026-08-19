@@ -1,13 +1,16 @@
-﻿using FluentValidation;
+using FluentValidation;
+using Transportation.Application.MonthlyTransportSheet.Mappers;
 using Transportation.Application.MonthlyTransportSheet.Models;
 using Transportation.Application.MonthlyTransportSheet.Repositories;
 using Transportation.Application.MonthlyTransportSheet.Services;
 using Transportation.Application.MonthlyTransportSheet.Specifications;
-using Transportation.Application.PayoutLine;
 using Transportation.Mediator.Helper.Commands;
 using Transportation.Mediator.Helper.Common.Extensions;
 using Transportation.Mediator.Helper.Exceptions;
 using Transportation.Mediator.Helper.Persistence;
+using Transportation.Shared;
+using Transportation.Shared.Extensions;
+using Transportation.Shared.Middlewares;
 
 namespace Transportation.Application.MonthlyTransportSheet.Commands;
 
@@ -41,105 +44,100 @@ internal sealed class GenerateMonthlyTransportSheetCommandHandler
     : ICommandHandler<GenerateMonthlyTransportSheetCommand, MonthlyTransportSheetDto>
 {
     private readonly IMonthlyTransportSheetRepository _monthlyTransportSheetRepository;
-    private readonly IMonthlyTransportSheetGenerator _generator;
+    private readonly IMonthlyTransportSheetBuilder _builder;
+    private readonly ICurrentUserAccessor _currentUserAccessor;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly PayoutLineMapperMinually _payoutLineMapper;
+    private readonly MonthlyTransportSheetMapper _mapper;
     private readonly TimeProvider _timeProvider;
 
     public GenerateMonthlyTransportSheetCommandHandler(
         IMonthlyTransportSheetRepository monthlyTransportSheetRepository,
-        IMonthlyTransportSheetGenerator generator,
+        IMonthlyTransportSheetBuilder builder,
+        ICurrentUserAccessor currentUserAccessor,
         IUnitOfWork unitOfWork,
-        PayoutLineMapperMinually payoutLineMapper,
+        MonthlyTransportSheetMapper mapper,
         TimeProvider timeProvider)
     {
         _monthlyTransportSheetRepository = monthlyTransportSheetRepository;
-        _generator = generator;
+        _builder = builder;
+        _currentUserAccessor = currentUserAccessor;
         _unitOfWork = unitOfWork;
-        _payoutLineMapper = payoutLineMapper;
+        _mapper = mapper;
         _timeProvider = timeProvider;
     }
 
     /// <summary>
     /// Generating is idempotent for a draft sheet: it recomputes the period from scratch
-    /// and replaces the payout lines. Transport days keep being logged and confirmed
-    /// after a sheet is first produced, and a one-shot "create only" sheet silently froze
-    /// the payouts at whatever had been confirmed at that moment.
+    /// and replaces the day rows. Transport days keep being logged and confirmed after a
+    /// sheet is first produced, and a one-shot "create only" sheet silently froze the
+    /// month at whatever had been confirmed at that moment.
     /// </summary>
     public async Task<MonthlyTransportSheetDto> Handle(
         GenerateMonthlyTransportSheetCommand request,
         CancellationToken cancellationToken)
     {
+        var calculated = await _builder
+            .BuildAsync(request.CrewId, request.Year, request.Month, cancellationToken);
+
+        if (calculated.Days.Count == 0)
+            throw new BusinessLogicException(MonthlyTransportSheetErrors.NothingToReport);
+
+        var now = _timeProvider.GetLocalDateTimeNowKindUtc();
+
         var existing = await _monthlyTransportSheetRepository.FirstOrDefaultAsync(
-            new MonthlyTransportSheetByPeriodSpec(request.CrewId, request.Year, request.Month), cancellationToken);
+            new MonthlyTransportSheetByPeriodSpec(request.CrewId, request.Year, request.Month),
+            cancellationToken);
 
-        var calculated = await _generator
-            .GenerateAsync(request.CrewId, request.Year, request.Month, cancellationToken);
+        var sheet = existing is null
+            ? await CreateAsync(calculated, now, cancellationToken)
+            : Refresh(existing, calculated, now);
 
-        var sheetId = existing is null
-            ? await CreateAsync(calculated, cancellationToken)
-            : await ReplacePayoutLinesAsync(existing.Id, calculated, cancellationToken);
-
-        var saved = await _monthlyTransportSheetRepository.FirstOrDefaultAsync(
-            new MonthlyTransportSheetWithPayoutsSpec(sheetId), cancellationToken);
-
-        if (saved is null)
-            throw new ResourceNotFoundException(MonthlyTransportSheetErrors.NotFound);
-
-        return new MonthlyTransportSheetDto
-        {
-            Id = saved.Id,
-            CrewId = saved.CrewId,
-            Year = saved.Year,
-            Month = saved.Month,
-            IsConfirmed = saved.IsConfirmed,
-            PayoutLines = _payoutLineMapper.Map(saved.PayoutLines)
-        };
-    }
-
-    private async Task<long> CreateAsync(
-        Domain.Entities.MonthlyTransportSheet calculated,
-        CancellationToken cancellationToken)
-    {
-        await _monthlyTransportSheetRepository.AddAsync(calculated, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return calculated.Id;
+        return _mapper.Map(sheet);
     }
 
-    private async Task<long> ReplacePayoutLinesAsync(
-        long sheetId,
+    private async Task<Domain.Entities.MonthlyTransportSheet> CreateAsync(
         Domain.Entities.MonthlyTransportSheet calculated,
+        DateTime now,
         CancellationToken cancellationToken)
     {
-        var sheet = await _monthlyTransportSheetRepository.FirstOrDefaultAsync(
-            new MonthlyTransportSheetWithPayoutsSpec(sheetId), cancellationToken);
+        calculated.CreatedAt = now;
+        calculated.CreatedById = _currentUserAccessor.GetRequiredUser().GetUserId();
 
-        if (sheet is null)
-            throw new ResourceNotFoundException(MonthlyTransportSheetErrors.NotFound);
+        foreach (var day in calculated.Days)
+            day.CreatedAt = now;
 
-        // A confirmed sheet is signed off as a whole and may not be touched again.
-        if (sheet.IsConfirmed)
+        await _monthlyTransportSheetRepository.AddAsync(calculated, cancellationToken);
+
+        return calculated;
+    }
+
+    private static Domain.Entities.MonthlyTransportSheet Refresh(
+        Domain.Entities.MonthlyTransportSheet existing,
+        Domain.Entities.MonthlyTransportSheet calculated,
+        DateTime now)
+    {
+        // A confirmed sheet is signed off as a whole and may not be touched again; the
+        // correction path is to delete it and generate a fresh one.
+        if (existing.IsConfirmed)
             throw new BusinessLogicException(MonthlyTransportSheetErrors.AlreadyConfirmed);
 
-        // A member who has already been paid keeps the line they were paid on: that is a
-        // record of money handed over, not a figure to recompute. Everyone else's line is
-        // dropped and rebuilt, which is what lets newly confirmed days reach the payout.
-        var settledUserIds = sheet.PayoutLines
-            .Where(x => x.IsPaid)
-            .Select(x => x.UserId)
-            .ToHashSet();
+        existing.RecipientId = calculated.RecipientId;
+        existing.Recipient = calculated.Recipient;
 
-        // Removing orphans the old lines, which cascades to their taxi-expense links.
-        sheet.PayoutLines.RemoveAll(x => !x.IsPaid);
+        // Clearing orphans the old rows, which EF deletes; the fresh ones take their
+        // place, so newly confirmed days reach the sheet and withdrawn ones leave it.
+        existing.Days.Clear();
 
-        foreach (var payoutLine in calculated.PayoutLines.Where(x => !settledUserIds.Contains(x.UserId)))
-            sheet.PayoutLines.Add(payoutLine);
+        foreach (var day in calculated.Days)
+        {
+            day.CreatedAt = now;
+            existing.Days.Add(day);
+        }
 
-        sheet.UpdatedAt = _timeProvider.GetLocalDateTimeNowKindUtc();
+        existing.UpdatedAt = now;
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-        return sheet.Id;
+        return existing;
     }
 }

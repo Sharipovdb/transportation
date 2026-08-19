@@ -30,7 +30,9 @@ public sealed class TransportDayDto
 
     public DateTime LoggedAt { get; set; }
 
-    public bool Confirmed { get; set; }
-
+    /// <summary>
+    /// The day's taxi rides with their review state — a fare only becomes money the
+    /// company owes once it is Approved.
+    /// </summary>
     public List<TaxiExpenseDto> TaxiExpenses { get; set; } = new();
 }

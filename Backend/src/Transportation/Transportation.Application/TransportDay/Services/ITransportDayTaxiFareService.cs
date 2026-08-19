@@ -37,6 +37,8 @@ internal sealed class TransportDayTaxiFareService : ITransportDayTaxiFareService
         DateTime now,
         CancellationToken cancellationToken)
     {
+        EnsureDayIsStillOpen(transportDay);
+
         var taxiLegs = GetTaxiLegs(transportDay);
 
         Validate(taxiLegs, fares);
@@ -70,15 +72,29 @@ internal sealed class TransportDayTaxiFareService : ITransportDayTaxiFareService
                 continue;
             }
 
-            // An expense that has already been ruled on is an accounting fact; the daily
-            // log may no longer rewrite it.
-            if (existing.TaxiExpenseStatus is not TaxiExpenseStatus.Pending)
-                throw new BusinessLogicException(TaxiExpenseErrors.ExpenseNotPending);
-
             existing.Amount = fare.Amount;
             existing.PaidById = fare.PaidById;
             existing.UpdatedAt = now;
         }
+    }
+
+    /// <summary>
+    /// A day is open for as long as every fare on it is still Pending. Once one has been
+    /// approved, rejected or paid it is an accounting fact, and the daily log may no
+    /// longer touch the day at all.
+    ///
+    /// This has to guard the whole sync, not just the fares being rewritten: turning a
+    /// taxi leg into a driven one withdraws its fare as an orphan, and that path used to
+    /// slip past the per-fare check and silently delete money the accountant had already
+    /// approved.
+    /// </summary>
+    private static void EnsureDayIsStillOpen(Domain.Entities.TransportDay transportDay)
+    {
+        var isRuledOn = transportDay.TaxiExpenses
+            .Any(x => !x.IsDeleted && x.TaxiExpenseStatus is not TaxiExpenseStatus.Pending);
+
+        if (isRuledOn)
+            throw new BusinessLogicException(TransportDayErrors.FareAlreadyRuledOn);
     }
 
     private static HashSet<Leg> GetTaxiLegs(Domain.Entities.TransportDay transportDay)

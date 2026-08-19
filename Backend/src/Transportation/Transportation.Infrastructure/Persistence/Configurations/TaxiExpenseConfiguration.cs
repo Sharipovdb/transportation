@@ -29,8 +29,12 @@ public class TaxiExpenseConfiguration : IEntityTypeConfiguration<TaxiExpense>
 
         builder.HasIndex(x => x.TransportDayId);
 
+        // A leg that stops being a taxi ride has its expense soft-deleted; marking the
+        // same leg as a taxi again inserts a fresh one, which an unfiltered index
+        // rejected as a duplicate of the row that was already withdrawn.
         builder
             .HasIndex(x => new { x.TransportDayId, x.Leg, x.PaidById })
-            .IsUnique();
+            .IsUnique()
+            .HasFilter(SoftDelete.NotDeleted);
     }
 }

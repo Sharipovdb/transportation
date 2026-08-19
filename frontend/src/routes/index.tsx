@@ -82,13 +82,15 @@ function DashboardPage() {
     [transportDays, period],
   )
 
+  // Money the company owes but has not released: approved fares only. A pending fare
+  // has not been ruled on and a rejected one never will be, so neither is owed.
   const owedTaxiThisPeriod = useMemo(
     () =>
       taxiExpenses
-        .filter((expense) => dayIdsInPeriod.has(expense.transportDayId))
         .filter(
           (expense) =>
-            expense.taxiExpenseStatus === 'Pending' || expense.taxiExpenseStatus === 'Approved',
+            dayIdsInPeriod.has(expense.transportDayId) &&
+            expense.taxiExpenseStatus === 'Approved',
         )
         .reduce((total, expense) => total + expense.amount, 0),
     [taxiExpenses, dayIdsInPeriod],
@@ -112,26 +114,20 @@ function DashboardPage() {
           period.year,
           period.month,
         )
-        const drivenLegs = days.reduce(
-          (count, day) =>
-            count +
-            (day.morningMode === 'Driven' ? 1 : 0) +
-            (day.afternoonMode === 'Driven' ? 1 : 0),
-          0,
-        )
-        const taxiLegs = days.reduce(
-          (count, day) =>
-            count +
-            (day.morningMode === 'Taxi' ? 1 : 0) +
-            (day.afternoonMode === 'Taxi' ? 1 : 0),
-          0,
-        )
+        // Counted in days, not legs — a day is the unit the report and the accountant
+        // work in. A day that drove one way and taxied the other counts in both.
+        const drivenDays = days.filter(
+          (day) => day.morningMode === 'Driven' || day.afternoonMode === 'Driven',
+        ).length
+        const taxiDays = days.filter(
+          (day) => day.morningMode === 'Taxi' || day.afternoonMode === 'Taxi',
+        ).length
 
         return {
           crew,
           daysLogged: days.length,
-          drivenLegs,
-          taxiLegs,
+          drivenDays,
+          taxiDays,
           members: getActiveMembersForCrew(crew.id),
           sheet: sheets.find(
             (candidate) =>
@@ -145,7 +141,7 @@ function DashboardPage() {
   )
 
   const totalPayout = crewData.reduce(
-    (total, row) => total + (row.sheet?.totalAmount ?? 0),
+    (total, row) => total + (row.sheet?.totalTaxiAmount ?? 0),
     0,
   )
   const draftSheets = crewData.filter(
@@ -178,7 +174,7 @@ function DashboardPage() {
     ...(showFinance
       ? [
           {
-            label: 'Taxi owed',
+            label: 'Taxi approved, unpaid',
             value: formatCurrency(owedTaxiThisPeriod),
             icon: Receipt,
           },
@@ -230,7 +226,7 @@ function DashboardPage() {
             <CardTitle className="mt-2">This month by crew</CardTitle>
             <CardDescription className="mt-2">
               Seats and logged days per crew
-              {showFinance ? ', with generated payout total' : ''}.
+              {showFinance ? ', with the taxi money a generated sheet owes its lead' : ''}.
             </CardDescription>
           </CardHeader>
 
@@ -241,7 +237,7 @@ function DashboardPage() {
                   <TableHead>Crew</TableHead>
                   <TableHead className="text-center">Seats</TableHead>
                   <TableHead className="text-center">Days</TableHead>
-                  <TableHead className="text-center">Driven / Taxi</TableHead>
+                  <TableHead className="text-center">Driven / Taxi days</TableHead>
                   {showFinance && (
                     <TableHead className="text-right">Payout</TableHead>
                   )}
@@ -252,8 +248,8 @@ function DashboardPage() {
                   ({
                     crew,
                     daysLogged,
-                    drivenLegs,
-                    taxiLegs,
+                    drivenDays,
+                    taxiDays,
                     members,
                     sheet,
                   }) => {
@@ -279,11 +275,11 @@ function DashboardPage() {
                           {daysLogged}
                         </TableCell>
                         <TableCell className="text-center">
-                          {drivenLegs} / {taxiLegs}
+                          {drivenDays} / {taxiDays}
                         </TableCell>
                         {showFinance && (
                           <TableCell className="text-right">
-                            {sheet ? formatCurrency(sheet.totalAmount) : '—'}
+                            {sheet ? formatCurrency(sheet.totalTaxiAmount) : '—'}
                           </TableCell>
                         )}
                       </TableRow>

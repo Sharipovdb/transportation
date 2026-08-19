@@ -158,7 +158,37 @@ public class TransportDayTaxiFareServiceTests
     [Fact]
     public async Task ApprovedExpense_ShouldNotBeRewrittenByTheDailyLog()
     {
-        var day = ADay(
+        var day = ADayWithAnApprovedMorningFare();
+
+        var action = () => _service.SyncAsync(
+            day,
+            [new TransportDayTaxiFare(Leg.Morning, 32m, PayerId)],
+            Now,
+            CancellationToken.None);
+
+        var exception = await action.Should().ThrowAsync<BusinessLogicException>();
+        exception.Which.Error.Should().Be(TransportDayErrors.FareAlreadyRuledOn);
+    }
+
+    [Fact]
+    public async Task ApprovedExpense_ShouldNotBeWithdrawnByTurningTheLegIntoADrivenOne()
+    {
+        // Dropping the taxi leg used to orphan its expense and soft-delete it without
+        // ever reaching the per-fare check, silently withdrawing approved money.
+        var day = ADayWithAnApprovedMorningFare();
+
+        day.MorningMode = TransportMode.Driven;
+
+        var action = () => _service.SyncAsync(day, [], Now, CancellationToken.None);
+
+        var exception = await action.Should().ThrowAsync<BusinessLogicException>();
+        exception.Which.Error.Should().Be(TransportDayErrors.FareAlreadyRuledOn);
+
+        day.TaxiExpenses.Should().ContainSingle().Which.IsDeleted.Should().BeFalse();
+    }
+
+    private static Domain.Entities.TransportDay ADayWithAnApprovedMorningFare()
+        => ADay(
             TransportMode.Taxi,
             TransportMode.None,
             new Domain.Entities.TaxiExpense
@@ -168,14 +198,4 @@ public class TransportDayTaxiFareServiceTests
                 PaidById = PayerId,
                 TaxiExpenseStatus = TaxiExpenseStatus.Approved
             });
-
-        var action = () => _service.SyncAsync(
-            day,
-            [new TransportDayTaxiFare(Leg.Morning, 32m, PayerId)],
-            Now,
-            CancellationToken.None);
-
-        var exception = await action.Should().ThrowAsync<BusinessLogicException>();
-        exception.Which.Error.Should().Be(TaxiExpenseErrors.ExpenseNotPending);
-    }
 }

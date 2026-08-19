@@ -3,7 +3,13 @@ import { createContext, useContext, useMemo } from 'react'
 import type { ReactNode } from 'react'
 
 import { apiClient } from '@/lib/api-client'
-import type { Leg, TaxiFare, TransportDay, TransportMode } from '@/lib/domain-types'
+import type {
+  Leg,
+  TaxiExpenseStatus,
+  TaxiFareDraft,
+  TransportDay,
+  TransportMode,
+} from '@/lib/domain-types'
 import { getMonthYear } from '@/lib/format'
 import { nestedLargePage } from '@/lib/pagination'
 
@@ -20,7 +26,7 @@ interface TaxiExpenseApiDto {
   leg: Leg
   amount: number
   paidById: number
-  taxiExpenseStatus: string
+  taxiExpenseStatus: TaxiExpenseStatus
 }
 
 interface TransportDayApiDto {
@@ -36,7 +42,6 @@ interface TransportDayApiDto {
   notes: string | null
   loggedBy: number
   loggedAt: string
-  confirmed: boolean
   taxiExpenses: TaxiExpenseApiDto[]
 }
 
@@ -56,7 +61,7 @@ export interface TransportDayDraft {
   afternoonMode: TransportMode
   extraBusinessKm: number
   notes: string
-  taxiFares: TaxiFare[]
+  taxiFares: TaxiFareDraft[]
 }
 
 const TRANSPORT_DAYS_QUERY_KEY = ['transport-days']
@@ -75,16 +80,17 @@ function toTransportDay(dto: TransportDayApiDto): TransportDay {
     notes: dto.notes ?? '',
     loggedBy: dto.loggedBy,
     loggedAt: dto.loggedAt,
-    confirmed: dto.confirmed,
     taxiFares: dto.taxiExpenses.map((expense) => ({
+      id: expense.id,
       leg: expense.leg,
       amount: expense.amount,
       paidById: expense.paidById,
+      status: expense.taxiExpenseStatus,
     })),
   }
 }
 
-function toTaxiFarePayload(fares: TaxiFare[]) {
+function toTaxiFarePayload(fares: TaxiFareDraft[]) {
   return fares.map((fare) => ({
     leg: legToApiValue[fare.leg],
     amount: fare.amount,
@@ -108,8 +114,6 @@ interface TransportDaysContextValue {
   addTransportDay: (draft: TransportDayDraft) => Promise<void>
   updateTransportDay: (dayId: number, draft: Omit<TransportDayDraft, 'crewId' | 'date'>) => Promise<void>
   deleteTransportDay: (dayId: number) => Promise<void>
-  confirmTransportDay: (dayId: number) => Promise<void>
-  unconfirmTransportDay: (dayId: number) => Promise<void>
 }
 
 const TransportDaysContext = createContext<TransportDaysContextValue | null>(null)
@@ -122,8 +126,9 @@ export function TransportDaysProvider({ children }: { children: ReactNode }) {
     queryFn: fetchTransportDays,
   })
 
-  // Taxi expenses are written through the transport day, so anything that touches a day
-  // can change them too — both caches are refreshed together.
+  // Taxi expenses are written through the transport day, and a logged day's kilometres
+  // reach the monthly sheet with no further step — so all three views are refreshed
+  // together rather than leaving two of them showing yesterday's figures.
   function invalidate() {
     return Promise.all([
       queryClient.invalidateQueries({ queryKey: TRANSPORT_DAYS_QUERY_KEY }),
@@ -172,16 +177,6 @@ export function TransportDaysProvider({ children }: { children: ReactNode }) {
     onSuccess: invalidate,
   })
 
-  const confirmMutation = useMutation({
-    mutationFn: (dayId: number) => apiClient.post(`/api/TransportDays/Confirm/${dayId}/confirm`),
-    onSuccess: invalidate,
-  })
-
-  const unconfirmMutation = useMutation({
-    mutationFn: (dayId: number) => apiClient.post(`/api/TransportDays/UnConfirm/${dayId}/unconfirm`),
-    onSuccess: invalidate,
-  })
-
   const value = useMemo<TransportDaysContextValue>(
     () => ({
       transportDays,
@@ -201,10 +196,8 @@ export function TransportDaysProvider({ children }: { children: ReactNode }) {
       addTransportDay: async (draft) => { await addMutation.mutateAsync(draft) },
       updateTransportDay: async (dayId, draft) => { await updateMutation.mutateAsync({ dayId, draft }) },
       deleteTransportDay: async (dayId) => { await deleteMutation.mutateAsync(dayId) },
-      confirmTransportDay: async (dayId) => { await confirmMutation.mutateAsync(dayId) },
-      unconfirmTransportDay: async (dayId) => { await unconfirmMutation.mutateAsync(dayId) },
     }),
-    [transportDays, isLoading, addMutation, updateMutation, deleteMutation, confirmMutation, unconfirmMutation],
+    [transportDays, isLoading, addMutation, updateMutation, deleteMutation],
   )
 
   return <TransportDaysContext.Provider value={value}>{children}</TransportDaysContext.Provider>

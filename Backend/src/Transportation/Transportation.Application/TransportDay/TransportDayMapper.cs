@@ -21,8 +21,10 @@ public sealed class TransportDayMapper
             Notes = entity.Notes,
             LoggedBy = entity.LoggedBy,
             LoggedAt = entity.LoggedAt,
-            Confirmed = entity.Confirmed,
-            TaxiExpenses = entity.TaxiExpenses.Select(MapTaxiExpense).ToList()
+            TaxiExpenses = entity.TaxiExpenses
+                .Where(x => !x.IsDeleted)
+                .Select(MapTaxiExpense)
+                .ToList()
         };
     }
 

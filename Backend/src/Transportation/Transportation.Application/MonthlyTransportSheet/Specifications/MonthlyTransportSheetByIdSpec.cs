@@ -1,7 +1,11 @@
-﻿using Ardalis.Specification;
+using Ardalis.Specification;
 
 namespace Transportation.Application.MonthlyTransportSheet.Specifications;
 
+/// <summary>
+/// A sheet with everything the confirm/pay commands touch: its days, and the taxi
+/// expenses behind them whose status paying the sheet moves on to Paid.
+/// </summary>
 public sealed class MonthlyTransportSheetByIdSpec
     : Specification<Domain.Entities.MonthlyTransportSheet>
 {
@@ -10,15 +14,11 @@ public sealed class MonthlyTransportSheetByIdSpec
         if (asNoTracking)
             Query.AsNoTracking();
 
-        Query.Where(x =>
-                x.Id == id && !x.IsDeleted)
+        Query.Where(x => x.Id == id && !x.IsDeleted)
+            .Include(x => x.Recipient);
 
-            .Include(x => x.PayoutLines)
-            .ThenInclude(x => x.User)
-
-            .Include(x => x.PayoutLines)
-            .ThenInclude(x => x.TaxiExpenses)
-            .ThenInclude(x => x.TaxiExpense)
-            .ThenInclude(x => x.PaidBy);
+        Query.Include(x => x.Days)
+            .ThenInclude(x => x.TransportDay)
+            .ThenInclude(x => x.TaxiExpenses);
     }
 }

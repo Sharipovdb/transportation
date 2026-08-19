@@ -1,11 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { createFileRoute } from '@tanstack/react-router'
-import { Check, PencilLine, Receipt, Trash2, X } from 'lucide-react'
+import { Check, PencilLine, Receipt, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 
-import { ConfirmDialog } from '@/components/confirm-dialog'
 import type { Period } from '@/components/month-picker'
 import { MonthPicker } from '@/components/month-picker'
 import { Badge } from '@/components/ui/badge'
@@ -67,7 +66,6 @@ function TaxiExpensesPage() {
     taxiExpenses,
     isLoading,
     updateTaxiExpense,
-    deleteTaxiExpense,
     approveTaxiExpense,
     rejectTaxiExpense,
   } = useTaxiExpenses()
@@ -76,7 +74,6 @@ function TaxiExpensesPage() {
   const [crewFilter, setCrewFilter] = useState('')
   const [editingExpenseId, setEditingExpenseId] = useState<number | null>(null)
   const [formError, setFormError] = useState('')
-  const [deletingExpenseId, setDeletingExpenseId] = useState<number | null>(null)
 
   const {
     register,
@@ -154,11 +151,8 @@ function TaxiExpensesPage() {
 
     try {
       await updateTaxiExpense(editingExpense.id, {
-        transportDayId: editingExpense.transportDayId,
-        leg: editingExpense.leg,
         amount: values.amount,
         paidById: values.paidById,
-        taxiExpenseStatus: editingExpense.taxiExpenseStatus,
       })
 
       resetForm()
@@ -166,18 +160,6 @@ function TaxiExpensesPage() {
       setFormError(getErrorMessage(error, 'Could not save this taxi expense.'))
     }
   })
-
-  async function removeExpense(expenseId: number) {
-    if (editingExpenseId === expenseId) {
-      resetForm()
-    }
-
-    try {
-      await deleteTaxiExpense(expenseId)
-    } catch (error) {
-      setFormError(getErrorMessage(error, 'Could not remove this expense.'))
-    }
-  }
 
   async function handleApprove(expenseId: number) {
     try {
@@ -203,8 +185,9 @@ function TaxiExpensesPage() {
             <CardEyebrow>Reimbursements</CardEyebrow>
             <CardTitle className="mt-2">Amend Taxi Expense</CardTitle>
             <CardDescription className="mt-2">
-              Taxi rides are recorded on the transport day they belong to. Here a pending
-              expense can be corrected, approved, or rejected before it reaches a payout.
+              Taxi rides are recorded on the transport day they belong to. This is where a
+              fare is corrected and then approved or rejected — approving is what turns it
+              into money on Monthly Sheets and Payouts.
             </CardDescription>
           </div>
 
@@ -359,17 +342,6 @@ function TaxiExpensesPage() {
                             <PencilLine className="size-3.5" />
                           </Button>
                         )}
-                        {can('deleteTaxiExpense') && (
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="icon-sm"
-                            className="rounded-full"
-                            onClick={() => setDeletingExpenseId(expense.id)}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        )}
                       </div>
                     </TableCell>
                   </TableRow>
@@ -388,17 +360,6 @@ function TaxiExpensesPage() {
         </div>
       </Card>
 
-      <ConfirmDialog
-        open={deletingExpenseId !== null}
-        onOpenChange={(open) => !open && setDeletingExpenseId(null)}
-        title="Delete this taxi expense?"
-        description="The transport day keeps its taxi leg but stops claiming the fare. This action cannot be undone."
-        onConfirm={() => {
-          if (deletingExpenseId !== null) {
-            removeExpense(deletingExpenseId)
-          }
-        }}
-      />
     </section>
   )
 }

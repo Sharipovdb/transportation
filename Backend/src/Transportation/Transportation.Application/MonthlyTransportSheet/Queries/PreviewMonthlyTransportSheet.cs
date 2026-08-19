@@ -1,7 +1,7 @@
-﻿using FluentValidation;
-using Transportation.Application.MonthlyTransportSheet.Calculations;
+using FluentValidation;
 using Transportation.Application.MonthlyTransportSheet.Mappers;
 using Transportation.Application.MonthlyTransportSheet.Models;
+using Transportation.Application.MonthlyTransportSheet.Services;
 using Transportation.Mediator.Helper.Queries;
 
 namespace Transportation.Application.MonthlyTransportSheet.Queries;
@@ -10,11 +10,11 @@ public sealed record PreviewMonthlyTransportSheetQuery(
     long CrewId,
     int Year,
     int Month
-) : IQuery<PreviewMonthlyTransportSheetResponse>;
+) : IQuery<MonthlyTransportSheetDto>;
 
 // ReSharper disable once UnusedType.Global
 public sealed class PreviewMonthlyTransportSheetQueryValidator
-    : AbstractValidator<PreviewMonthlyTransportSheetResponse>
+    : AbstractValidator<PreviewMonthlyTransportSheetQuery>
 {
     public PreviewMonthlyTransportSheetQueryValidator()
     {
@@ -29,27 +29,32 @@ public sealed class PreviewMonthlyTransportSheetQueryValidator
     }
 }
 
+/// <summary>
+/// Shows what generating would produce, without writing anything. It runs the same
+/// builder and the same mapper as Generate, so a preview can never disagree with the
+/// sheet that follows it.
+/// </summary>
 internal sealed class PreviewMonthlyTransportSheetQueryHandler
-    : IQueryHandler<PreviewMonthlyTransportSheetQuery, PreviewMonthlyTransportSheetResponse>
+    : IQueryHandler<PreviewMonthlyTransportSheetQuery, MonthlyTransportSheetDto>
 {
-    private readonly IMonthlyTransportCalculator _calculator;
-    private readonly IMonthlyTransportPreviewMapper _mapper;
+    private readonly IMonthlyTransportSheetBuilder _builder;
+    private readonly MonthlyTransportSheetMapper _mapper;
 
     public PreviewMonthlyTransportSheetQueryHandler(
-        IMonthlyTransportCalculator calculator,
-        IMonthlyTransportPreviewMapper mapper)
+        IMonthlyTransportSheetBuilder builder,
+        MonthlyTransportSheetMapper mapper)
     {
-        _calculator = calculator;
+        _builder = builder;
         _mapper = mapper;
     }
-    
-    public async Task<PreviewMonthlyTransportSheetResponse> Handle(
+
+    public async Task<MonthlyTransportSheetDto> Handle(
         PreviewMonthlyTransportSheetQuery request,
         CancellationToken cancellationToken)
     {
-        var calculation = await _calculator
-            .CalculateAsync(request.CrewId, request.Year, request.Month, cancellationToken);
+        var calculated = await _builder
+            .BuildAsync(request.CrewId, request.Year, request.Month, cancellationToken);
 
-        return _mapper.Map(calculation);
+        return _mapper.Map(calculated);
     }
 }

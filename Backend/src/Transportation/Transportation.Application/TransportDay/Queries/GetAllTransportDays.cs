@@ -12,7 +12,6 @@ public sealed record GetAllTransportDays(
     long? CrewId,
     DateOnly? DateFrom,
     DateOnly? DateTo,
-    bool? Confirmed,
     PaginationInfo PaginationInfo
 ) : IQuery<PaginatedResult<TransportDayDto>>;
 
@@ -45,9 +44,6 @@ internal sealed class GetAllTransportDaysHandler : IQueryHandler<GetAllTransport
         if (request.DateTo.HasValue)
             spec.Query.Where(x => x.Date <= request.DateTo.Value);
 
-        if (request.Confirmed.HasValue)
-            spec.Query.Where(x => x.Confirmed == request.Confirmed);
-        
         spec.Query
             .Where(x => !x.IsDeleted)
             .OrderByDescending(x => x.Date)

@@ -25,14 +25,16 @@ internal sealed class DeleteMonthlyTransportSheetCommandHandler
     public async Task<bool> Handle(DeleteMonthlyTransportSheetCommand request, CancellationToken cancellationToken)
     {
         var spec = new MonthlyTransportSheetByIdSpec(request.Id);
-        var monthlyTransportSheet = await _monthlyTransportSheetRepository.GetByIdAsync(spec, cancellationToken);
+        var monthlyTransportSheet = await _monthlyTransportSheetRepository
+            .FirstOrDefaultAsync(spec, cancellationToken);
 
         if (monthlyTransportSheet is null)
             throw new ResourceNotFoundException(MonthlyTransportSheetErrors.NotFound);
 
         if (monthlyTransportSheet.IsConfirmed)
             throw new BusinessLogicException(MonthlyTransportSheetErrors.AlreadyConfirmed);
-        
+
+
         monthlyTransportSheet.IsDeleted = true;
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
