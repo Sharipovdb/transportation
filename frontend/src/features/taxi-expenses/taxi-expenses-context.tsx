@@ -6,6 +6,9 @@ import { apiClient } from '@/lib/api-client'
 import type { Leg, TaxiExpense, TaxiExpenseStatus } from '@/lib/domain-types'
 import { nestedLargePage } from '@/lib/pagination'
 
+import { useAuth } from '@/features/auth/auth-context'
+import type { AuthSession } from '@/lib/app-types'
+
 // Leg/TaxiExpenseStatus have explicit backend int values (Leg: Morning=1, Afternoon=2;
 // TaxiExpenseStatus: Pending=1, Approved=2, Rejected=3, Paid=4) — requests want the
 // number. The list/detail DTO gives back the enum's own PascalCase name, which already
@@ -56,10 +59,22 @@ function toTaxiExpense(dto: TaxiExpenseApiDto): TaxiExpense {
   }
 }
 
-async function fetchTaxiExpenses() {
-  const response = await apiClient.get<PaginatedResult<TaxiExpenseApiDto>>('/api/TaxiExpense/GetAll', {
-    params: nestedLargePage,
-  })
+async function fetchTaxiExpenses(session: AuthSession | null) {
+  const isAdmin =
+    session?.roles.includes('Admin') ||
+    session?.roles.includes('Accountant') ||
+    session?.roles.includes('RouteManager')
+
+  const endpoint = isAdmin
+    ? '/api/TaxiExpense/GetAll'
+    : '/api/TransportDays/GetMonthlyTransportDaysByCurrentId'
+
+  const response = await apiClient.get<PaginatedResult<TaxiExpenseApiDto>>(
+    endpoint,
+    {
+      params: nestedLargePage,
+    },
+  )
 
   return response.data.items.map(toTaxiExpense)
 }
@@ -82,7 +97,10 @@ interface TaxiExpensesContextValue {
   isLoading: boolean
   getExpensesForDay: (transportDayId: number) => TaxiExpense[]
   getExpensesForDays: (transportDayIds: number[]) => TaxiExpense[]
-  updateTaxiExpense: (expenseId: number, draft: TaxiExpenseDraft) => Promise<void>
+  updateTaxiExpense: (
+    expenseId: number,
+    draft: TaxiExpenseDraft,
+  ) => Promise<void>
   deleteTaxiExpense: (expenseId: number) => Promise<void>
   approveTaxiExpense: (expenseId: number) => Promise<void>
   rejectTaxiExpense: (expenseId: number) => Promise<void>
@@ -93,16 +111,20 @@ const TaxiExpensesContext = createContext<TaxiExpensesContextValue | null>(null)
 export function TaxiExpensesProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
 
+  const { session } = useAuth()
+
   const { data: taxiExpenses = [], isLoading } = useQuery({
     queryKey: TAXI_EXPENSES_QUERY_KEY,
-    queryFn: fetchTaxiExpenses,
+    queryFn: () => fetchTaxiExpenses(session),
   })
 
   // An expense belongs to a transport day and feeds a monthly sheet, so changing one
   // invalidates all three views rather than leaving the other two showing stale money.
   function invalidate() {
     return Promise.all([
-      queryClient.invalidateQueries({ queryKey: TAXI_EXPENSES_QUERY_KEY }),
+      queryClient.invalidateQueries({
+        queryKey: TAXI_EXPENSES_QUERY_KEY,
+      }),
       queryClient.invalidateQueries({ queryKey: ['transport-days'] }),
       queryClient.invalidateQueries({ queryKey: ['monthly-sheets'] }),
     ])
@@ -111,23 +133,34 @@ export function TaxiExpensesProvider({ children }: { children: ReactNode }) {
   const updateMutation = useMutation({
     // UpdateTaxiExpenseRequest is bound [FromQuery] on the backend despite being a
     // PUT — send the full payload as query params, not a JSON body.
-    mutationFn: ({ expenseId, draft }: { expenseId: number; draft: TaxiExpenseDraft }) =>
-      apiClient.put(`/api/TaxiExpense/Update/${expenseId}`, undefined, { params: toApiPayload(draft) }),
+    mutationFn: ({
+      expenseId,
+      draft,
+    }: {
+      expenseId: number
+      draft: TaxiExpenseDraft
+    }) =>
+      apiClient.put(`/api/TaxiExpense/Update/${expenseId}`, undefined, {
+        params: toApiPayload(draft),
+      }),
     onSuccess: invalidate,
   })
 
   const deleteMutation = useMutation({
-    mutationFn: (expenseId: number) => apiClient.delete(`/api/TaxiExpense/Delete/${expenseId}`),
+    mutationFn: (expenseId: number) =>
+      apiClient.delete(`/api/TaxiExpense/Delete/${expenseId}`),
     onSuccess: invalidate,
   })
 
   const approveMutation = useMutation({
-    mutationFn: (expenseId: number) => apiClient.put(`/api/TaxiExpense/Approve/${expenseId}`),
+    mutationFn: (expenseId: number) =>
+      apiClient.put(`/api/TaxiExpense/Approve/${expenseId}`),
     onSuccess: invalidate,
   })
 
   const rejectMutation = useMutation({
-    mutationFn: (expenseId: number) => apiClient.put(`/api/TaxiExpense/Reject/${expenseId}`),
+    mutationFn: (expenseId: number) =>
+      apiClient.put(`/api/TaxiExpense/Reject/${expenseId}`),
     onSuccess: invalidate,
   })
 
@@ -136,20 +169,43 @@ export function TaxiExpensesProvider({ children }: { children: ReactNode }) {
       taxiExpenses,
       isLoading,
       getExpensesForDay: (transportDayId) =>
-        taxiExpenses.filter((expense) => expense.transportDayId === transportDayId),
+        taxiExpenses.filter(
+          (expense) => expense.transportDayId === transportDayId,
+        ),
       getExpensesForDays: (transportDayIds) => {
         const dayIdSet = new Set(transportDayIds)
-        return taxiExpenses.filter((expense) => dayIdSet.has(expense.transportDayId))
+        return taxiExpenses.filter((expense) =>
+          dayIdSet.has(expense.transportDayId),
+        )
       },
-      updateTaxiExpense: async (expenseId, draft) => { await updateMutation.mutateAsync({ expenseId, draft }) },
-      deleteTaxiExpense: async (expenseId) => { await deleteMutation.mutateAsync(expenseId) },
-      approveTaxiExpense: async (expenseId) => { await approveMutation.mutateAsync(expenseId) },
-      rejectTaxiExpense: async (expenseId) => { await rejectMutation.mutateAsync(expenseId) },
+      updateTaxiExpense: async (expenseId, draft) => {
+        await updateMutation.mutateAsync({ expenseId, draft })
+      },
+      deleteTaxiExpense: async (expenseId) => {
+        await deleteMutation.mutateAsync(expenseId)
+      },
+      approveTaxiExpense: async (expenseId) => {
+        await approveMutation.mutateAsync(expenseId)
+      },
+      rejectTaxiExpense: async (expenseId) => {
+        await rejectMutation.mutateAsync(expenseId)
+      },
     }),
-    [taxiExpenses, isLoading, updateMutation, deleteMutation, approveMutation, rejectMutation],
+    [
+      taxiExpenses,
+      isLoading,
+      updateMutation,
+      deleteMutation,
+      approveMutation,
+      rejectMutation,
+    ],
   )
 
-  return <TaxiExpensesContext.Provider value={value}>{children}</TaxiExpensesContext.Provider>
+  return (
+    <TaxiExpensesContext.Provider value={value}>
+      {children}
+    </TaxiExpensesContext.Provider>
+  )
 }
 
 export function useTaxiExpenses() {

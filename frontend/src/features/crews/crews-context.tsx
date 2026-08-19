@@ -6,6 +6,8 @@ import { apiClient } from '@/lib/api-client'
 import { nestedLargePage } from '@/lib/pagination'
 import { isSameId } from '@/lib/domain-types'
 import type { Crew, EntityId } from '@/lib/domain-types'
+import { EMPLOYEES_QUERY_KEY } from '@/features/employees/employees-context'
+import { CREW_MEMBERSHIPS_QUERY_KEY } from '@/features/crews/crew-memberships-context'
 
 // The backend models "driver-lead XOR manager-lead" as two separate nullable FKs on
 // Crew, rather than the frontend's single leadType+leadId pair — translated here.
@@ -32,7 +34,6 @@ export interface CrewDraft {
 }
 
 const CREWS_QUERY_KEY = ['crews']
-const CREW_MEMBERSHIPS_QUERY_KEY = ['crew-memberships']
 
 function toCrew(dto: CrewApiDto): Crew {
   return {
@@ -77,7 +78,11 @@ export function CrewsProvider({ children }: { children: ReactNode }) {
   })
 
   function invalidate() {
-    return queryClient.invalidateQueries({ queryKey: CREWS_QUERY_KEY })
+    return Promise.all([
+      queryClient.invalidateQueries({ queryKey: CREWS_QUERY_KEY }),
+      queryClient.invalidateQueries({ queryKey: CREW_MEMBERSHIPS_QUERY_KEY }),
+      queryClient.invalidateQueries({ queryKey: EMPLOYEES_QUERY_KEY }),
+    ])
   }
 
   const addMutation = useMutation({
@@ -89,16 +94,7 @@ export function CrewsProvider({ children }: { children: ReactNode }) {
         crewLeadId: draft.crewLeadId,
         seatCapacity: draft.seatCapacity,
       }),
-    onSuccess: async () => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: CREWS_QUERY_KEY,
-        }),
-        queryClient.invalidateQueries({
-          queryKey: CREW_MEMBERSHIPS_QUERY_KEY,
-        }),
-      ])
-    },
+    onSuccess: invalidate,
   })
 
   const updateMutation = useMutation({

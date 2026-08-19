@@ -158,7 +158,7 @@ export function TransportDaysProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth()
 
   const { data: transportDays = [], isLoading } = useQuery({
-    queryKey: [TRANSPORT_DAYS_QUERY_KEY, session],
+    queryKey: TRANSPORT_DAYS_QUERY_KEY,
     queryFn: () => fetchTransportDays(session),
   })
 
@@ -167,7 +167,7 @@ export function TransportDaysProvider({ children }: { children: ReactNode }) {
   function invalidate() {
     return Promise.all([
       queryClient.invalidateQueries({
-        queryKey: [TRANSPORT_DAYS_QUERY_KEY, session],
+        queryKey: TRANSPORT_DAYS_QUERY_KEY,
       }),
       queryClient.invalidateQueries({ queryKey: ['taxi-expenses'] }),
       queryClient.invalidateQueries({ queryKey: ['monthly-sheets'] }),
