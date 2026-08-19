@@ -33,7 +33,7 @@ export interface EmployeeDraft {
   roles: AppRole[]
 }
 
-const EMPLOYEES_QUERY_KEY = ['employees']
+export const EMPLOYEES_QUERY_KEY = ['employees']
 
 // Every account created from this page shares one password — there's no invite-email
 // flow in this pass (mirrors the seeded demo accounts' convention, see

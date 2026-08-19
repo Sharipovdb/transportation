@@ -8,7 +8,7 @@ import {
   Trash2,
   Users,
 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import type { ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -73,7 +73,7 @@ function CrewsPage() {
   const { routes } = useTransportRoutes()
   const { getVehicleByDriverId } = useVehicles()
   const { crews, isLoading, addCrew, updateCrew, deleteCrew } = useCrews()
-  const { getActiveMembersForCrew } = useCrewMemberships()
+  const { memberships, getActiveMembersForCrew } = useCrewMemberships()
 
   const [editingCrewId, setEditingCrewId] = useState<number | null>(null)
   const [leadType, setLeadType] = useState<LeadType>('driverLead')
@@ -102,6 +102,18 @@ function CrewsPage() {
   const crewLeadId = watch('crewLeadId')
 
   const leads = leadType === 'driverLead' ? driverLeadId : crewLeadId
+
+  const unassignedEmployees = useMemo(
+    () =>
+      employees.filter(
+        (employee) =>
+          !memberships.some(
+            (membership) =>
+              membership.employeeId === employee.id && membership.isActive,
+          ),
+      ),
+    [employees, memberships],
+  )
 
   useEffect(() => {
     if (!editingCrew) {
@@ -291,7 +303,7 @@ function CrewsPage() {
               >
                 <option value={0}>Select leader…</option>
 
-                {employees.map((employee) => (
+                {unassignedEmployees.map((employee) => (
                   <option key={employee.id} value={employee.id}>
                     {employee.fullname}
                   </option>

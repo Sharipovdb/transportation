@@ -19,7 +19,7 @@ interface PaginatedResult<T> {
   totalCount: number
 }
 
-const CREW_MEMBERSHIPS_QUERY_KEY = ['crew-memberships']
+export const CREW_MEMBERSHIPS_QUERY_KEY = ['crew-memberships']
 
 // The backend has no `isActive` flag — it's derived from ActiveTo the same way the
 // UI reasons about it: no end date, or an end date still in the future.

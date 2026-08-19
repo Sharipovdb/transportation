@@ -11,6 +11,7 @@ import {
   setAuthTokens,
   setStoredSession,
 } from '@/lib/auth-tokens'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface LoginPayload {
   login: string
@@ -44,6 +45,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(() =>
     getStoredSession(),
   )
+
+  const queryClient = useQueryClient()
 
   useEffect(() => {
     if (session) {
@@ -104,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout: () => {
         clearAuth()
         setSession(null)
+        queryClient.clear()
       },
     }),
     [session],
