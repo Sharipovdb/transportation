@@ -282,7 +282,7 @@ function TaxiExpensesPage() {
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Paid By</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                {(can('approveTaxiExpense') || can('rejectTaxiExpense') || can('updateTaxiExpense')) && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>

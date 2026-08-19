@@ -454,7 +454,7 @@ function TransportDaysPage() {
                 <TableHead className="text-right">Driven km</TableHead>
                 <TableHead className="text-right">Extra km</TableHead>
                 <TableHead>Taxi fare</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                { (canCreateTransportDay || canUpdateTransportDay || canDeleteTransportDay) && <TableHead className="text-right">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>

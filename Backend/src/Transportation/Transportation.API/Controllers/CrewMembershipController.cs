@@ -17,7 +17,7 @@ public class CrewMembershipController : BaseController
     }
 
     [HttpGet]
-    [RoleAuthorize(RoleNames.Admin)]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.RouteManager, RoleNames.Accountant)]
     public Task<PaginatedResult<CrewMembershipDto>> GetAll([FromQuery] GetAllCrewMembershipQuery query,
         CancellationToken token)
         => _mediator.Send(query, token);
@@ -28,7 +28,7 @@ public class CrewMembershipController : BaseController
         => _mediator.Send(new GetByIdCrewMembershipQuery(id), ct);
 
     [HttpPost]
-    [RoleAuthorize(RoleNames.Admin)]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.RouteManager)]
     public async Task<ActionResult<List<CrewMembershipDto>>> Create(
         [FromBody] CreateCrewMembershipCommand command,
         CancellationToken token)

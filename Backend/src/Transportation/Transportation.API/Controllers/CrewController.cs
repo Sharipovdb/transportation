@@ -14,7 +14,7 @@ public class CrewController : BaseController
     public CrewController(IMediator mediator) : base(mediator) {}
 
     [HttpGet]
-    [RoleAuthorize(RoleNames.RouteManager, RoleNames.Admin)]
+    [RoleAuthorize(RoleNames.RouteManager, RoleNames.Admin, RoleNames.Accountant)]
     public Task<PaginatedResult<CrewDto>> GetAll([FromQuery] GetAllCrewQuery query, CancellationToken token)
         => _mediator.Send(query, token);
 
