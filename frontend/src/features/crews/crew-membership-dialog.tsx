@@ -84,6 +84,12 @@ export function CrewMembershipDialog({
     return employee ? employee.fullname : 'Unknown'
   }
 
+  function formatDate(activeFrom: string) {
+    const formattedDate =
+      activeFrom.slice(0, 10) + ' | ' + activeFrom.slice(12, 16)
+    return formattedDate
+  }
+
   async function handleAssign() {
     if (newEmployeeIds.length === 0) {
       setAssignError('Select an employee to assign.')
@@ -163,7 +169,7 @@ export function CrewMembershipDialog({
                     {employeeName(membership.employeeId)}
                   </p>
                   <p className="text-xs text-slate-500">
-                    Active since {membership.activeFrom}
+                    Active since {formatDate(membership.activeFrom)}
                   </p>
                 </div>
 

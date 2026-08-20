@@ -109,10 +109,13 @@ function CrewsPage() {
         (employee) =>
           !memberships.some(
             (membership) =>
-              membership.employeeId === employee.id && membership.isActive,
+              membership.employeeId === employee.id &&
+              membership.isActive &&
+              employee.id !== editingCrew?.crewLeadId &&
+              employee.id !== editingCrew?.driverLeadId,
           ),
       ),
-    [employees, memberships],
+    [employees, memberships, editingCrew],
   )
 
   useEffect(() => {
@@ -188,7 +191,9 @@ function CrewsPage() {
   function routeLabel(routeId: number) {
     const route = routes.find((candidate) => candidate.id === routeId)
 
-    return route ? `${route.name} · ${formatKm(route.distanceKm)} each way` : 'Unknown route'
+    return route
+      ? `${route.name} · ${formatKm(route.distanceKm)} each way`
+      : 'Unknown route'
   }
 
   function employeeName(employeeId: number | null) {
@@ -202,7 +207,7 @@ function CrewsPage() {
 
   return (
     <section className="space-y-6">
-      <div className="grid gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
+      <div className="grid items-start gap-6 xl:grid-cols-[380px_minmax(0,1fr)]">
         <Card>
           <CardHeader className="flex-row items-start justify-between gap-4">
             <div>
@@ -211,9 +216,9 @@ function CrewsPage() {
                 {editingCrew ? 'Edit Crew' : 'Add Crew'}
               </CardTitle>
               <CardDescription className="mt-2">
-                A crew has a name, a route, and a lead — either a Driver-Lead or a
-                Crew-Lead. The route sets what a day travelled by car is worth, and the
-                lead is who the crew's month is paid to.
+                A crew has a name, a route, and a lead — either a Driver-Lead or
+                a Crew-Lead. The route sets what a day travelled by car is
+                worth, and the lead is who the crew's month is paid to.
               </CardDescription>
             </div>
 
@@ -366,17 +371,17 @@ function CrewsPage() {
           </form>
         </Card>
 
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2 ">
           {crews.map((crew) => {
             const activeMembers = getActiveMembersForCrew(crew.id)
             const isOverflowing = activeMembers.length > crew.seatCapacity
 
             return (
-              <Card key={crew.id} className="flex flex-col">
+              <Card key={crew.id} className="flex flex-col h-fit">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <Badge variant={crew.driverLeadId ? 'success' : 'default'}>
-                      {crew.driverLeadId ? 'Driver-Lead' : 'Manager-Lead'}
+                      {crew.driverLeadId ? 'Driver-Lead' : 'Crew-Lead'}
                     </Badge>
                     <h3 className="mt-2 text-lg font-semibold text-slate-950">
                       {crew.name}
@@ -431,7 +436,7 @@ function CrewsPage() {
                 <Button
                   type="button"
                   variant="outline"
-                  className="mt-4 h-10 w-full rounded-2xl border-sky-100 text-sky-700"
+                  className="mt-12 h-10 w-full rounded-2xl border-sky-100 text-sky-700"
                   onClick={() => setMembershipCrewId(crew.id)}
                 >
                   <Users className="size-4" />
