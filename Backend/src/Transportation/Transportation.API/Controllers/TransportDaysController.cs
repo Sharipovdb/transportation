@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Transportation.API.Models;
@@ -16,8 +16,10 @@ public class TransportDaysController : BaseController
     {
     }
 
+    // A lead logs their crews' days, so a lead can list them: the result is narrowed to
+    // the crews they lead (see ICrewVisibility), never to the whole company.
     [HttpGet]
-    [RoleAuthorize(RoleNames.Admin, RoleNames.Accountant, RoleNames.RouteManager)]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.Accountant, RoleNames.RouteManager, RoleNames.CrewLead, RoleNames.DriverLead)]
     public async Task<PaginatedResult<TransportDayDto>> GetAll(
         [FromQuery] GetAllTransportDays query,
         CancellationToken cancellationToken = default)

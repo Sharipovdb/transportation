@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Transportation.Application.Common.Extensions;
+using Transportation.Application.Crew.Services;
 using Transportation.Application.MonthlyTransportSheet.Services;
 using Transportation.Application.TransportDay;
 using Transportation.Application.TransportDay.Services;
@@ -30,6 +31,7 @@ public static class ConfigureServices
 
         services.TryAddSingleton<ICurrentUserAccessor, CurrentUserAccessor>();
 
+        services.AddScoped<ICrewVisibility, CrewVisibility>();
         services.AddScoped<IMonthlyTransportSheetBuilder, MonthlyTransportSheetBuilder>();
         services.AddScoped<ITransportDayTaxiFareService, TransportDayTaxiFareService>();
         services.AddScoped<TransportDayMapper>();

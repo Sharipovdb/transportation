@@ -1,4 +1,5 @@
-﻿using Ardalis.Specification;
+using Ardalis.Specification;
+using Transportation.Application.Crew.Services;
 using Transportation.Application.TransportDay.Models;
 using Transportation.Application.TransportDay.Repositories;
 using Transportation.Mediator.Helper.Common.Extensions;
@@ -18,11 +19,16 @@ public sealed record GetAllTransportDays(
 internal sealed class GetAllTransportDaysHandler : IQueryHandler<GetAllTransportDays, PaginatedResult<TransportDayDto>>
 {
     private readonly ITransportDayRepository _transportDayRepository;
+    private readonly ICrewVisibility _crewVisibility;
     private readonly TransportDayMapper _mapper;
 
-    public GetAllTransportDaysHandler(ITransportDayRepository transportDayRepository, TransportDayMapper mapper)
+    public GetAllTransportDaysHandler(
+        ITransportDayRepository transportDayRepository,
+        ICrewVisibility crewVisibility,
+        TransportDayMapper mapper)
     {
         _transportDayRepository = transportDayRepository;
+        _crewVisibility = crewVisibility;
         _mapper = mapper;
     }
 
@@ -34,6 +40,14 @@ internal sealed class GetAllTransportDaysHandler : IQueryHandler<GetAllTransport
         // past period, and hid the day behind a taxi expense whenever the two were on
         // opposite sides of that boundary.
         var spec = new ReadOnlySpecification<Domain.Entities.TransportDay>();
+
+        // A lead logs their own crews' days and may read those; the filter is applied
+        // here rather than trusted to the caller, so asking for another crew returns
+        // nothing instead of somebody else's month.
+        var visibleCrewIds = await _crewVisibility.VisibleCrewIdsAsync(cancellationToken);
+
+        if (visibleCrewIds is not null)
+            spec.Query.Where(x => visibleCrewIds.Contains(x.CrewId));
 
         if (request.CrewId.HasValue)
             spec.Query.Where(x => x.CrewId == request.CrewId);

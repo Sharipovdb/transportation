@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Transportation.API.Models;
@@ -17,7 +17,7 @@ public class CrewMembershipController : BaseController
     }
 
     [HttpGet]
-    [RoleAuthorize(RoleNames.Admin, RoleNames.RouteManager, RoleNames.Accountant)]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.RouteManager, RoleNames.Accountant, RoleNames.CrewLead, RoleNames.DriverLead)]
     public Task<PaginatedResult<CrewMembershipDto>> GetAll([FromQuery] GetAllCrewMembershipQuery query,
         CancellationToken token)
         => _mediator.Send(query, token);

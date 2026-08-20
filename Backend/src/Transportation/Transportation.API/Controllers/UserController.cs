@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Transportation.Application.Auth.Models;
@@ -26,15 +26,18 @@ public class UserController : BaseController
         return await _mediator.Send(new GetCurrentUser());
     }
 
+    // Leads read the directory but never manage it: a fare records who paid for the ride,
+    // and without names that is a list of ids. Managing accounts stays with Admin and the
+    // route manager below.
     [HttpGet]
-    [RoleAuthorize(RoleNames.Admin, RoleNames.RouteManager, RoleNames.Accountant)]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.RouteManager, RoleNames.Accountant, RoleNames.CrewLead, RoleNames.DriverLead)]
     public async Task<ApiResponse<List<UserDto>>> GetAll()
     {
         return await _userService.GetAllAsync();
     }
 
     [HttpGet("{userId:long}")]
-    [RoleAuthorize(RoleNames.Admin, RoleNames.RouteManager, RoleNames.Accountant)]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.RouteManager, RoleNames.Accountant, RoleNames.CrewLead, RoleNames.DriverLead)]
     public async Task<ApiResponse<UserDto>> GetById(long userId)
     {
         return await _userService.GetByIdAsync(userId);

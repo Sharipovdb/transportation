@@ -1,4 +1,4 @@
-﻿using MediatR;
+using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Transportation.API.Models;
@@ -17,8 +17,10 @@ public class TaxiExpenseController : BaseController
     {
     }
 
+    // Same scope as the days behind them: a lead sees their own crews' fares, and only
+    // the accountant rules on any of them.
     [HttpGet]
-    [RoleAuthorize(RoleNames.Admin, RoleNames.Accountant, RoleNames.RouteManager)]
+    [RoleAuthorize(RoleNames.Admin, RoleNames.Accountant, RoleNames.RouteManager, RoleNames.CrewLead, RoleNames.DriverLead)]
     public async Task<PaginatedResult<TaxiExpenseDto>> GetAll(
         [FromQuery] GetAllTaxiExpense getAllTaxiExpense,
         CancellationToken cancellationToken = default)

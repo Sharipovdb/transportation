@@ -1,6 +1,7 @@
-﻿using Transportation.Application.CrewMembership.Models;
+using Transportation.Application.CrewMembership.Models;
 using Transportation.Application.CrewMembership.Repositories;
 using Transportation.Application.CrewMembership.Specification;
+using Transportation.Application.Crew.Services;
 using Transportation.Mediator.Helper.Common.Models;
 using Transportation.Mediator.Helper.Queries;
 
@@ -17,21 +18,29 @@ public sealed record GetAllCrewMembershipQuery(
 internal sealed class GetAllCrewMembershipQueryHandler : IQueryHandler<GetAllCrewMembershipQuery, PaginatedResult<CrewMembershipDto>>
 {
     private readonly ICrewMembershipRepository _crewMembershipRepository;
+    private readonly ICrewVisibility _crewVisibility;
     private readonly CrewMembershipMapper _mapper;
 
-    public GetAllCrewMembershipQueryHandler(ICrewMembershipRepository crewMembershipRepository, CrewMembershipMapper mapper)
+    public GetAllCrewMembershipQueryHandler(
+        ICrewMembershipRepository crewMembershipRepository,
+        ICrewVisibility crewVisibility,
+        CrewMembershipMapper mapper)
     {
         _crewMembershipRepository = crewMembershipRepository;
+        _crewVisibility = crewVisibility;
         _mapper = mapper;
     }
 
     public async Task<PaginatedResult<CrewMembershipDto>> Handle(GetAllCrewMembershipQuery request, CancellationToken cancellationToken)
     {
+        var visibleCrewIds = await _crewVisibility.VisibleCrewIdsAsync(cancellationToken);
+
         var countSpec = new GetAllCrewMembershipSpec(
             request.CrewId,
             request.UserId,
             request.ActiveFrom,
-            request.ActiveTo
+            request.ActiveTo,
+            visibleCrewIds: visibleCrewIds
         );
 
         var listSpec = new GetAllCrewMembershipSpec(
@@ -39,7 +48,8 @@ internal sealed class GetAllCrewMembershipQueryHandler : IQueryHandler<GetAllCre
             request.UserId,
             request.ActiveFrom,
             request.ActiveTo,
-            request.PaginationInfo
+            request.PaginationInfo,
+            visibleCrewIds
         );
 
         var totalCount = await _crewMembershipRepository.CountAsync(countSpec, cancellationToken);

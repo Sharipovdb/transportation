@@ -1,4 +1,4 @@
-﻿using Ardalis.Specification;
+using Ardalis.Specification;
 using Transportation.Mediator.Helper.Common.Extensions;
 using Transportation.Mediator.Helper.Common.Models;
 
@@ -12,11 +12,17 @@ public sealed class GetAllCrewSpec : Specification<Domain.Entities.Crew>
         long? crewLeadId,
         long? driverLeadId,
         int? seatCapacity,
-        PaginationInfo? paginationInfo = null)
+        PaginationInfo? paginationInfo = null,
+        long[]? visibleCrewIds = null)
     {
         Query.AsNoTracking();
 
         Query.Where(x => !x.IsDeleted);
+
+        // Null means the caller may read every crew; an empty array means they lead none
+        // and so see nothing. Both are answered by ICrewVisibility, never re-derived here.
+        if (visibleCrewIds is not null)
+            Query.Where(x => visibleCrewIds.Contains(x.Id));
 
         if (!string.IsNullOrWhiteSpace(name))
             Query.Where(x => x.Name.Contains(name));
