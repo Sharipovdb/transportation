@@ -1,4 +1,5 @@
 using FluentValidation;
+using Transportation.Application.Common.Interfaces;
 using Transportation.Application.Crew.Repositories;
 using Transportation.Application.Crew.Specification;
 using Transportation.Application.CrewMembership.Repositories;
@@ -7,12 +8,12 @@ using Transportation.Mediator.Helper.Commands;
 using Transportation.Mediator.Helper.Common.Extensions;
 using Transportation.Mediator.Helper.Exceptions;
 using Transportation.Mediator.Helper.Persistence;
+using Transportation.Shared.Authorization;
 
 namespace Transportation.Application.Crew.Commands;
 
 public record DeleteCrewCommand(long Id) : ICommand<bool>;
 
-// ReSharper disable once UnusedType.Global
 public class DeleteCrewCommandValidator : AbstractValidator<DeleteCrewCommand>
 {
     public DeleteCrewCommandValidator()
@@ -28,23 +29,24 @@ internal sealed class DeleteCrewCommandHandler : ICommandHandler<DeleteCrewComma
     private readonly ICrewMembershipRepository _crewMembershipRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly TimeProvider _timeProvider;
+    private readonly IRoleService _roleService; 
 
     public DeleteCrewCommandHandler(
         ICrewRepository crewRepository,
         ICrewMembershipRepository crewMembershipRepository,
         IUnitOfWork unitOfWork,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IRoleService roleService) 
     {
         _crewRepository = crewRepository;
         _crewMembershipRepository = crewMembershipRepository;
         _unitOfWork = unitOfWork;
         _timeProvider = timeProvider;
+        _roleService = roleService; 
     }
 
     public async Task<bool> Handle(DeleteCrewCommand request, CancellationToken cancellationToken)
     {
-        // Through the spec, not GetByIdAsync: an already-deleted crew must read as gone
-        // rather than be "deleted" a second time.
         var entity = await _crewRepository
             .FirstOrDefaultAsync(new CrewByIdSpec(request.Id), cancellationToken);
 
@@ -56,8 +58,14 @@ internal sealed class DeleteCrewCommandHandler : ICommandHandler<DeleteCrewComma
         entity.IsDeleted = true;
         entity.UpdatedAt = now;
 
-        // Memberships only exist as part of the crew that holds them. Left behind, they
-        // stay flagged active and keep counting people towards a crew that is gone.
+        if (entity.DriverLeadId.HasValue)
+            await _roleService.RemoveAsync(RoleNames.DriverLead, entity.DriverLeadId.Value);
+        if (entity.CrewLeadId.HasValue)
+            await _roleService.RemoveAsync(RoleNames.CrewLead, entity.CrewLeadId.Value);
+
+        entity.DriverLeadId = null;
+        entity.CrewLeadId = null;
+
         var memberships = await _crewMembershipRepository
             .ListAsync(new CrewMembershipByCrewIdSpec(request.Id), cancellationToken);
 

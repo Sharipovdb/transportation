@@ -1,4 +1,5 @@
 using FluentValidation;
+using Transportation.Application.Common.Interfaces;
 using Transportation.Application.Crew.Models;
 using Transportation.Application.Crew.Repositories;
 using Transportation.Application.Crew.Specification;
@@ -6,6 +7,7 @@ using Transportation.Mediator.Helper.Commands;
 using Transportation.Mediator.Helper.Common.Extensions;
 using Transportation.Mediator.Helper.Exceptions;
 using Transportation.Mediator.Helper.Persistence;
+using Transportation.Shared.Authorization; 
 
 namespace Transportation.Application.Crew.Commands;
 
@@ -18,7 +20,6 @@ public record UpdateCrewCommand(
     int? SeatCapacity
 ) : ICommand<CrewDto>;
 
-// ReSharper disable once UnusedType.Global
 public sealed class UpdateCrewCommandValidator : AbstractValidator<UpdateCrewCommand>
 {
     public UpdateCrewCommandValidator()
@@ -51,17 +52,20 @@ internal sealed class UpdateCrewCommandHandler : ICommandHandler<UpdateCrewComma
     private readonly IUnitOfWork _unitOfWork;
     private readonly CrewMapper _crewMapper;
     private readonly TimeProvider _timeProvider;
+    private readonly IRoleService _roleService; 
 
     public UpdateCrewCommandHandler(
         ICrewRepository crewRepository,
         IUnitOfWork unitOfWork,
         CrewMapper crewMapper,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IRoleService roleService) 
     {
         _crewRepository = crewRepository;
         _unitOfWork = unitOfWork;
         _crewMapper = crewMapper;
         _timeProvider = timeProvider;
+        _roleService = roleService; 
     }
 
     public async Task<CrewDto> Handle(UpdateCrewCommand request, CancellationToken cancellationToken)
@@ -85,21 +89,36 @@ internal sealed class UpdateCrewCommandHandler : ICommandHandler<UpdateCrewComma
         if (request.CrewLeadId.HasValue || request.DriverLeadId.HasValue)
         {
             var isLeaderAssigned = await _crewRepository.AnyAsync(
-                new CrewByLeadsId(request.CrewLeadId, request.DriverLeadId, excludeCrewId: request.Id), cancellationToken);
+                new CrewByLeadsId(request.CrewLeadId, request.DriverLeadId, excludeCrewId: request.Id),
+                cancellationToken);
 
             if (isLeaderAssigned)
                 throw new BusinessLogicException(CrewErrors.LeaderAlreadyAssigned);
         }
 
-        if (request.CrewLeadId.HasValue)
+        if (request.CrewLeadId.HasValue && request.CrewLeadId != entity.CrewLeadId)
         {
+            if (entity.CrewLeadId.HasValue)
+                await _roleService.RemoveAsync(RoleNames.CrewLead, entity.CrewLeadId.Value);
+            if (entity.DriverLeadId.HasValue)
+                await _roleService.RemoveAsync(RoleNames.DriverLead, entity.DriverLeadId.Value);
+
             entity.CrewLeadId = request.CrewLeadId.Value;
-            entity.DriverLeadId = null; 
+            entity.DriverLeadId = null;
+
+            await _roleService.AssignAsync(RoleNames.CrewLead, request.CrewLeadId.Value);
         }
-        else if (request.DriverLeadId.HasValue)
+        else if (request.DriverLeadId.HasValue && request.DriverLeadId != entity.DriverLeadId)
         {
+            if (entity.DriverLeadId.HasValue)
+                await _roleService.RemoveAsync(RoleNames.DriverLead, entity.DriverLeadId.Value);
+            if (entity.CrewLeadId.HasValue)
+                await _roleService.RemoveAsync(RoleNames.CrewLead, entity.CrewLeadId.Value);
+
             entity.DriverLeadId = request.DriverLeadId.Value;
-            entity.CrewLeadId = null; 
+            entity.CrewLeadId = null;
+
+            await _roleService.AssignAsync(RoleNames.DriverLead, request.DriverLeadId.Value);
         }
 
         if (request.RouteId.HasValue)
